@@ -6161,6 +6161,7 @@ MOS_STATUS Mos_Specific_InitInterface(
     }
 
     iDeviceId                                 = pOsDriverContext->iDeviceId;
+    pOsContext->RequireCPLIB                  = pOsDriverContext->RequireCPLIB;
     pOsContext->bFreeContext                  = true;
     pOsInterface->pOsContext                  = pOsContext;
     pOsInterface->bUsesPatchList              = true;
