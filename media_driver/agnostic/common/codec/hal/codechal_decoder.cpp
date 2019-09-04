@@ -270,19 +270,6 @@ MOS_STATUS CodechalDecode::SetGpuCtxCreatOption(
     return eStatus;
 }
 
-MOS_STATUS CodechalDecode::SetGpuCtxCreatOption(
-    CodechalSetting *          codecHalSetting)
-{
-    MOS_STATUS eStatus = MOS_STATUS_SUCCESS;
-
-    MOS_UNUSED(codecHalSetting);
-
-    m_gpuCtxCreatOpt = MOS_New(MOS_GPUCTX_CREATOPTIONS);
-    CODECHAL_DECODE_CHK_NULL_RETURN(m_gpuCtxCreatOpt);
-
-    return eStatus;
-}
-
 MOS_STATUS CodechalDecode::CreateGpuContexts(
     CodechalSetting *codecHalSettings)
 {

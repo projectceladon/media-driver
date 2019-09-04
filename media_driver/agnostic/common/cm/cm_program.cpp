@@ -138,7 +138,6 @@ CmProgramRT::CmProgramRT( CmDeviceRT* device, uint32_t programId ):
     m_fJITCompile_v2(nullptr),
     m_fFreeBlock(nullptr),
     m_fJITVersion(nullptr),
-    m_fJITCompile_v2(nullptr),
     m_cisaMagicNumber(0),
     m_cisaMajorVersion(0),
     m_cisaMinorVersion(0)
