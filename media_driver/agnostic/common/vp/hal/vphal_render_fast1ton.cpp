@@ -852,7 +852,7 @@ MOS_STATUS VpHal_Fast1toNRender(
     for (index = 0; index < pFast1toNState->uDstCount; index++)
     {
         pFast1toNState->pTarget[index]      = pRenderParams->pTarget[index];
-        pFast1toNState->Aligned16[index]    = pRenderParams->bUserPrt_16Align[index];
+        pFast1toNState->Aligned16[index]    = pRenderParams->pTarget[index]->bUsrPtr;
         dwOutputRegionWidth                 = pFast1toNState->pTarget[index]->rcSrc.right  - pFast1toNState->pTarget[index]->rcSrc.left;
         dwOutputRegionHeight                = pFast1toNState->pTarget[index]->rcSrc.bottom - pFast1toNState->pTarget[index]->rcSrc.top;
         RenderData.ScalingStep_H[index]     = (float)1.0 / (float)dwOutputRegionWidth;
@@ -910,6 +910,8 @@ MOS_STATUS VpHal_Fast1toNRender(
         nullptr,
         &pFast1toNState->StatusTableUpdateParams,
         kernelFast1toN,
+        0,
+        nullptr,
         true));
 
 finish:

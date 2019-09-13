@@ -211,6 +211,11 @@ extern "C" {
 #define VPHAL_MAX_TARGETS               8        //!< multi output support
 #define VPHAL_MAX_FUTURE_FRAMES         18       //!< maximum future frames supported in VPHAL
 
+#define VPHAL_TOP_FIELD           0
+#define VPHAL_BOTTOM_FIELD        1
+#define VPHAL_TOP_FIELD_FIRST     0
+#define VPHAL_BOTTOM_FIELD_FIRST  1
+
 typedef struct _VPHAL_COMPOSITE_CACHE_CNTL
 {
     bool                           bL3CachingEnabled;
@@ -486,6 +491,29 @@ typedef enum _VPHAL_SAMPLE_TYPE
     SAMPLE_INVALID
 } VPHAL_SAMPLE_TYPE;
 C_ASSERT(SAMPLE_INVALID == 7);      //!< When adding, update assert & vphal_solo_scenario.cpp
+
+//!
+//! \brief Frame Format enum
+//!
+typedef enum _VPHAL_FRAME_FORMAT
+{
+    FRAME_FORMAT_PROGRESSIVE,
+    FRAME_FORMAT_INTERLEAVED,
+    FRAME_FORMAT_FIELD
+} VPHAL_FRAME_FORMAT;
+
+//!
+//! \brief Interlaced Scaling Mode enum
+//!
+typedef enum _VPHAL_ISCALING_TYPE
+{
+    ISCALING_NONE,
+    ISCALING_INTERLEAVED_TO_INTERLEAVED,
+    ISCALING_INTERLEAVED_TO_FIELD,
+    ISCALING_FIELD_TO_INTERLEAVED,
+    ISCALING_FIELD_TO_FIELD
+} VPHAL_ISCALING_TYPE;
+C_ASSERT(ISCALING_FIELD_TO_FIELD == 4);
 
 //!
 //! \brief DI Mode enum
@@ -921,12 +949,16 @@ struct VPHAL_SURFACE
     PVPHAL_PROCAMP_PARAMS       pProcampParams;     //!< Procamp parameters
     PVPHAL_IEF_PARAMS           pIEFParams;         //!< IEF parameters
     bool                        bCalculatingAlpha;  //!< Alpha calculation parameters
-    bool                        bInterlacedScaling; //!< Interlaced scaling
-    bool                        bFieldWeaving;      //!< Field Weaving
     bool                        bQueryVariance;     //!< enable variance query
     bool                        bDirectionalScalar; //!< Vebox Directional Scalar
     bool                        bFastColorFill;     //!< enable fast color fill without copy surface
     bool                        bMaxRectChanged;    //!< indicate rcMaxSrc been updated
+    bool                        bUsrPtr;            //!< is system linear memory.
+
+    // Interlaced Scaling
+    bool                        bInterlacedScaling;    //!< Interlaced scaling
+    bool                        bFieldWeaving;         //!< Field Weaving
+    VPHAL_ISCALING_TYPE         InterlacedScalingType; //!< Interlaced scaling type for new interlaced scaling mode
 
     // Advanced Processing
     PVPHAL_DI_PARAMS            pDeinterlaceParams;
@@ -983,10 +1015,10 @@ struct VPHAL_SURFACE
                                                     // The bIsCompressed in surface allocation structure should use this flag to initialize to allocate a compressible surface
     bool                        bIsCompressed;      // The surface is compressed, VEBox output can only support horizontal mode, but input can be horizontal / vertical
     MOS_RESOURCE_MMC_MODE       CompressionMode;
+    uint32_t                    CompressionFormat;
 
     bool                        bUseSampleUnorm;    //!<  true: sample unorm is used, false: DScaler or AVS is used.
     bool                        bUseSamplerLumakey; //!<  true: sampler lumakey is used, false: lumakey is disabled or EU computed lumakey is used.
-
     //------------------------------------------
     // HDR related parameters, provided by DDI
     //------------------------------------------
@@ -1124,7 +1156,6 @@ struct VPHAL_RENDER_PARAMS
 
                                                                         // Status Report
     bool                                    bReportStatus;              //!< Report current media BB status (Pre-Processing)
-    bool                                    bUserPrt_16Align[VPHAL_MAX_TARGETS];           //!< is system memory 16 bytes alignment requirement.
     uint32_t                                StatusFeedBackID;           //!< Unique Staus ID;
 #if (_DEBUG || _RELEASE_INTERNAL)
     bool                                    bTriggerGPUHang;            //!< Trigger GPU HANG
@@ -1134,6 +1165,8 @@ struct VPHAL_RENDER_PARAMS
 
                                                                         // extension parameters
     void                                    *pExtensionData;            //!< Extension data
+
+    bool                                    bPathKernel;                // HDR path config if use kernel
 
     VPHAL_RENDER_PARAMS() :
         uSrcCount(0),
@@ -1155,12 +1188,9 @@ struct VPHAL_RENDER_PARAMS
         bTriggerGPUHang(false),
 #endif
         bCalculatingAlpha(false),
-        pExtensionData(nullptr)
+        pExtensionData(nullptr),
+        bPathKernel(false)
     {
-        for (int i=0; i<VPHAL_MAX_TARGETS; i++)
-        {
-            bUserPrt_16Align[i] = false;
-        }
     }
 
 };
@@ -1453,6 +1483,9 @@ void VpHal_AllocParamsInitType(
     PVPHAL_SURFACE              pSurface,
     MOS_GFXRES_TYPE             DefaultResType,
     MOS_TILE_TYPE               DefaultTileType);
+
+MOS_SURFACE VpHal_ConvertVphalSurfaceToMosSurface(
+    PVPHAL_SURFACE pSurface);
 
 #ifdef __cplusplus
 }
