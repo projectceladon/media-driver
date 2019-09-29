@@ -1652,7 +1652,6 @@ VphalRenderer::VphalRenderer(
     m_surfaceDumper(nullptr),
     m_parameterDumper(nullptr),
 #endif
-    StatusTable(),
     maxSrcRect(),
     m_pRenderHal(pRenderHal),
     m_pOsInterface(pRenderHal ? pRenderHal->pOsInterface : nullptr),
@@ -1671,6 +1670,7 @@ VphalRenderer::VphalRenderer(
 
     VPHAL_RENDER_CHK_NULL(m_pRenderHal);
     VPHAL_RENDER_CHK_NULL(m_pOsInterface);
+    StatusTable = {0};
 
     MOS_ZeroMemory(&pRender, sizeof(pRender));
 
