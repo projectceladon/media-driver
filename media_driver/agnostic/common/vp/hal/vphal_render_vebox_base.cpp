@@ -4946,6 +4946,7 @@ MOS_STATUS VPHAL_VEBOX_RENDER_DATA::Init()
     }
     pDNUVParams          = nullptr;
     iCurbeLength         = 0;
+    iCurbeOffset         = 0;
     iInlineLength        = 0;
     // Debug parameters
     pKernelName          = nullptr;
