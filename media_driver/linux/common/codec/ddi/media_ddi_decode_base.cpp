@@ -1054,7 +1054,7 @@ VAStatus DdiMediaDecode::CreateCodecHal(
     m_ddiDecodeCtx->pCodecHal = codecHal;
 
     m_codechalSettings->enableCodecMmc = false;
-
+    m_codechalSettings->sfcInUseHinted = true;
     if (codecHal->Allocate(m_codechalSettings) != MOS_STATUS_SUCCESS)
     {
         DDI_ASSERTMESSAGE("Failure in decode allocate.\n");
