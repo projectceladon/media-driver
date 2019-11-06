@@ -1066,10 +1066,6 @@ typedef struct _MOS_INTERFACE
         PMOS_INTERFACE              pOsInterface,
         PMOS_COMMAND_BUFFER         pCmdBuffer);
 
-    void (* pfnSleepMs) (
-        PMOS_INTERFACE              pOsInterface,
-        uint32_t                    dwWaitMs);
-
     MOS_FORMAT (* pfnFmt_OsToMos) (
         MOS_OS_FORMAT               format);
 
@@ -1102,12 +1098,6 @@ typedef struct _MOS_INTERFACE
     int32_t (* pfnIsPerfTagSet) (
         PMOS_INTERFACE              pOsInterface);
 
-    void (* pfnQueryPerformanceFrequency) (
-        int64_t                     *pFrequency);
-
-    void (* pfnQueryPerformanceCounter) (
-        int64_t                     *pCount);
-
     MOS_STATUS (* pfnGetBitsPerPixel) (
         PMOS_INTERFACE              pOsInterface,
         MOS_FORMAT                  Format,
@@ -1120,10 +1110,6 @@ typedef struct _MOS_INTERFACE
 
     MOS_STATUS (*pfnFreeLibrary) (
         HINSTANCE                   hInstance);
-
-    void  *(*pfnGetProcAddress) (
-        HINSTANCE                   hInstance,
-        char                        *pModuleName);
 
     void (*pfnLogData)(
         char                        *pData);
