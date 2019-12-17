@@ -545,6 +545,13 @@ typedef struct _MHW_RENDER_PWR_CLK_STATE_PARAMS
 
 struct _MHW_BATCH_BUFFER
 {
+public:
+_MHW_BATCH_BUFFER(): iRemaining(0), iSize(0), count(0), iCurrent(0), bLocked(false),
+                    pData(nullptr), bSecondLevel(false), dwOffset(0), bBusy(false),
+                    dwCmdBufId(0), pNext(nullptr), pPrev(nullptr), dwSyncTag(0),
+                    bMatch(false), iPrivateType(0), iPrivateSize(0),  pPrivateData(nullptr)
+{
+}
     MOS_RESOURCE            OsResource;
     int32_t                 iRemaining;                     //!< Remaining space in the BB
     int32_t                 iSize;                          //!< Command buffer size

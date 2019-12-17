@@ -67,6 +67,10 @@ public:
     // Chroma parameters
     typedef struct _MHW_VEBOX_CHROMA_PARAMS
     {
+public:
+    _MHW_VEBOX_CHROMA_PARAMS(): dwHotPixelThresholdChromaU(0), dwHotPixelCountChromaU(0), dwHotPixelThresholdChromaV(0), dwHotPixelCountChromaV(0)
+    {
+    }
         uint32_t  dwPixRangeThresholdChromaU[MHW_PIXRANGETHRES_NUM];
         uint32_t  dwPixRangeWeightChromaU[MHW_PIXRANGETHRES_NUM];
         uint32_t  dwPixRangeThresholdChromaV[MHW_PIXRANGETHRES_NUM];
