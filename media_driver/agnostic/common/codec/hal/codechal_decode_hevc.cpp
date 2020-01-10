@@ -2679,7 +2679,7 @@ CodechalDecodeHevc::CodechalDecodeHevc(
                                             m_heightLastMaxAlloced(0),
                                             m_ctbLog2SizeYMax(0),
                                             m_hcpDecPhase(0),
-                                            m_secondLevelBatchBuffer{}
+                                            m_secondLevelBatchBuffer()
 {
     CODECHAL_DECODE_FUNCTION_ENTER;
 
