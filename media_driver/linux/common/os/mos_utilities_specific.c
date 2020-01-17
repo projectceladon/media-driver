@@ -1049,6 +1049,7 @@ static MOS_STATUS _UserFeature_DumpFile(const char * const szFileName, MOS_PUF_K
                         MOS_FreeMemory(CurValue[i].ulValueBuf);
                     }
                 }
+                MOS_FreeMemory(CurValue);
                 MOS_FreeMemory(CurKey);
             }
         }
@@ -1061,6 +1062,7 @@ static MOS_STATUS _UserFeature_DumpFile(const char * const szFileName, MOS_PUF_K
                     MOS_FreeMemory(CurValue[i].ulValueBuf);
                 }
             }
+            MOS_FreeMemory(CurValue);
             MOS_FreeMemory(CurKey);
         }
     }
@@ -1073,6 +1075,7 @@ static MOS_STATUS _UserFeature_DumpFile(const char * const szFileName, MOS_PUF_K
                 MOS_FreeMemory(CurValue[i].ulValueBuf);
             }
         }
+        MOS_FreeMemory(CurValue);
         MOS_FreeMemory(CurKey);
     }
     MOS_SafeFreeMemory(CurValue);
