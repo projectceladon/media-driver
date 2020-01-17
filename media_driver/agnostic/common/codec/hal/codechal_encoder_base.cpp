@@ -4507,7 +4507,10 @@ CodechalEncoderState::CodechalEncoderState(
     m_resSyncObjectRenderContextInUse(),
     m_resSyncObjectVideoContextInUse(),
     m_encodeStatusBuf(),
-    m_encodeStatusBufRcs()
+    m_encodeStatusBufRcs(),
+    m_atomicScratchBuf(),
+    m_bsBuffer(),
+    m_resVdencCmdInitializerDmemBuffer()
 {
     // Add Null checks here for all interfaces.
     CODECHAL_ENCODE_CHK_NULL_NO_STATUS_RETURN(m_hwInterface);
