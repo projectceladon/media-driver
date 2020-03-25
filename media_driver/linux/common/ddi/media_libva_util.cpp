@@ -411,6 +411,12 @@ VAStatus DdiMediaUtil_AllocateSurface(
     uint32_t    gmmPitch;
     uint32_t    gmmSize;
     uint32_t    gmmHeight;
+
+    gmmPitch    = (uint32_t)gmmResourceInfo->GetRenderPitch();
+    if( DdiMediaUtil_IsExternalSurface(mediaSurface) && mediaSurface->pSurfDesc->uiPitches[0])
+    {
+        gmmResourceInfo->OverridePitch(mediaSurface->pSurfDesc->uiPitches[0]);
+    }
     gmmPitch    = (uint32_t)gmmResourceInfo->GetRenderPitch();
     gmmSize     = (uint32_t)gmmResourceInfo->GetSizeSurface();
     gmmHeight   = gmmResourceInfo->GetBaseHeight();
