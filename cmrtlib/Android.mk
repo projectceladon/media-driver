@@ -39,9 +39,9 @@ LOCAL_SRC_FILES := \
     agnostic/share/cm_rt_helpers.cpp \
     linux/hardware/cm_device_export_os.cpp \
     linux/hardware/cm_device_os.cpp \
-    linux/hardware/cm_performance.cpp \
     linux/hardware/cm_surface_manager_os.cpp \
     linux/hardware/cm_timer_os.cpp \
+    linux/share/cm_performance.cpp \
 
 LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/proprietary/share \
@@ -51,8 +51,8 @@ LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/linux/hardware
 
 LOCAL_CFLAGS += \
-	-Wno-non-virtual-dtor \
-	-DANDROID=1 \
+    -Wno-non-virtual-dtor \
+    -DANDROID=1 \
     -DCM_RT_EXPORTS \
     -DISTDLIB_UMD \
     -DVPHAL \
