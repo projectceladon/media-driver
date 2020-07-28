@@ -40,12 +40,15 @@
 #include "codechal_user_settings_mgr_ext.h"
 #include "vphal_user_settings_mgr_ext.h"
 #endif // _MEDIA_RESERVED
-
+#ifndef ANDROID
 #include <sys/ipc.h>   // System V IPC
 #include <sys/types.h>
 #include <sys/sem.h>
 #include <signal.h>
 #include <unistd.h>    // fork
+#else
+#include <cutils/properties.h>
+#endif // ANDROID
 #include "mos_utilities_specific_next.h"
 static const char* szUserFeatureFile = USER_FEATURE_FILE;
 

@@ -30,6 +30,10 @@
 
 #include "media_libva_caps.h"
 
+#ifdef ANDROID
+#include <va/va_android.h>
+#endif
+
 //!
 //! \class  MediaLibvaCapsG12
 //! \brief  Media libva caps Gen12
