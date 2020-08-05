@@ -719,9 +719,6 @@ LOCAL_SHARED_LIBRARIES := \
     libva \
     liblog \
     libpciaccess \
-
-
-LOCAL_STATIC_LIBRARIES = \
     libgmm_umd \
 
 LOCAL_CPPFLAGS = \
