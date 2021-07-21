@@ -51,10 +51,13 @@ LOCAL_C_INCLUDES += \
     $(LOCAL_PATH)/linux/hardware
 
 LOCAL_CFLAGS += \
-    -Wno-error \
     -Wno-non-virtual-dtor \
+    -Wno-error \
     -Wno-unused-parameter \
-    -Wno-unused-private-field \
+    -Wno-deprecated-declarations \
+    -Wno-implicit-fallthrough \
+    -Wno-missing-field-initializers \
+    -Wno-c++11-narrowing \
     -DANDROID=1 \
     -DCM_RT_EXPORTS \
     -DISTDLIB_UMD \
