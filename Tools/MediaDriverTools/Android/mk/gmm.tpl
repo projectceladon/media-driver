@@ -26,10 +26,13 @@ LOCAL_PROPRIETARY_MODULE := true
 LOCAL_SRC_FILES = \
 @LOCAL_SRC_FILES
 
-LOCAL_CFLAGS = \
+LOCAL_CFLAGS := \
+    -Wno-error \
+    -Wno-unused-parameter \
 @LOCAL_CFLAGS
 
-LOCAL_CPPFLAGS = \
+LOCAL_CPPFLAGS := \
+    -fexceptions \
     -std=c++11
 
 LOCAL_C_INCLUDES = \

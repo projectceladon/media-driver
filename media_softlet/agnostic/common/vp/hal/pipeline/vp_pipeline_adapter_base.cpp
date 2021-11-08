@@ -116,6 +116,7 @@ MOS_STATUS VpPipelineAdapterBase::GetVpMhwInterface(
     return eStatus;
 }
 
+#ifndef ANDROID
 VpPipelineAdapterBase *VpPipelineAdapterBase::VphalStateFactory(
     PMOS_INTERFACE pOsInterface,
     PMOS_CONTEXT   pOsDriverContext,
@@ -124,6 +125,7 @@ VpPipelineAdapterBase *VpPipelineAdapterBase::VphalStateFactory(
     VP_FUNC_CALL();
     return VphalDevice::CreateFactoryNext(pOsInterface, pOsDriverContext, peStatus);
 }
+#endif
 
 VpPipelineAdapterBase::~VpPipelineAdapterBase()
 {
