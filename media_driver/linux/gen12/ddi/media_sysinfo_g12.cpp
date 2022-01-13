@@ -460,6 +460,62 @@ static bool adlpGt2Device4626 = DeviceInfoFactory<GfxDeviceInfo>::
 
 #endif
 
+#ifdef IGFX_GEN12_RPLS_SUPPORTED
+static struct GfxDeviceInfo rplsGt1Info = {
+    .platformType     = PLATFORM_DESKTOP,
+    .productFamily    = IGFX_RAPTORLAKE_S,
+    .displayFamily    = IGFX_GEN12_CORE,
+    .renderFamily     = IGFX_GEN12_CORE,
+    .eGTType          = GTTYPE_GT1,
+    .L3CacheSizeInKb  = 0,
+    .L3BankCount      = 0,
+    .EUCount          = 0,
+    .SliceCount       = 0,
+    .SubSliceCount    = 0,
+    .MaxEuPerSubSlice = 0,
+    .isLCIA           = 0,
+    .hasLLC           = 0,
+    .hasERAM          = 0,
+    .InitMediaSysInfo = InitTglMediaSysInfo,
+    .InitShadowSku    = InitTglShadowSku,
+    .InitShadowWa     = InitTglShadowWa,
+};
+
+
+static struct GfxDeviceInfo rplsGt1fInfo = {
+    .platformType     = PLATFORM_DESKTOP,
+    .productFamily    = IGFX_RAPTORLAKE_S,
+    .displayFamily    = IGFX_GEN12_CORE,
+    .renderFamily     = IGFX_GEN12_CORE,
+    .eGTType          = GTTYPE_GT0_5,
+    .L3CacheSizeInKb  = 0,
+    .L3BankCount      = 0,
+    .EUCount          = 0,
+    .SliceCount       = 0,
+    .SubSliceCount    = 0,
+    .MaxEuPerSubSlice = 0,
+    .isLCIA           = 0,
+    .hasLLC           = 0,
+    .hasERAM          = 0,
+    .InitMediaSysInfo = InitTglMediaSysInfo,
+    .InitShadowSku    = InitTglShadowSku,
+    .InitShadowWa     = InitTglShadowWa,
+};
+
+
+static bool rplsGt1DeviceA780 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA780, &rplsGt1Info);
+
+static bool rplsGt1DeviceA781 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA781, &rplsGt1Info);
+
+static bool rplsGt1DeviceA782 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA782, &rplsGt1Info);
+
+static bool rplsGt1DeviceA783 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA783, &rplsGt1fInfo);
+#endif
+
 static bool tgllpGt2Device9a40 = DeviceInfoFactory<GfxDeviceInfo>::
     RegisterDevice(0x9A40, &tgllpGt2Info);
 

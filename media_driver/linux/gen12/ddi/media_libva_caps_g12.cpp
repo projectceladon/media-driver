@@ -2656,3 +2656,8 @@ static bool adlpRegistered = MediaLibvaCapsFactory<MediaLibvaCaps, DDI_MEDIA_CON
     RegisterCaps<MediaLibvaCapsG12>((uint32_t)IGFX_ALDERLAKE_P);
 #endif
 
+#ifdef IGFX_GEN12_RPLS_SUPPORTED
+static bool rplsRegistered = MediaLibvaCapsFactory<MediaLibvaCaps, DDI_MEDIA_CONTEXT>::
+     RegisterCaps<MediaLibvaCapsG12>((uint32_t)IGFX_RAPTORLAKE_S);
+#endif
+
