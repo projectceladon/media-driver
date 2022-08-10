@@ -806,6 +806,7 @@ LOCAL_SRC_FILES := \
     media_interface/media_interfaces_m11_icllp/media_interfaces_g11_icllp.cpp \
     media_interface/media_interfaces_m11_jsl_ehl/media_interfaces_g11_jsl_ehl.cpp \
     media_interface/media_interfaces_m12_adlp/media_interfaces_g12_adlp.cpp \
+    media_interface/media_interfaces_m12_adln/media_interfaces_g12_adln.cpp \
     media_interface/media_interfaces_m12_adls/media_interfaces_g12_adls.cpp \
     media_interface/media_interfaces_m12_rkl/media_interfaces_g12_rkl.cpp \
     media_interface/media_interfaces_m12_tgllp/media_interfaces_g12_tgllp.cpp \
@@ -885,6 +886,7 @@ LOCAL_CPPFLAGS := \
     -DIGFX_GEN12_TGLLP_SUPPORTED \
     -DIGFX_GEN12_TGLLP_SWSB_SUPPORTED \
     -DIGFX_GEN12_RPLS_SUPPORTED \
+    -DIGFX_GEN12_ADLN_SUPPORTED \
     -DIGFX_GEN8_BDW_SUPPORTED \
     -DIGFX_GEN8_SUPPORTED \
     -DIGFX_GEN9_BXT_SUPPORTED \
@@ -1075,6 +1077,7 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/media_interface/media_interfaces_m12_rkl \
     $(LOCAL_PATH)/media_interface/media_interfaces_m12_adls \
     $(LOCAL_PATH)/media_interface/media_interfaces_m12_adlp \
+    $(LOCAL_PATH)/media_interface/media_interfaces_m12_adln \
     $(LOCAL_PATH)/../media_common/agnostic/common/os \
     $(LOCAL_PATH)/../media_common/agnostic/common/codec/shared \
     $(LOCAL_PATH)/../media_common/linux/common/os \
