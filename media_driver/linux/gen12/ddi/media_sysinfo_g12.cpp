@@ -458,6 +458,24 @@ static bool adlpGt2Device462A = DeviceInfoFactory<GfxDeviceInfo>::
 static bool adlpGt2Device4626 = DeviceInfoFactory<GfxDeviceInfo>::
     RegisterDevice(0x4626, &adlpGt2Info);
 
+static bool rplpGt2DeviceA7A0 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA7A0, &adlpGt2Info);
+
+static bool rplpGt2DeviceA720 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA720, &adlpGt2Info);
+
+static bool rplpGt2DeviceA7A8 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA7A8, &adlpGt2Info);
+
+static bool rplpGt2DeviceA7A1 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA7A1, &adlpGt2Info);
+
+static bool rplpGt2DeviceA721 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA721, &adlpGt2Info);
+
+static bool rplpGt2DeviceA7A9 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA7A9, &adlpGt2Info);
+
 #endif
 
 #ifdef IGFX_GEN12_RPLS_SUPPORTED
