@@ -37,7 +37,12 @@ typedef void(*t_CmFastMemCopyFromWC)( void* dst, const void* src, const size_t b
 
 void CmFastMemCopyFromWC( void* dst, const void* src, const size_t bytes, CPU_INSTRUCTION_LEVEL cpuInstructionLevel )
 {
-    static const bool is_SSE4_available = (cpuInstructionLevel >= CPU_INSTRUCTION_LEVEL_SSE4_1);
+    //static const bool is_SSE4_available = (cpuInstructionLevel >= CPU_INSTRUCTION_LEVEL_SSE4_1);
+    bool is_SSE4_available = false;
+#if defined(__SSE4_1__)
+    is_SSE4_available = true;
+#endif
+
     static const t_CmFastMemCopyFromWC CmFastMemCopyFromWC_impl = CM_FAST_MEM_COPY_CPU_INIT(CmFastMemCopyFromWC);
 
     CmFastMemCopyFromWC_impl(dst, src, bytes);

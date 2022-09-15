@@ -919,7 +919,8 @@ LOCAL_CPPFLAGS := \
     -D__STDC_CONSTANT_MACROS \
     -D__STDC_LIMIT_MACROS \
     -D__VPHAL_SFC_SUPPORTED=1 \
-    -DiHD_drv_video_EXPORTS
+    -DiHD_drv_video_EXPORTS \
+    -Wno-pragma-pack-suspicious-include
 
 LOCAL_CONLYFLAGS = -x c++
 LOCAL_CFLAGS = $(LOCAL_CPPFLAGS)
