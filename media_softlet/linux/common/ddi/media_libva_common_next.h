@@ -32,6 +32,39 @@
 #include <va/va_backend.h>
 #include "mos_os_specific.h"
 
+#ifdef ANDROID
+#include <utils/Log.h>
+
+#ifndef LOG_TAG
+#define LOG_TAG "DDI"
+#endif
+
+#if ANDROID_VERSION > 439 && defined(ENABLE_ATRACE)
+#ifndef HAVE_ANDROID_OS
+#define HAVE_ANDROID_OS
+#endif
+#define ATRACE_TAG                      (ATRACE_TAG_VIDEO | ATRACE_TAG_HAL)
+#include <cutils/trace.h>
+#define UMD_ATRACE_BEGIN(name)              \
+{                                           \
+    if(atrace_switch) ATRACE_BEGIN(name);   \
+}
+#define UMD_ATRACE_END                      \
+{                                           \
+    if(atrace_switch) ATRACE_END();         \
+}
+#include <cutils/properties.h>
+static int32_t atrace_switch            = 0;
+#else
+#define UMD_ATRACE_BEGIN                __noop
+#define UMD_ATRACE_END                  __noop
+#endif
+#else
+#define UMD_ATRACE_BEGIN                __noop
+#define UMD_ATRACE_END                  __noop
+#endif
+
+
 #define DDI_MEDIA_MAX_SURFACE_NUMBER_CONTEXT       127
 #define DDI_MEDIA_MAX_INSTANCE_NUMBER              0x0FFFFFFF
 

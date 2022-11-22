@@ -26,7 +26,7 @@
 //!
 
 #include "mos_mediacopy.h"
-
+#if 0
 MosMediaCopy::MosMediaCopy(PMOS_CONTEXT mosCtx):
     MosMediaCopyBase(mosCtx)
 {
@@ -36,3 +36,4 @@ MediaCopyBaseState **MosMediaCopy::GetMediaCopyState()
 {
     return &m_mediaCopyState;
 }
+#endif

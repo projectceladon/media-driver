@@ -31,6 +31,7 @@
 |                           USER FEATURE Functions
 |
 *****************************************************************************/
+#if 0
 void MosUtilities::MosFreeUserFeatureValueString(PMOS_USER_FEATURE_VALUE_STRING pUserString)
 {
     return;
@@ -285,4 +286,4 @@ MOS_STATUS MosUtilities::MosUserFeatureWriteValuesID(
 {
     return MOS_STATUS_SUCCESS;
 }
-
+#endif

@@ -1610,7 +1610,6 @@ VAStatus DdiMedia__InitializeSoftlet(
     bool               apoDdiEnabled)
 {
     VAStatus status = VA_STATUS_SUCCESS;
-    
     if (nullptr == mediaCtx)
     {
         FreeForMediaContext(mediaCtx);
@@ -7482,7 +7481,9 @@ extern "C" {
 //!
 #define VA_DRV_INIT_DEF(_major,_minor) __vaDriverInit_##_major##_##_minor
 #define VA_DRV_INIT_FUNC(va_major_version, va_minor_version) VA_DRV_INIT_DEF(va_major_version,va_minor_version)
-#define VA_DRV_INIT_FUC_NAME VA_DRV_INIT_FUNC(VA_MAJOR_VERSION,VA_MINOR_VERSION)
+//! \Hard code libva version
+#define VA_DRV_INIT_FUC_NAME VA_DRV_INIT_FUNC(2,16)
+//#define VA_DRV_INIT_FUC_NAME VA_DRV_INIT_FUNC(VA_MAJOR_VERSION,VA_MINOR_VERSION)
 
 //!
 //! \brief  VA driver init function name

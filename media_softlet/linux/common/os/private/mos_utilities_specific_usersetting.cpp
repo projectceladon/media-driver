@@ -26,6 +26,7 @@
 
 #include "mos_utilities.h"
 
+#if 0
 MOS_STATUS MosUtilities::MosDeclareUserFeature()
 {
     return MOS_STATUS_SUCCESS;
@@ -35,4 +36,4 @@ MOS_STATUS MosUtilities::MosDestroyUserFeature()
 {
     return MOS_STATUS_SUCCESS;
 }
-
+#endif

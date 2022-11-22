@@ -34,7 +34,7 @@
 #include "mos_os_virtualengine_scalability_specific_next.h"
 #include "mos_graphicsresource_specific_next.h"
 #include "mos_bufmgr_priv.h"
-#include "drm_device.h"
+//#include "drm_device.h"
 #include "media_fourcc.h"
 #include "mos_oca_rtlog_mgr.h"
 
@@ -607,7 +607,7 @@ MOS_STATUS MosInterface::CreateGpuContext(
 MOS_STATUS MosInterface::GetAdapterBDF(PMOS_CONTEXT mosCtx, ADAPTER_BDF *adapterBDF)
 {
     MOS_OS_FUNCTION_ENTER;
-
+#if 0
     drmDevicePtr device;
     
     MOS_OS_CHK_NULL_RETURN(mosCtx);
@@ -622,7 +622,7 @@ MOS_STATUS MosInterface::GetAdapterBDF(PMOS_CONTEXT mosCtx, ADAPTER_BDF *adapter
     {
         adapterBDF->Data = 0;
     }
-
+#endif
     return MOS_STATUS_SUCCESS;
 }
 

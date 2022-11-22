@@ -62,6 +62,7 @@
 #define X_TILE_HEIGHT 8
 
 #define MI_BATCHBUFFER_END 0x05000000
+#if 0
 
 //!
 //! \brief Two VDBOX shared memory key
@@ -3846,4 +3847,5 @@ MOS_STATUS Mos_Specific_GetEngineLogicId(
     id = MosInterface::GetEngineLogicId(osInterface->osStreamState, 0);
     return MOS_STATUS_SUCCESS;
 }
+#endif
 #endif

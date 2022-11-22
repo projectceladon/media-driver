@@ -26,8 +26,9 @@
 //!
 
 #include "mos_decompression.h"
-
+#if 0
 MosDecompression::MosDecompression(PMOS_CONTEXT osDriverContext):
     MosDecompressionBase(osDriverContext)
 {
 }
+#endif

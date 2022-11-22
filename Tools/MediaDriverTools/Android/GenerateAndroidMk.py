@@ -231,9 +231,33 @@ class DriverGeneator(Generator):
         return "media_driver/Makefile"
 
     def getFlagsfile(self):
-        return "media_driver/CMakeFiles/iHD_drv_video.dir/flags.make"
+        return "media_driver/CMakeFiles/iHD_drv_video_CODEC.dir/flags.make"
+
+    def getIncludes(self):
+         text = self.getDefines("CXX_INCLUDES")
+         preself = path.abspath(path.join(self.src, "../"))
+         print("self="+self.src)
+         print("preself="+preself)
+         includes = []
+         lines = text.split("\n")
+         for l in lines:
+             #normpath will make sure we did not refer outside.
+             p = path.normpath(l)
+             print("Inc=" + p);
+             j = p.find(self.src)
+             i = p.find(preself)
+             if j != -1:
+                 includes.append(p[j:].replace(self.src, "$(LOCAL_PATH)"))
+             else:
+                 if i != -1:
+                     includes.append(p[i:].replace(preself, "$(LOCAL_PATH)/.."))
+         return INDENT + ("\n" + INDENT).join(includes) if includes else ""
 
     def adjustSources(self, lines):
+        for i, l in enumerate(lines):
+            j = l.find("__/")
+            if j != -1:
+                lines[i] = path.join("..", l[j+3:])
         lines[:] = [l for l in lines if "media_libva_putsurface_linux.cpp" not in l]
 
 class Main:

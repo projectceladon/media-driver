@@ -35,12 +35,16 @@ LOCAL_SHARED_LIBRARIES := \
     liblog \
 
 
-LOCAL_STATIC_LIBRARIES = \
+LOCAL_STATIC_LIBRARIES := \
     libgmm_umd \
 
-LOCAL_CPPFLAGS = \
+LOCAL_CPPFLAGS := \
+    -Wno-error \
+    -Wno-unused-parameter \
+    -Wno-c++11-narrowing \
     -DDRV_I915 \
     -DOTC_GRALLOC \
+    -DANDROID \
     -DANDROID_VERSION=800 \
     -fexceptions \
     -frtti \
