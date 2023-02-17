@@ -146,7 +146,7 @@
 #include "decode_scalability_singlepipe.h"
 #include "decode_scalability_multipipe.h"
 
-#if LINUX
+#if (LINUX || ANDROID)
 #include "vp_pipeline_adapter_g12.h"
 #endif
 

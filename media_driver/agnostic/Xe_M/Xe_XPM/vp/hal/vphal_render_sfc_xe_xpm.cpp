@@ -51,7 +51,7 @@ VphalSfcStateXe_Xpm::VphalSfcStateXe_Xpm(
         true);
     VP_PUBLIC_NORMALMESSAGE("m_disableSfcDithering = %d", m_disableSfcDithering);
 
-#if LINUX
+#if (LINUX || ANDROID)
     char *Sfc2PassPerfMode = getenv("SET_SFC2PASS_PERFMODE");
     if (Sfc2PassPerfMode)
     {

@@ -207,6 +207,7 @@ protected:
     static pfVAGetDisplayDRM m_vaGetDisplayDrm;
 #else
     Display*  m_display;
+    int32_t m_driFileDescriptor;
 #endif
 
     L3ConfigRegisterValues m_l3Config;

@@ -88,7 +88,7 @@ VPHAL_VEBOX_STATE_XE_HPM::VPHAL_VEBOX_STATE_XE_HPM(
     }
     dwNumofVebox = 0;
 
-#if LINUX
+#if (LINUX || ANDROID)
     char* ScalingHQPerfMode = getenv("SET_SCALINGHQ_AS_PERFMODE");
     if (ScalingHQPerfMode)
     {
