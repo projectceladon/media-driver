@@ -58,7 +58,7 @@ VpPlatformInterfacesXe_Lpm_Plus::VpPlatformInterfacesXe_Lpm_Plus(PMOS_INTERFACE 
     VP_PUBLIC_NORMALMESSAGE("m_disableSfcDithering = %d", m_disableSfcDithering);
 
     m_sfc2PassScalingEnabled = true;
-#if LINUX
+#if (LINUX || ANDROID)
     char *sfc2PassPerfMode = getenv("SET_SFC2PASS_PERFMODE");
     if (sfc2PassPerfMode)
     {

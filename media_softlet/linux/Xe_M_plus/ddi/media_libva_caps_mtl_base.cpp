@@ -1877,7 +1877,8 @@ VAStatus MediaLibvaCapsMtlBase::QuerySurfaceAttributes(
                                    VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM |
                                    VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME |
                                    VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2 |
-                                   VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_GRALLOC;
+				   0x00100000;
+                                   //VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_GRALLOC;
 #else
         attribs[i].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_VA |
                                    VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR |

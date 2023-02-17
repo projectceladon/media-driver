@@ -327,7 +327,7 @@ MOS_STATUS MediaDebugInterface::DumpMosSpecificResourceInfoToOfs(
 
     PMOS_RESOURCE ptr = pOsResource;
     ofs << "MOS_RESOURCE:" << std::endl;
-#if !defined(LINUX) || defined(WDDM_LINUX)
+#if !defined(LINUX) && !defined(ANDROID) 
     FIELD_TO_OFS(RunTimeHandle, );
 #else
     FIELD_TO_OFS(iWidth, );
@@ -444,7 +444,7 @@ MOS_STATUS MediaDebugInterface::DumpMosSpecificResourceInfoToOfs(
             FIELD_TO_OFS_8SHIFT(Info.Shared);
             FIELD_TO_OFS_8SHIFT(Info.SoftwareProtected);
             FIELD_TO_OFS_8SHIFT(Info.SVM);
-#if !defined(LINUX)
+#if !defined(LINUX) && !defined(ANDROID)
             FIELD_TO_OFS_8SHIFT(Info.Tile4);
             FIELD_TO_OFS_8SHIFT(Info.Tile64);
 #endif
@@ -455,7 +455,7 @@ MOS_STATUS MediaDebugInterface::DumpMosSpecificResourceInfoToOfs(
             FIELD_TO_OFS_8SHIFT(Info.TiledYs);
             FIELD_TO_OFS_8SHIFT(Info.XAdapter);
             FIELD_TO_OFS_8SHIFT(Info.__PreallocatedResInfo);
-#if !defined(LINUX)
+#if !defined(LINUX) && !defined(ANDROID)
             FIELD_TO_OFS_8SHIFT(Info.LMemBarPreferred);
             FIELD_TO_OFS_8SHIFT(Info.LMemBarOrNonlocalOnly);
             FIELD_TO_OFS_8SHIFT(Info.LMemBarIndifferent);
@@ -475,7 +475,7 @@ MOS_STATUS MediaDebugInterface::DumpMosSpecificResourceInfoToOfs(
             FIELD_TO_OFS_8SHIFT(Wa.DisableDisplayCcsClearColor);
             FIELD_TO_OFS_8SHIFT(Wa.DisableDisplayCcsCompression);
             FIELD_TO_OFS_8SHIFT(Wa.PreGen12FastClearOnly);
-#if !defined(LINUX)
+#if !defined(LINUX) && !defined(ANDROID)
             FIELD_TO_OFS_8SHIFT(Wa.ForceStdAllocAlign);
 #endif
         }
@@ -513,7 +513,7 @@ MOS_STATUS MediaDebugInterface::DumpMosSpecificResourceInfoToOfs(
         FIELD_TO_OFS(GetSizeMainSurface(), );
         FIELD_TO_OFS(GmmGetTileMode(), );
 
-#if !defined(LINUX)
+#if !defined(LINUX) && !defined(ANDROID)
         EMPTY_TO_OFS();
         FIELD_TO_OFS(GetMultiTileArch().Enable, );
 #endif

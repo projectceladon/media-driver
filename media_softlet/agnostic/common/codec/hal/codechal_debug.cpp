@@ -105,7 +105,7 @@ CodechalDebugInterface::CodechalDebugInterface()
                 uint32_t        sizeToBeCopied = 0;
                 MOS_GFXRES_TYPE ResType;
 
-#if !defined(LINUX)
+#if !defined(LINUX) && !defined(ANDROID)
                 ResType = surface->OsResource.ResType;
 
                 CODECHAL_DEBUG_CHK_STATUS(ReAllocateSurface(
@@ -592,7 +592,7 @@ MOS_STATUS CodechalDebugInterface::DumpRgbDataOnYUVSurface(
         uint32_t        sizeToBeCopied = 0;
         MOS_GFXRES_TYPE ResType;
 
-#if LINUX
+#if (LINUX || ANDROID)
         // Linux does not have OsResource->ResType
         ResType = surface->Type;
 #else
