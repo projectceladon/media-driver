@@ -31,6 +31,8 @@ set(VP_SOURCES_
     ${TMP_SOURCES_}
 )
 
+media_add_curr_to_include_path()
+
 source_group( "VpHal\\Kernel DLL" FILES ${TMP_SOURCES_} ${TMP_HEADERS_} )
 set(TMP_SOURCES_ "")
 set(TMP_HEADERS_ "")

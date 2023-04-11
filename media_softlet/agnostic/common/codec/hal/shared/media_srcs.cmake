@@ -43,6 +43,8 @@ set(SOFTLET_CODEC_COMMON_HEADERS_
     ${TMP_HEADERS_}
 )
 
+media_add_curr_to_include_path()
+
 source_group( CodecHalNext\\Shared FILES ${TMP_SOURCES_} ${TMP_HEADERS_} )
 set(TMP_SOURCES_ "")
 set(TMP_HEADERS_ "")

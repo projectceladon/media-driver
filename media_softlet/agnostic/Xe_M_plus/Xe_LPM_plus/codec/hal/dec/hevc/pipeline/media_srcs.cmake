@@ -29,6 +29,7 @@ set(SOFTLET_DECODE_HEVC_HEADERS_
     ${CMAKE_CURRENT_LIST_DIR}/decode_hevc_pipeline_adapter_xe_lpm_plus.h
 )
 
+media_add_curr_to_include_path()
 
 source_group( CodecHalNext\\Xe_LPM_plus\\Decode FILES ${SOFTLET_DECODE_HEVC_SOURCES_} ${SOFTLET_DECODE_HEVC_HEADERS_})
 

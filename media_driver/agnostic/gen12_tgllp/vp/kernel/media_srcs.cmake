@@ -22,6 +22,7 @@
 media_include_subdirectory(cmfc)
 media_include_subdirectory(cmfcpatch)
 media_include_subdirectory(cmfccmlpch)
+media_include_subdirectory(swsb)
 
 set(TMP_SOURCES_
     ${CMAKE_CURRENT_LIST_DIR}/igvpkrn_isa_g12_tgllp.c
@@ -63,3 +64,5 @@ set(MEDIA_BIN_INCLUDE_DIR
     ${MEDIA_BIN_INCLUDE_DIR}
     ${CMAKE_CURRENT_LIST_DIR}
 )
+
+media_add_curr_to_include_path()

@@ -98,6 +98,8 @@ source_group("MHW\\Common MI" FILES ${TMP_3_SOURCES_} ${TMP_3_HEADERS_})
 source_group("MHW\\Render Engine" FILES ${TMP_4_SOURCES_} ${TMP_4_HEADERS_})
 source_group("MHW\\State Heap" FILES ${TMP_5_SOURCES_} ${TMP_5_HEADERS_})
 
+media_add_curr_to_include_path()
+
 set(COMMON_PRIVATE_INCLUDE_DIRS_
     ${COMMON_PRIVATE_INCLUDE_DIRS_}
     ${CMAKE_CURRENT_LIST_DIR}

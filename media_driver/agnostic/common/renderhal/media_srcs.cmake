@@ -50,6 +50,7 @@ set(COMMON_HEADERS_
 )
 
 source_group( "MHW\\OCA" FILES ${TMP_SOURCES2_} ${TMP_HEADERS2_} )
+media_add_curr_to_include_path()
 
 set(COMMON_PRIVATE_INCLUDE_DIRS_
     ${COMMON_PRIVATE_INCLUDE_DIRS_}

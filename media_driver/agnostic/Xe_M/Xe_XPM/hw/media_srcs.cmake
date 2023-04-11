@@ -86,6 +86,8 @@ source_group("MHW\\State Heap" FILES ${TMP_STATE_HEAP_SOURCES_} ${TMP_STATE_HEAP
 source_group("MHW\\VEBOX" FILES ${TMP_VEBOX_SOURCES_} ${TMP_VEBOX_HEADERS_})
 source_group("MHW\\Common MI" FILES ${TMP_MI_SOURCES_} ${TMP_MI_HEADERS_})
 
+media_add_curr_to_include_path()
+
 set(COMMON_PRIVATE_INCLUDE_DIRS_
     ${COMMON_PRIVATE_INCLUDE_DIRS_}
     ${CMAKE_CURRENT_LIST_DIR}

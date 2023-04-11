@@ -35,16 +35,39 @@ LOCAL_SHARED_LIBRARIES := \
     liblog \
 
 
-LOCAL_STATIC_LIBRARIES = \
+LOCAL_STATIC_LIBRARIES := \
     libgmm_umd \
 
-LOCAL_CPPFLAGS = \
+LOCAL_CPPFLAGS := \
+    -Wno-delete-incomplete \
+    -Wno-implicit-fallthrough \
+    -Wno-overloaded-virtual \
+    -Wno-logical-op-parentheses \
+    -Wno-missing-braces \
+    -Wno-ignored-qualifiers \
+    -Wno-missing-field-initializers \
+    -Wno-deprecated-declarations \
+    -Wno-parentheses-equality \
+    -Wno-parentheses \
+    -Wno-reorder-ctor \
+    -Wno-comment \
+    -Wno-format \
+    -Wno-error \
+    -Wno-pragma-pack \
+    -Wno-unused-parameter \
+    -Wno-c++11-narrowing \
     -DDRV_I915 \
     -DOTC_GRALLOC \
+    -DANDROID \
     -DANDROID_VERSION=800 \
     -fexceptions \
     -frtti \
     -std=c++14 \
+    -msse2 \
+    -msse3 \
+    -mssse3 \
+    -msse4.1 \
+    -msse4.2 \
 @LOCAL_CFLAGS
 
 LOCAL_CONLYFLAGS = -x c++

@@ -19,6 +19,7 @@
 # OTHER DEALINGS IN THE SOFTWARE.
 
 media_include_subdirectory(mediacopy)
+media_add_curr_to_include_path()
 
 set(TMP_SOURCES_
     ${CMAKE_CURRENT_LIST_DIR}/media_perf_profiler_legacy.cpp

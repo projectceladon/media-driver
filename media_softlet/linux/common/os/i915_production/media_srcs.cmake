@@ -40,4 +40,5 @@ set(SOFTLET_MOS_COMMON_SOURCES_
     ${TMP_SOURCES_}
  )
 
+media_add_curr_to_include_path()
 #Do not add this dir to include dir

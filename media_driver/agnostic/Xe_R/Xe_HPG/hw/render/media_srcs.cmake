@@ -38,6 +38,7 @@ set(COMMON_HEADERS_
 )
 
 source_group("MHW\\Render Engine" FILES ${TMP_RENDER_SOURCES_} ${TMP_RENDER_HEADERS_})
+media_add_curr_to_include_path()
 
 set(COMMON_PRIVATE_INCLUDE_DIRS_
     ${COMMON_PRIVATE_INCLUDE_DIRS_}

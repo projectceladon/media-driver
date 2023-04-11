@@ -27,6 +27,8 @@ set(TMP_HEADERS_
     ${CMAKE_CURRENT_LIST_DIR}/ddi_codec_base_specific.h
 )
 
+media_add_curr_to_include_path()
+
 if(NOT "${Media_Reserved}" STREQUAL "yes")
     set(TMP_SOURCES_
             ${TMP_SOURCES_}

@@ -290,6 +290,12 @@ endif()
 
 media_include_subdirectory(common)
 
+if(ENABLE_REQUIRED_GEN_CODE OR GEN12)
+    media_include_subdirectory(gen12)
+    media_include_subdirectory(g12)
+    media_include_subdirectory(../media_softlet/agnostic/gen12)
+endif()
+
 if(GEN8)
     media_include_subdirectory(gen8)
 endif()
@@ -310,11 +316,11 @@ if(GEN9_CMPV)
     media_include_subdirectory(gen9_cmpv)
 endif()
 
-if(GEN9_BXT)
+if(ENABLE_REQUIRED_GEN_CODE OR GEN9_BXT)
     media_include_subdirectory(gen9_bxt)
 endif()
 
-if(GEN9_SKL)
+if(ENABLE_REQUIRED_GEN_CODE OR GEN9_SKL)
     media_include_subdirectory(gen9_skl)
 endif()
 
@@ -344,17 +350,12 @@ endif()
 
 if(ENABLE_REQUIRED_GEN_CODE OR GEN12)
     media_include_subdirectory(gen12)
-    media_include_subdirectory(g12)
-    media_include_subdirectory(../media_softlet/agnostic/gen12)
+    media_include_subdirectory(Xe_M)
+    media_include_subdirectory(Xe_R)
 endif()
 
 if(ENABLE_REQUIRED_GEN_CODE OR GEN12_TGLLP)
     media_include_subdirectory(gen12_tgllp)
-endif()
-
-if(ENABLE_REQUIRED_GEN_CODE OR GEN12)
-media_include_subdirectory(Xe_M)
-media_include_subdirectory(Xe_R)
 endif()
 
 include(${MEDIA_EXT}/agnostic/media_srcs_ext.cmake OPTIONAL)

@@ -259,7 +259,7 @@ if(BUILD_KERNELS)
 endif()
 
 media_include_subdirectory(cmfcpatch)
-
+media_include_subdirectory(Source)
 
 set(TMP_SOURCES_
     ${CMAKE_CURRENT_LIST_DIR}/igvpkrn_xe_hpg.c
@@ -288,3 +288,4 @@ set(SOFTLET_VP_PRIVATE_INCLUDE_DIRS_
     ${SOFTLET_VP_PRIVATE_INCLUDE_DIRS_}
     ${CMAKE_CURRENT_LIST_DIR}
 )
+media_add_curr_to_include_path()

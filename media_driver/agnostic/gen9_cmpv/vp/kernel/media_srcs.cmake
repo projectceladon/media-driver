@@ -38,6 +38,7 @@ set(VP_HEADERS_
 )
 
 source_group( "Kernel\\VpKernel" FILES ${TMP_SOURCES_} ${TMP_HEADERS_} )
+media_add_curr_to_include_path()
 
 set(TMP_SOURCES_ "")
 set(TMP_HEADERS_ "")

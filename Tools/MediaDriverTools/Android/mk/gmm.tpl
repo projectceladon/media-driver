@@ -26,11 +26,20 @@ LOCAL_PROPRIETARY_MODULE := true
 LOCAL_SRC_FILES = \
 @LOCAL_SRC_FILES
 
-LOCAL_CFLAGS = \
+LOCAL_CFLAGS := \
+    -Wno-error \
+    -Wno-unused-parameter \
+    -msse2 \
+    -msse3 \
+    -mssse3 \
+    -msse4.1 \
+    -msse4.2 \
 @LOCAL_CFLAGS
 
-LOCAL_CPPFLAGS = \
-    -std=c++11
+LOCAL_CPPFLAGS := \
+    -Wno-pragma-pack \
+    -fexceptions \
+    -std=c++11 \
 
 LOCAL_C_INCLUDES = \
 @LOCAL_C_INCLUDES

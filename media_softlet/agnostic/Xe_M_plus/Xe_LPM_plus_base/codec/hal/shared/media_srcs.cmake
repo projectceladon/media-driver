@@ -18,6 +18,8 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+media_add_curr_to_include_path()
+
 set(TMP_MMC_SOURCES_
     ${CMAKE_CURRENT_LIST_DIR}/codec_mem_compression_xe_lpm_plus_base_next.cpp
 )

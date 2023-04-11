@@ -43,6 +43,8 @@ source_group( CodecHalNext\\Xe_LPM_plus\\Encode FILES ${TMP_SOURCES_} ${TMP_HEAD
 set(TMP_SOURCES_ "")
 set(TMP_HEADERS_ "")
 
+media_add_curr_to_include_path()
+
 set(SOFTLET_ENCODE_VP9_PRIVATE_INCLUDE_DIRS_
     ${SOFTLET_ENCODE_VP9_PRIVATE_INCLUDE_DIRS_}
     ${CMAKE_CURRENT_LIST_DIR}

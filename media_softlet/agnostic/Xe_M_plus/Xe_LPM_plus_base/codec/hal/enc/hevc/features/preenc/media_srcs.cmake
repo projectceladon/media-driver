@@ -41,6 +41,8 @@ set(SOFTLET_ENCODE_HEVC_SOURCES_
     ${TMP_SOURCES_}
 )
 
+media_add_curr_to_include_path()
+
 source_group( CodecHalNext\\Xe_LPM_plus_base\\Encode FILES ${TMP_SOURCES_} ${TMP_HEADERS_} )
 
 set(TMP_SOURCES_ "")

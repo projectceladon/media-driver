@@ -90,6 +90,7 @@ set(COMMON_SOURCES_
 )
 
 source_group("MHW\\BLT" FILES ${TMP_5_SOURCES_} ${TMP_5_HEADERS_})
+media_add_curr_to_include_path()
 
 set(COMMON_PRIVATE_INCLUDE_DIRS_
     ${COMMON_PRIVATE_INCLUDE_DIRS_}

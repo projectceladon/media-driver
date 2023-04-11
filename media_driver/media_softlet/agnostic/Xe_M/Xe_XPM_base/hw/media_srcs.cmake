@@ -18,6 +18,8 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+media_add_curr_to_include_path()
+
 set(TMP_MI_HEADERS_
     ${CMAKE_CURRENT_LIST_DIR}/mhw_mi_hwcmd_xe_xpm_base.h
     ${CMAKE_CURRENT_LIST_DIR}/mhw_mi_xe_xpm_base_impl.h

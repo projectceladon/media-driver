@@ -36,6 +36,8 @@ set(SOFTLET_ENCODE_COMMON_SOURCES_
     ${TMP_SOURCES_}
 )
 
+media_add_curr_to_include_path()
+
 source_group( CodecHalNext\\Shared\\Encode FILES ${TMP_SOURCES_} ${TMP_HEADERS_} )
 
 set(TMP_SOURCES_ "")

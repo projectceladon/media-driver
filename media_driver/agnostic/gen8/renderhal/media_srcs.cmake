@@ -37,6 +37,7 @@ set(COMMON_HEADERS_
 )
 
 source_group( "MHW\\Render Hal" FILES ${TMP_SOURCES_} ${TMP_HEADERS_} )
+media_add_curr_to_include_path()
 
 set(COMMON_PRIVATE_INCLUDE_DIRS_
     ${COMMON_PRIVATE_INCLUDE_DIRS_}

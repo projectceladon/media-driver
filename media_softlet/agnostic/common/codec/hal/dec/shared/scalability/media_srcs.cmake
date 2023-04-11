@@ -36,6 +36,7 @@ set(SOFTLET_DECODE_COMMON_HEADERS_
 )
 endif()
 
+media_add_curr_to_include_path()
 
 source_group( CodecHalNext\\Shared\\Decode FILES ${SOFTLET_DECODE_COMMON_SOURCES_} ${SOFTLET_DECODE_COMMON_HEADERS_} )
 

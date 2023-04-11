@@ -30,6 +30,7 @@ set(SOFTLET_COMMON_HEADERS_
 )
 
 source_group( "Common Files" FILES ${TMP_SOURCES_} ${TMP_HEADERS_} )
+media_add_curr_to_include_path()
 
 set(SOFTLET_COMMON_PRIVATE_INCLUDE_DIRS_
     ${SOFTLET_COMMON_PRIVATE_INCLUDE_DIRS_}

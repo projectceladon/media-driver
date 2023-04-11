@@ -34,13 +34,13 @@
 #include <signal.h>
 #include <unistd.h>  // fork
 #include <algorithm>
-#include <sys/types.h>
+#if !defined(ANDROID)
+#include <execinfo.h> // backtrace
+#endif
 #include <sys/stat.h>  // fstat
 #include <sys/ipc.h>  // System V IPC
-#include <sys/types.h>
 #include <sys/sem.h>
 #include <sys/mman.h>
-#include "mos_compat.h" // libc variative definitions: backtrace
 #include "mos_user_setting.h"
 #include "mos_utilities_specific.h"
 #include "mos_utilities.h"

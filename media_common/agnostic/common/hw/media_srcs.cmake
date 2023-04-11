@@ -18,6 +18,7 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+media_add_curr_to_include_path()
 media_include_subdirectory(vdbox)
 
 set(TMP_HEADERS_
@@ -90,6 +91,7 @@ source_group("MHW\\BLT" FILES ${TMP_BLT_HEADERS_})
 source_group("MHW\\Common MI" FILES ${TMP_MI_HEADERS_})
 source_group("MHW\\SFC" FILES ${TMP_SFC_HEADERS_})
 source_group("MHW\\VEBOX" FILES ${TMP_VEBOX_HEADERS_})
+
 set(SOFTLET_MHW_COMMON_PRIVATE_INCLUDE_DIRS_
     ${SOFTLET_MHW_COMMON_PRIVATE_INCLUDE_DIRS_}
     ${CMAKE_CURRENT_LIST_DIR}

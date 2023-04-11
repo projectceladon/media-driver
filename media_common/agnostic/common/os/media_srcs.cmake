@@ -40,4 +40,5 @@ set(SOFTLET_MOS_PUBLIC_INCLUDE_DIRS_
     ${CMAKE_CURRENT_LIST_DIR}
 )
 
+media_add_curr_to_include_path()
 source_group( "mos_softlet" FILES ${TMP_HEADERS_} )

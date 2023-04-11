@@ -237,6 +237,7 @@ endif()
 
 media_include_subdirectory(cmfc)
 media_include_subdirectory(cmfcpatch)
+media_include_subdirectory(source)
 
 source_group( "Kernel\\VpKernel" FILES ${TMP_SOURCES_} ${TMP_HEADERS_} )
 

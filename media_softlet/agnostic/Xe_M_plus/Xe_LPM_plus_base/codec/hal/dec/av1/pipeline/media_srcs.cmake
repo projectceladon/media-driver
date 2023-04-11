@@ -33,6 +33,8 @@ set(SOFTLET_DECODE_AV1_HEADERS_
     ${CMAKE_CURRENT_LIST_DIR}/decode_av1_status_report_xe_lpm_plus_base.h
 )
 
+media_add_curr_to_include_path()
+
 source_group( CodecHalNext\\Xe_LPM_plus_base\\Decode FILES ${SOFTLET_DECODE_AV1_SOURCES_} ${SOFTLET_DECODE_AV1_HEADERS_})
 
 endif()

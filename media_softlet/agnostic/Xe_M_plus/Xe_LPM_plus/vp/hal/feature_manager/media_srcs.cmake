@@ -37,6 +37,8 @@ set(SOFTLET_VP_HEADERS_
     ${TMP_HEADERS_}
 )
 
+media_add_curr_to_include_path()
+
 source_group( VpHalNext\\Xe_LPM_plus\\FeatureManager FILES ${TMP_SOURCES_} ${TMP_HEADERS_})
 set(TMP_SOURCES_ "")
 set(TMP_HEADERS_ "")

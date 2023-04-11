@@ -29,6 +29,7 @@ set(SOFTLET_VP_HEADERS_
 
 source_group( "VpHalNext\\Kernel DLL" FILES ${TMP_HEADERS_} )
 set(TMP_HEADERS_ "")
+media_add_curr_to_include_path()
 
 set (SOFTLET_VP_PRIVATE_INCLUDE_DIRS_
     ${SOFTLET_VP_PRIVATE_INCLUDE_DIRS_}

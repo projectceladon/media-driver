@@ -18,6 +18,8 @@
 # ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 # OTHER DEALINGS IN THE SOFTWARE.
 
+media_add_curr_to_include_path()
+
 set(TMP_SOFTLET_MHW_VDBOX_AVP_SOURCES_
     ${CMAKE_CURRENT_LIST_DIR}/mhw_vdbox_avp_impl_xe_lpm_plus_base.cpp
 )

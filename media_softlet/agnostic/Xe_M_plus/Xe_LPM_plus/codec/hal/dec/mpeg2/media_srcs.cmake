@@ -29,6 +29,7 @@ set(SOFTLET_DECODE_MPEG2_HEADERS_
     ${CMAKE_CURRENT_LIST_DIR}/decode_mpeg2_pipeline_adapter_xe_lpm_plus.h
 )
 
+media_add_curr_to_include_path()
 
 source_group( CodecHalNext\\Xe_LPM_plus\\Decode FILES ${SOFTLET_DECODE_MPEG2_SOURCES_} ${SOFTLET_DECODE_MPEG2_HEADERS_})
 

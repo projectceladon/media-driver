@@ -29,6 +29,7 @@ set(SOFTLET_DECODE_COMMON_HEADERS_
     ${CMAKE_CURRENT_LIST_DIR}/decode_status_report_defs.h
 )
 
+media_add_curr_to_include_path()
 
 source_group( CodecHalNext\\Shared\\Decode FILES ${SOFTLET_DECODE_COMMON_SOURCES_} ${SOFTLET_DECODE_COMMON_HEADERS_} )
 

@@ -24,6 +24,7 @@
 if(XE_HPG OR XE_LPG)
     media_include_subdirectory(Xe_HPG_Base)
     media_include_subdirectory(Xe_HPG)
+    media_add_curr_to_include_path()
 endif()
 
 set(MEDIA_BIN_HEADERS_

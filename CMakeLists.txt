@@ -53,9 +53,9 @@ cmake_dependent_option( ENABLE_NONFREE_KERNELS
 cmake_dependent_option( BUILD_KERNELS
     "Rebuild shaders (kernels) from sources" OFF
     "ENABLE_KERNELS;NOT ENABLE_NONFREE_KERNELS" OFF)
-option (BUILD_CMRTLIB "Build and Install cmrtlib together with media driver" ON)
+option (BUILD_CMRTLIB "Build and Install cmrtlib together with media driver" OFF)
 
-option (ENABLE_PRODUCTION_KMD "Enable Production KMD header files" OFF)
+option (ENABLE_PRODUCTION_KMD "Enable Production KMD header files" ON)
 option (ENABLE_XE_KMD "Enable XE KMD header files" ON)
 
 include(GNUInstallDirs)
