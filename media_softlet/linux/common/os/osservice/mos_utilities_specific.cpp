@@ -2542,6 +2542,7 @@ void MosUtilities::MosTraceEvent(
                 MOS_FreeMemory(pTraceBuf);
             }
         }
+#ifndef ANDROID
 #if Backtrace_FOUND
         if (m_mosTraceFilter(TR_KEY_CALL_STACK))
         {
@@ -2562,6 +2563,7 @@ void MosUtilities::MosTraceEvent(
                 size_t ret = write(MosUtilitiesSpecificNext::m_mosTraceFd, traceBuf, nLen);
             }
         }
+#endif
 #endif
     }
     return;
