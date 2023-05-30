@@ -37,6 +37,7 @@
 #include "media_ddi_decode_const_g12.h"
 #include "media_ddi_encode_const.h"
 #include "drm_fourcc.h"
+#include "va_android.h"
 
 const VAImageFormat m_supportedImageformatsXe_Lpm_Plus_Base[] =
 {   {VA_FOURCC_BGRA,           VA_LSB_FIRST,   32, 32, 0x0000ff00, 0x00ff0000, 0xff000000,  0x000000ff}, /* [31:0] B:G:R:A 8:8:8:8 little endian */

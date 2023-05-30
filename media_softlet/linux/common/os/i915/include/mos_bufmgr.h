@@ -34,6 +34,7 @@
 #ifndef MOS_BUFMGR_H
 #define MOS_BUFMGR_H
 
+#include <errno.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdio.h>

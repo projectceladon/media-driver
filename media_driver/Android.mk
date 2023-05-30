@@ -427,7 +427,6 @@ LOCAL_SRC_FILES := \
     ../media_softlet/agnostic/common/os/mos_util_debug.cpp \
     ../media_softlet/agnostic/common/os/mos_utilities_inner.cpp \
     ../media_softlet/agnostic/common/os/mos_utilities_next.cpp \
-    ../media_softlet/agnostic/common/os/private/mos_utilities_usersetting.cpp \
     ../media_softlet/agnostic/common/os/share/mos_oca_util_debug.cpp \
     ../media_softlet/agnostic/common/os/user_setting/media_user_setting.cpp \
     ../media_softlet/agnostic/common/os/user_setting/media_user_setting_configure.cpp \
@@ -596,10 +595,6 @@ LOCAL_SRC_FILES := \
     ../media_softlet/linux/common/os/mos_vma.c \
     ../media_softlet/linux/common/os/osservice/mos_util_debug_specific.cpp \
     ../media_softlet/linux/common/os/osservice/mos_utilities_specific.cpp \
-    ../media_softlet/linux/common/os/private/mos_decompression.cpp \
-    ../media_softlet/linux/common/os/private/mos_mediacopy.cpp \
-    ../media_softlet/linux/common/os/private/mos_os_specific.cpp \
-    ../media_softlet/linux/common/os/private/mos_utilities_specific_usersetting.cpp \
     ../media_softlet/linux/common/os/user_setting/media_user_setting_configure_specific.cpp \
     ../media_softlet/linux/common/shared/hal_oca_interface_next.cpp \
     ../media_softlet/linux/common/shared/skuwa_dumper_specific.c \
@@ -1978,7 +1973,8 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/vp8/ddi \
     $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/vp9/ddi \
     $(LOCAL_PATH)/../media_softlet/media_interface/media_interfaces_mtl \
-
+    $(LOCAL_PATH)/../../../libva/va \
+    $(LOCAL_PATH)/../cmrtlib/linux/hardware
 
 #LOCAL_CPP_FEATURES := rtti exceptions
 
