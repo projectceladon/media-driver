@@ -35,7 +35,7 @@
 #if EMUL || VPHAL_LIB
 #include <math.h>
 #include "support.h"
-#elif LINUX
+#elif LINUX || ANDROID
 #else  // !(EMUL | VPHAL_LIB) && !LINUX
 
 #endif  // EMUL | VPHAL_LIB
@@ -3918,7 +3918,7 @@ bool KernelDll_BuildKernel_CmFc(Kdll_State *pState, Kdll_SearchState *pSearchSta
     VP_RENDER_FUNCTION_ENTER;
 
     // Disable pop-up box window for STL assertion to avoid VM hang in auto test.
-#if (!LINUX)
+#if (!LINUX && !ANDROID)
     uint32_t prevErrorMode = ::SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX);
 #if defined(_MSC_VER)
     ::_set_error_mode(_OUT_TO_STDERR);
@@ -4048,7 +4048,7 @@ bool KernelDll_BuildKernel_CmFc(Kdll_State *pState, Kdll_SearchState *pSearchSta
     res = true;
 
 finish:
-#if (!LINUX)
+#if (!LINUX && !ANDROID)
     ::SetErrorMode(prevErrorMode);
 #endif
     return res;

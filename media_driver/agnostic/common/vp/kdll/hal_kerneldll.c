@@ -34,7 +34,7 @@
 #if EMUL || VPHAL_LIB
 #include <math.h>
 #include "support.h"
-#elif LINUX
+#elif LINUX || ANDROID
 #else  // !(EMUL | VPHAL_LIB) && !LINUX
 
 #endif // EMUL | VPHAL_LIB

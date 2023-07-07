@@ -1526,7 +1526,8 @@ MOS_STATUS MosUtilities::MosInitializeReg(RegBufferMap &regBufferMap)
     std::ifstream regStream;
     try
     {
-        regStream.open(USER_FEATURE_FILE_NEXT);
+        //regStream.open(USER_FEATURE_FILE_NEXT);
+	regStream.open("/etc/igfx_user_feature_next.txt");
         if (regStream.good())
         {
             std::string id       = "";
@@ -1603,7 +1604,8 @@ MOS_STATUS MosUtilities::MosUninitializeReg(RegBufferMap &regBufferMap)
     std::ofstream regStream;
     try
     {
-        regStream.open(USER_FEATURE_FILE_NEXT, std::ios::out | std::ios::trunc);
+        //regStream.open(USER_FEATURE_FILE_NEXT, std::ios::out | std::ios::trunc);
+	regStream.open("/etc/igfx_user_feature_next.txt", std::ios::out | std::ios::trunc);
         if (regStream.good())
         {
             for(auto pair: regBufferMap)

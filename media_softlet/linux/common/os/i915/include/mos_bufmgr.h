@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <errno.h>
 #include "libdrm_macros.h"
 #include "igfxfmid.h"
 
