@@ -290,6 +290,8 @@ MOS_STATUS Mhw_AddResourceToCmd_PatchList(
     // Offset and command LSB parameters
     dwOffset = pParams->dwOffset | ((*pParams->pdwCmd) & ((1 << dwLsbNum) - 1));
 
+    Mhw_SetMocsTableIndex(pOsInterface, pParams->presResource, pParams->mocsParams);
+    
     if (pParams->dwOffsetInSSH > 0)
     {
         // Calculate the patch offset to command buffer
@@ -506,7 +508,7 @@ MOS_STATUS Mhw_SendGenericPrologCmdNext(
         auto& par = miItf->MHW_GETPAR_F(PIPE_CONTROL)();
         par = {};
         par.dwFlushMode = MHW_FLUSH_WRITE_CACHE;
-        miItf->MHW_ADDCMD_F(PIPE_CONTROL)(pCmdBuffer);
+        MHW_CHK_STATUS_RETURN(miItf->MHW_ADDCMD_F(PIPE_CONTROL)(pCmdBuffer));
 
         auto& par1 = miItf->MHW_GETPAR_F(PIPE_CONTROL)();
         par1 = {};
@@ -514,7 +516,7 @@ MOS_STATUS Mhw_SendGenericPrologCmdNext(
         par1.presDest = pParams->presStoreData;
         par1.dwResourceOffset = pParams->dwStoreDataOffset;
         par1.dwPostSyncOp = MHW_FLUSH_WRITE_IMMEDIATE_DATA;
-        miItf->MHW_ADDCMD_F(PIPE_CONTROL)(pCmdBuffer);
+        MHW_CHK_STATUS_RETURN(miItf->MHW_ADDCMD_F(PIPE_CONTROL)(pCmdBuffer));
 
         if(pCmdBuffer->Attributes.bUmdSSEUEnable)
         {
@@ -534,7 +536,7 @@ MOS_STATUS Mhw_SendGenericPrologCmdNext(
             par = {};
             par.dwRegister = MHW__PWR_CLK_STATE_REG;
             par.dwData = params.Data;
-            miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(pCmdBuffer);
+            MHW_CHK_STATUS_RETURN(miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(pCmdBuffer));
         }
     }
     else
@@ -546,7 +548,7 @@ MOS_STATUS Mhw_SendGenericPrologCmdNext(
         params.pOsResource = pParams->presStoreData;
         params.dwResourceOffset = pParams->dwStoreDataOffset;
         params.dwDataDW1 = pParams->dwStoreDataValue;
-        miItf->MHW_ADDCMD_F(MI_FLUSH_DW)(pCmdBuffer);
+        MHW_CHK_STATUS_RETURN(miItf->MHW_ADDCMD_F(MI_FLUSH_DW)(pCmdBuffer));
     }
 
     MHW_CHK_STATUS_RETURN(miItf->AddProtectedProlog(pCmdBuffer));

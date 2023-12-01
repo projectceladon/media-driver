@@ -732,12 +732,18 @@ MOS_STATUS CodechalInterfacesXe_Hpm::Initialize(
                 m_codechalDevice = MOS_New(Encode::Av1Vdenc, hwInterface_next, debugInterface);
                 MOS_Delete(hwInterface);
                 hwInterface = nullptr;
-                CODECHAL_PUBLIC_CHK_NULL_RETURN(m_codechalDevice);
-                RETURN_STATUS_WITH_DELETE(MOS_STATUS_SUCCESS);
+                if (m_codechalDevice == nullptr)
+                {
+                    RETURN_STATUS_WITH_DELETE(MOS_STATUS_NULL_POINTER);
+                }
+                else
+                {
+                    RETURN_STATUS_WITH_DELETE(MOS_STATUS_SUCCESS);
+                }                
             }
             else
             {
-                return MOS_STATUS_INVALID_PARAMETER;
+                RETURN_STATUS_WITH_DELETE(MOS_STATUS_INVALID_PARAMETER);
             }
         }
         else
@@ -753,7 +759,7 @@ MOS_STATUS CodechalInterfacesXe_Hpm::Initialize(
                 if (m_codechalDevice == nullptr)
                 {
                     CODECHAL_PUBLIC_ASSERTMESSAGE("Encode state creation failed!");
-                    return MOS_STATUS_INVALID_PARAMETER;
+                    RETURN_STATUS_WITH_DELETE(MOS_STATUS_INVALID_PARAMETER);
                 }
                 RETURN_STATUS_WITH_DELETE(MOS_STATUS_SUCCESS);
             }
@@ -807,12 +813,6 @@ MOS_STATUS CodechalInterfacesNextXe_Hpm::Initialize(
     // This part should be moved back to media_intefaces.cpp for softlet build
     PCODECHAL_STANDARD_INFO info          = ((PCODECHAL_STANDARD_INFO)standardInfo);
     CODECHAL_FUNCTION       CodecFunction = info->CodecFunction;
-
-    if (mhwInterfaces == nullptr)
-    {
-        CODECHAL_PUBLIC_ASSERTMESSAGE("mhwInterfaces is not valid!");
-        return MOS_STATUS_NO_SPACE;
-    }
 
     bool disableScalability = false;
 #ifdef _VP9_ENCODE_VDENC_SUPPORTED

@@ -230,12 +230,14 @@ PMHW_BATCH_BUFFER DecodeAllocator::AllocateBatchBuffer(
     bool notLockable = false;
     bool inSystemMem = false;
 
-    // Config setting if running with limited LMem bar config.
-    if (m_limitedLMemBar)
+    // Config setting if running with limited LMem bar config or HM enabled.
+    if (m_limitedLMemBar || 
+        (m_osInterface->osCpInterface != nullptr && m_osInterface->osCpInterface->IsHMEnabled())
+    )
     {
         if (accessReq == notLockableVideoMem)
         {
-            if (m_osInterface->osCpInterface->IsHMEnabled())
+            if (m_osInterface->osCpInterface != nullptr && m_osInterface->osCpInterface->IsHMEnabled())
             {
                 notLockable = true;
                 inSystemMem = false;
@@ -495,7 +497,12 @@ MOS_STATUS DecodeAllocator::Destroy(MOS_SURFACE& surface)
 
     MOS_SURFACE* dup = MOS_New(MOS_SURFACE);
     DECODE_CHK_NULL(dup);
-    DECODE_CHK_STATUS(MOS_SecureMemcpy(dup, sizeof(MOS_SURFACE), &surface, sizeof(MOS_SURFACE)));
+    MOS_STATUS status = MOS_SecureMemcpy(dup, sizeof(MOS_SURFACE), &surface, sizeof(MOS_SURFACE));
+    if (status != MOS_STATUS_SUCCESS)
+    {
+        MOS_Delete(dup);
+        return status;
+    }
 
     //if free the compressed surface, need set the sync dealloc flag as 1 for sync dealloc for aux table update
     MOS_GFXRES_FREE_FLAGS resFreeFlags = {0};
@@ -656,8 +663,10 @@ void DecodeAllocator::SetAccessRequirement(
     ResourceAccessReq accessReq, MOS_ALLOC_GFXRES_PARAMS &allocParams)
 {
     // The default setting is lockableVideoMem, just use default setting
-    // if not running with limited LMem bar config or not enabled HM.
-    if (!m_limitedLMemBar || !m_osInterface->osCpInterface->IsHMEnabled())
+    // if not running with limited LMem bar config and not enabled HM. otherwise goto required setting.
+    if (!m_limitedLMemBar && 
+        !(m_osInterface->osCpInterface != nullptr && m_osInterface->osCpInterface->IsHMEnabled())
+    )
     {
         allocParams.Flags.bNotLockable = 0;
         allocParams.dwMemType = MOS_MEMPOOL_VIDEOMEMORY;

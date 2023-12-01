@@ -705,11 +705,11 @@ MOS_STATUS MhwVeboxInterfaceG12::setVeboxPrologCmd(
             params                   = {};
             params.dwRegister        = miItf->GetMmioInterfaces(mhw::mi::MHW_MMIO_VE0_AUX_TABLE_BASE_LOW);//mhw::mi::m_mmioVe0AuxTableBaseLow;
             params.dwData            = (auxTableBaseAddr & 0xffffffff);
-            miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(cmdBuffer);
+            MHW_RENDERHAL_CHK_STATUS(miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(cmdBuffer));
 
             params.dwRegister        = miItf->GetMmioInterfaces(mhw::mi::MHW_MMIO_VE0_AUX_TABLE_BASE_HIGH); //mhw::mi::m_mmioVe0AuxTableBaseHigh;
             params.dwData            = ((auxTableBaseAddr >> 32) & 0xffffffff);
-            miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(cmdBuffer);
+            MHW_RENDERHAL_CHK_STATUS(miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(cmdBuffer));
         }
         else
         {
@@ -1867,7 +1867,8 @@ MOS_STATUS MhwVeboxInterfaceG12::AddVeboxGamutState(
         pGamutState->DW1.CmW                  = 1023;
         dInverseGamma                         = 1.0;
 
-        for (uint32_t i = 0; i < pVeboxIecpParams->s1DLutParams.LUTSize; i++)
+        uint32_t cnt = MOS_MIN(pVeboxIecpParams->s1DLutParams.LUTSize, 256);
+        for (uint32_t i = 0; i < cnt; i++)
         {
             usGE_Values[i][0] = 257 * i;
             usGE_Values[i][1] =
@@ -2610,6 +2611,7 @@ MOS_STATUS MhwVeboxInterfaceG12::VeboxInterface_BT2020YUVToRGB(
 
     if (pVeboxGamutParams->ColorSpace == MHW_CSpace_BT2020)                   // Limited->Full
     {
+        MHW_CHK_NULL(pVeboxIecpParams);
         if (pVeboxIecpParams->s1DLutParams.bActive)
         {
             // The updated value for TGL VEBOX HDR and Fp16 path 
@@ -2773,7 +2775,7 @@ MOS_STATUS MhwVeboxInterfaceG12::VeboxInterface_H2SManualMode(
     uiOETF[255] = 65535;
 
     // Back end CSC setting, need to convert BT2020 YUV input to RGB before GE
-    VeboxInterface_BT2020YUVToRGB(pVeboxHeap, pVeboxIecpParams, pVeboxGamutParams);
+    MHW_CHK_STATUS(VeboxInterface_BT2020YUVToRGB(pVeboxHeap, pVeboxIecpParams, pVeboxGamutParams));
 
     // Global setting
     pGamutState->DW0.GlobalModeEnable = true;
@@ -3036,51 +3038,36 @@ MOS_STATUS MhwVeboxInterfaceG12::AddVeboxTilingConvert(
     }
 
     // Set Output surface compression status
-    if (outputSurface)
+    // Double Buffer copy
+    surface = outputSurface;
+
+    if (outSurParams->CompressionMode != MOS_MMC_DISABLED)
     {
-        // Double Buffer copy
-        surface = outputSurface;
+        veboxOutputSurfCtrlBits.DW0.MemoryCompressionEnable = true;
 
-        if (outSurParams->CompressionMode != MOS_MMC_DISABLED)
+        if (outSurParams->CompressionMode == MOS_MMC_RC)
         {
-            veboxOutputSurfCtrlBits.DW0.MemoryCompressionEnable = true;
-
-            if (outSurParams->CompressionMode == MOS_MMC_RC)
-            {
-                veboxOutputSurfCtrlBits.DW0.CompressionType = 1;
-            }
-            else
-            {
-                veboxOutputSurfCtrlBits.DW0.CompressionType = 0;
-            }
-        }
-
-        if (surface)
-        {
-            switch (surface->TileType)
-            {
-            case MOS_TILE_YF:
-                veboxOutputSurfCtrlBits.DW0.TiledResourceModeForOutputFrameSurfaceBaseAddress = TRMODE_TILEYF;
-                break;
-            case MOS_TILE_YS:
-                veboxOutputSurfCtrlBits.DW0.TiledResourceModeForOutputFrameSurfaceBaseAddress = TRMODE_TILEYS;
-                break;
-            default:
-                veboxOutputSurfCtrlBits.DW0.TiledResourceModeForOutputFrameSurfaceBaseAddress = TRMODE_NONE;
-                break;
-            }
-        }
-
-    }
-    else
-    {
-        // In-Place Resolve
-        surface = inputSurface;
-
-        if (inSurParams->CompressionMode == MOS_MMC_MC)
-        {
-            veboxOutputSurfCtrlBits.DW0.MemoryCompressionEnable = true;
             veboxOutputSurfCtrlBits.DW0.CompressionType = 1;
+        }
+        else
+        {
+            veboxOutputSurfCtrlBits.DW0.CompressionType = 0;
+        }
+    }
+
+    if (surface)
+    {
+        switch (surface->TileType)
+        {
+        case MOS_TILE_YF:
+            veboxOutputSurfCtrlBits.DW0.TiledResourceModeForOutputFrameSurfaceBaseAddress = TRMODE_TILEYF;
+            break;
+        case MOS_TILE_YS:
+            veboxOutputSurfCtrlBits.DW0.TiledResourceModeForOutputFrameSurfaceBaseAddress = TRMODE_TILEYS;
+            break;
+        default:
+            veboxOutputSurfCtrlBits.DW0.TiledResourceModeForOutputFrameSurfaceBaseAddress = TRMODE_NONE;
+            break;
         }
     }
 
@@ -3099,14 +3086,7 @@ MOS_STATUS MhwVeboxInterfaceG12::AddVeboxTilingConvert(
     MOS_ZeroMemory(&ResourceParams, sizeof(MHW_RESOURCE_PARAMS));
     InitMocsParams(ResourceParams, &cmd.DW3_4.Value[0], 1, 6);
 
-    if (outputSurface)
-    {
-        ResourceParams.presResource = outputSurface;
-    }
-    else
-    {
-        ResourceParams.presResource = inputSurface;
-    }
+    ResourceParams.presResource = outputSurface;
 
     ResourceParams.HwCommandType = MOS_VEBOX_TILING_CONVERT;
 
@@ -3114,8 +3094,7 @@ MOS_STATUS MhwVeboxInterfaceG12::AddVeboxTilingConvert(
     ResourceParams.dwLocationInCmd = 3;
     ResourceParams.pdwCmd = &(cmd.DW3_4.Value[0]);
     ResourceParams.bIsWritable = true;
-    ResourceParams.dwOffset =
-        (outputSurface != nullptr ? outSurParams->dwOffset : inSurParams->dwOffset) + veboxOutputSurfCtrlBits.DW0.Value;
+    ResourceParams.dwOffset = outSurParams->dwOffset + veboxOutputSurfCtrlBits.DW0.Value;
     MHW_CHK_STATUS(pfnAddResourceToCmd(m_osInterface, cmdBuffer, &ResourceParams));
 
     m_osInterface->pfnAddCommand(cmdBuffer, &cmd, cmd.byteSize);

@@ -192,6 +192,11 @@ namespace encode {
             m_statusReportData[submitIndex].currRefList        = inputParameters->currRefList;
             m_statusReportData[submitIndex].numberTilesInFrame = inputParameters->numberTilesInFrame;
 
+            m_statusReportData[submitIndex].av1EnableFrameOBU            = inputParameters->av1EnableFrameObu;
+            m_statusReportData[submitIndex].av1FrameHdrOBUSizeByteOffset = inputParameters->av1FrameHdrOBUSizeByteOffset;
+            m_statusReportData[submitIndex].frameWidth                   = inputParameters->frameWidth;
+            m_statusReportData[submitIndex].frameHeight                  = inputParameters->frameHeight;
+
             uint64_t pairIndex = GetIdForCodecFuncToFuncIdPairs(inputParameters->codecFunction);
             if (pairIndex >= m_maxCodecFuncNum)
             {
@@ -301,6 +306,9 @@ namespace encode {
         EncodeStatusRcs *encodeStatusRcs,
         bool completed)
     {
+        ENCODE_CHK_NULL_RETURN(statusReportData);
+        ENCODE_CHK_NULL_RETURN(encodeStatusRcs);
+
         if (statusReportData->func != CODECHAL_ENCODE_ENC_ID &&
             statusReportData->func != CODECHAL_ENCODE_FEI_ENC_ID &&
             !completed)

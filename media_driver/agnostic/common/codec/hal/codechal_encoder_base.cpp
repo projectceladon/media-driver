@@ -1061,14 +1061,14 @@ MOS_STATUS CodechalEncoderState::Initialize(
     // Set Vdbox index in use
     m_vdboxIndex = (m_videoGpuNode == MOS_GPU_NODE_VIDEO2)? MHW_VDBOX_NODE_2 : MHW_VDBOX_NODE_1;
 
+    if (!m_feiEnable)
+    {
+        eStatus = AllocateMDFResources();
+    }
+
     if (eStatus != MOS_STATUS_SUCCESS)
     {
         Destroy();
-    }
-
-    if (!m_feiEnable)
-    {
-        CODECHAL_ENCODE_CHK_STATUS_RETURN(AllocateMDFResources());
     }
 
     return eStatus;
@@ -1150,7 +1150,7 @@ MOS_STATUS CodechalEncoderState::AddKernelMdf(
     CODECHAL_ENCODE_CHK_STATUS_RETURN(task->AddKernel(kernel));
     if (isEnqueue)
     {
-        queue->Enqueue(task, event);
+        CODECHAL_ENCODE_CHK_STATUS_RETURN(queue->Enqueue(task, event));
         task->Reset();
     }
     else
@@ -3248,7 +3248,7 @@ MOS_STATUS CodechalEncoderState::EndStatusReport(
         }
     }
 
-    MHW_MI_STORE_DATA_PARAMS storeDataParams;
+    MHW_MI_STORE_DATA_PARAMS storeDataParams = {};
     uint32_t offset = 0;
     if (m_osInterface->pfnGetGpuContext(m_osInterface) == m_renderContext)
     {
@@ -4132,7 +4132,7 @@ MOS_STATUS CodechalEncoderState::GetStatusReport(
                 m_statusReportDebugInterface->m_bufferDumpFrameNum = encodeStatus->dwStoredData;
             )
 
-            // to be discussed, how to identify whether huc invloved in pipeline
+            // to be discussed, how to identify whether huc involved in pipeline
             if (!m_swBrcMode && m_vdencEnabled && m_vdencBrcEnabled && (m_standard == CODECHAL_HEVC || m_standard == CODECHAL_AVC || m_standard == CODECHAL_VP9))
             {
                 MOS_USER_FEATURE_VALUE_WRITE_DATA userFeatureWriteData;

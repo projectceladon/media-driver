@@ -41,119 +41,6 @@
 
 #include "media_user_setting_specific.h"
 #include "null_hardware.h"
-extern PerfUtility *g_perfutility;
-
-#define PERF_DECODE "DECODE"
-#define PERF_ENCODE "ENCODE"
-#define PERF_VP "VP"
-#define PERF_CP "CP"
-#define PERF_MOS "MOS"
-
-#define PERF_LEVEL_DDI "DDI"
-#define PERF_LEVEL_HAL "HAL"
-
-#define DECODE_DDI (1)
-#define DECODE_HAL (1 << 1)
-#define ENCODE_DDI (1 << 4)
-#define ENCODE_HAL (1 << 5)
-#define VP_DDI     (1 << 8)
-#define VP_HAL     (1 << 9)
-#define CP_DDI     (1 << 12)
-#define CP_HAL     (1 << 13)
-#define MOS_DDI    (1 << 16)
-#define MOS_HAL    (1 << 17)
-
-#define PERFUTILITY_IS_ENABLED(sCOMP,sLEVEL)                                                              \
-    (((sCOMP == "DECODE" && sLEVEL == "DDI") && (g_perfutility->dwPerfUtilityIsEnabled & DECODE_DDI)) ||  \
-     ((sCOMP == "DECODE" && sLEVEL == "HAL") && (g_perfutility->dwPerfUtilityIsEnabled & DECODE_HAL)) ||  \
-     ((sCOMP == "ENCODE" && sLEVEL == "DDI") && (g_perfutility->dwPerfUtilityIsEnabled & ENCODE_DDI)) ||  \
-     ((sCOMP == "ENCODE" && sLEVEL == "HAL") && (g_perfutility->dwPerfUtilityIsEnabled & ENCODE_HAL)) ||  \
-     ((sCOMP == "VP" && sLEVEL == "DDI") && (g_perfutility->dwPerfUtilityIsEnabled & VP_DDI)) ||          \
-     ((sCOMP == "VP" && sLEVEL == "HAL") && (g_perfutility->dwPerfUtilityIsEnabled & VP_HAL)) ||          \
-     ((sCOMP == "CP" && sLEVEL == "DDI") && (g_perfutility->dwPerfUtilityIsEnabled & CP_DDI)) ||          \
-     ((sCOMP == "CP" && sLEVEL == "HAL") && (g_perfutility->dwPerfUtilityIsEnabled & CP_HAL)) ||          \
-     ((sCOMP == "MOS" && sLEVEL == "DDI") && (g_perfutility->dwPerfUtilityIsEnabled & MOS_DDI)) ||        \
-     ((sCOMP == "MOS" && sLEVEL == "HAL") && (g_perfutility->dwPerfUtilityIsEnabled & MOS_HAL)))
-
-#define PERF_UTILITY_START(TAG,COMP,LEVEL)                                 \
-    do                                                                     \
-    {                                                                      \
-        if (PERFUTILITY_IS_ENABLED((std::string)COMP,(std::string)LEVEL))  \
-        {                                                                  \
-            g_perfutility->startTick(TAG);                                 \
-        }                                                                  \
-    } while(0)
-
-#define PERF_UTILITY_STOP(TAG, COMP, LEVEL)                                \
-    do                                                                     \
-    {                                                                      \
-        if (PERFUTILITY_IS_ENABLED((std::string)COMP,(std::string)LEVEL))  \
-        {                                                                  \
-            g_perfutility->stopTick(TAG);                                  \
-        }                                                                  \
-    } while (0)
-
-static int perf_count_start = 0;
-static int perf_count_stop = 0;
-
-#define PERF_UTILITY_START_ONCE(TAG, COMP,LEVEL)                           \
-    do                                                                     \
-    {                                                                      \
-        if (perf_count_start == 0                                          \
-            && PERFUTILITY_IS_ENABLED((std::string)COMP,(std::string)LEVEL))  \
-        {                                                                  \
-                g_perfutility->startTick(TAG);                             \
-        }                                                                  \
-        perf_count_start++;                                                \
-    } while(0)
-
-#define PERF_UTILITY_STOP_ONCE(TAG, COMP, LEVEL)                           \
-    do                                                                     \
-    {                                                                      \
-        if (perf_count_stop == 0                                           \
-            && PERFUTILITY_IS_ENABLED((std::string)COMP,(std::string)LEVEL))  \
-        {                                                                  \
-            g_perfutility->stopTick(TAG);                                  \
-        }                                                                  \
-        perf_count_stop++;                                                 \
-    } while (0)
-
-#define PERF_UTILITY_AUTO(TAG,COMP,LEVEL) AutoPerfUtility apu(TAG,COMP,LEVEL)
-
-#define PERF_UTILITY_PRINT                         \
-    do                                             \
-    {                                              \
-        if (g_perfutility->dwPerfUtilityIsEnabled && MosUtilities::MosIsProfilerDumpEnabled()) \
-        {                                          \
-            g_perfutility->savePerfData();         \
-        }                                          \
-    } while(0)
-
-class AutoPerfUtility
-{
-public:
-    AutoPerfUtility(std::string tag, std::string comp, std::string level)
-    {
-        if (PERFUTILITY_IS_ENABLED(comp, level))
-        {
-            g_perfutility->startTick(tag);
-            autotag = tag;
-            bEnable = true;
-        }
-    }
-    ~AutoPerfUtility()
-    {
-        if (bEnable)
-        {
-            g_perfutility->stopTick(autotag);
-        }
-    }
-
-private:
-    bool bEnable = false;
-    std::string autotag ="intialized";
-};
-
 //!
 //! \brief OS specific includes and definitions
 //!
@@ -254,6 +141,13 @@ typedef enum _MOS_SCALABILITY_ENABLE_MODE
     MOS_SCALABILITY_ENABLE_MODE_DEFAULT    = 0x0001,
     MOS_SCALABILITY_ENABLE_MODE_USER_FORCE = 0x0010
 } MOS_SCALABILITY_ENABLE_MODE;
+
+typedef enum _TRINITY_PATH
+{
+    TRINITY_DISABLED  = 0,
+    TRINITY9_ENABLED  = 1,
+    TRINITY11_ENABLED = 2,
+} TRINITY_PATH;
 
 #if (_DEBUG || _RELEASE_INTERNAL)
 //!
@@ -526,6 +420,13 @@ struct _MOS_GPUCTX_CREATOPTIONS
         SSEUValue(0),
         isRealTimePriority(0){}
 
+    _MOS_GPUCTX_CREATOPTIONS(_MOS_GPUCTX_CREATOPTIONS* createOption) : CmdBufferNumScale(createOption->CmdBufferNumScale),
+                                 RAMode(createOption->RAMode),
+                                 ProtectMode(createOption->ProtectMode),
+                                 gpuNode(createOption->gpuNode),
+                                 SSEUValue(createOption->SSEUValue),
+                                 isRealTimePriority(createOption->isRealTimePriority) {}
+
     virtual ~_MOS_GPUCTX_CREATOPTIONS(){}
 };
 
@@ -779,6 +680,7 @@ typedef struct _MOS_INTERFACE
     // used for media reset enabling/disabling in UMD
     // pls remove it after hw scheduling
     int32_t                         bMediaReset;
+    TRINITY_PATH                    trinityPath;
 
     bool                            umdMediaResetEnable;
 
@@ -1109,6 +1011,10 @@ typedef struct _MOS_INTERFACE
         uint32_t              bpp,
         bool                  bOutputCompressed);
 
+    MOS_STATUS (*pfnVerifyMosSurface) (
+        PMOS_SURFACE mosSurface,
+        bool        &bIsValid);
+
     MOS_STATUS(*pfnGetMosContext) (
         PMOS_INTERFACE        pOsInterface,
         PMOS_CONTEXT*         mosContext);
@@ -1140,6 +1046,10 @@ typedef struct _MOS_INTERFACE
     uint64_t (* pfnGetResourceGfxAddress) (
         PMOS_INTERFACE              pOsInterface,
         PMOS_RESOURCE               pResource);
+
+    uint64_t (*pfnGetResourceClearAddress)(
+        PMOS_INTERFACE pOsInterface,
+        PMOS_RESOURCE  pResource);
 
     MOS_STATUS (* pfnSetPatchEntry) (
         PMOS_INTERFACE              pOsInterface,
@@ -1639,7 +1549,7 @@ typedef struct _MOS_INTERFACE
     //! \return   void
     //!
     void (*pfnGetRtLogResourceInfo)(
-        MOS_STREAM_HANDLE           streamState,
+        PMOS_INTERFACE              osInterface,
         PMOS_RESOURCE               &osResource,
         uint32_t                    &size);
 
@@ -2261,6 +2171,34 @@ struct _MOS_GPUCTX_CREATOPTIONS_ENHANCED : public _MOS_GPUCTX_CREATOPTIONS
         }
 #endif
     }
+
+    _MOS_GPUCTX_CREATOPTIONS_ENHANCED(_MOS_GPUCTX_CREATOPTIONS* createOption)
+        : _MOS_GPUCTX_CREATOPTIONS(createOption)
+    {
+        if (typeid(*createOption) == typeid(_MOS_GPUCTX_CREATOPTIONS_ENHANCED))
+        {
+            Flags     = ((MOS_GPUCTX_CREATOPTIONS_ENHANCED *)createOption)->Flags;
+            LRCACount = ((MOS_GPUCTX_CREATOPTIONS_ENHANCED *)createOption)->LRCACount;
+#if (_DEBUG || _RELEASE_INTERNAL)
+            for (auto i = 0; i < MOS_MAX_ENGINE_INSTANCE_PER_CLASS; i++)
+            {
+                EngineInstance[i] = ((MOS_GPUCTX_CREATOPTIONS_ENHANCED *)createOption)->EngineInstance[i];
+            }
+#endif
+        }
+        else
+        {
+            Flags     = 0;
+            LRCACount = 0;
+#if (_DEBUG || _RELEASE_INTERNAL)
+            for (auto i = 0; i < MOS_MAX_ENGINE_INSTANCE_PER_CLASS; i++)
+            {
+                EngineInstance[i] = 0xff;
+            }
+#endif
+        }
+    }
+    
 };
 
 #define MOS_VE_SUPPORTED(pOsInterface) \
@@ -2284,6 +2222,19 @@ __inline void Mos_SetVirtualEngineSupported(PMOS_INTERFACE pOsInterface, bool bE
         pOsInterface->bSupportVirtualEngine = bEnabled;
     }
 }
+
+//!
+//! \brief   Check whether the parameter of mos surface is valid for copy
+//!
+//! \param    [in] mosSurface
+//!           Pointer to MosSurface
+//!
+//! \return   bool
+//!           Whether the paramter of mosSurface is valid
+//!
+MOS_STATUS Mos_VerifyMosSurface(
+    PMOS_SURFACE mosSurface,
+    bool        &bIsValid);
 
 //!
 //! \brief    Check virtual engine is supported
@@ -2513,7 +2464,7 @@ uint64_t Mos_GetResourceHandle(
 //! \return   void
 //!
 void Mos_GetRtLogResourceInfo(
-    MOS_STREAM_HANDLE       streamState,
+    PMOS_INTERFACE          osInterface,
     PMOS_RESOURCE           &osResource,
     uint32_t                &size);
 

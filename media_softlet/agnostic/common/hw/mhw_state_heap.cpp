@@ -995,7 +995,7 @@ MOS_STATUS XMHW_STATE_HEAP_INTERFACE::InitializeInterface(
     {
         m_ishManager.RegisterOsInterface(m_pOsInterface);
         m_ishManager.SetDefaultBehavior(StateHeapSettings.m_ishBehavior);
-        m_ishManager.SetInitialHeapSize(StateHeapSettings.dwIshSize);
+        MHW_MI_CHK_STATUS(m_ishManager.SetInitialHeapSize(StateHeapSettings.dwIshSize));
         if (StateHeapSettings.m_ishBehavior == HeapManager::Behavior::extend ||
             StateHeapSettings.m_ishBehavior == HeapManager::Behavior::destructiveExtend ||
             StateHeapSettings.m_ishBehavior == HeapManager::Behavior::waitAndExtend)
@@ -1009,7 +1009,7 @@ MOS_STATUS XMHW_STATE_HEAP_INTERFACE::InitializeInterface(
 
         m_dshManager.RegisterOsInterface(m_pOsInterface);
         m_dshManager.SetDefaultBehavior(StateHeapSettings.m_dshBehavior);
-        m_dshManager.SetInitialHeapSize(StateHeapSettings.dwDshSize);
+        MHW_MI_CHK_STATUS(m_dshManager.SetInitialHeapSize(StateHeapSettings.dwDshSize));
         if (StateHeapSettings.m_dshBehavior == HeapManager::Behavior::extend ||
             StateHeapSettings.m_dshBehavior == HeapManager::Behavior::destructiveExtend ||
             StateHeapSettings.m_dshBehavior == HeapManager::Behavior::waitAndExtend)
@@ -1543,8 +1543,10 @@ MOS_STATUS XMHW_STATE_HEAP_INTERFACE::ExtendStateHeapDyn(
         {
             if (m_StateHeapSettings.m_keepIshLocked)
             {
-                if (LockStateHeap(pNewStateHeap) != MOS_STATUS_SUCCESS)
+                eStatus = LockStateHeap(pNewStateHeap);
+                if (eStatus != MOS_STATUS_SUCCESS)
                 {
+                    MHW_ASSERTMESSAGE("fail to lock state heap.");
                     break;
                 }
                 pNewStateHeap->bKeepLocked = true;
@@ -1558,8 +1560,10 @@ MOS_STATUS XMHW_STATE_HEAP_INTERFACE::ExtendStateHeapDyn(
         {
             if (m_StateHeapSettings.m_keepDshLocked)
             {
-                if (LockStateHeap(pNewStateHeap) != MOS_STATUS_SUCCESS)
+                eStatus = LockStateHeap(pNewStateHeap);
+                if (eStatus != MOS_STATUS_SUCCESS)
                 {
+                    MHW_ASSERTMESSAGE("fail to lock state heap.");
                     break;
                 }
                 pNewStateHeap->bKeepLocked = true;
@@ -1995,7 +1999,11 @@ PMHW_STATE_HEAP_MEMORY_BLOCK  XMHW_STATE_HEAP_INTERFACE::AllocateDynamicBlockDyn
                     dwExtendSize = MOS_ALIGN_CEIL(dwExtendSize + pParams->dwScratchSpace, dwIncrement);
                     dwExtendSize = MOS_MAX(dwExtendSize, dwMinSize);
 
-                    ExtendStateHeap(StateHeapType, dwExtendSize);
+                    eStatus = ExtendStateHeap(StateHeapType, dwExtendSize);
+                    if (eStatus != MOS_STATUS_SUCCESS)
+                    {
+                        MHW_ASSERTMESSAGE("ExtendStateHeap failed");
+                    }
                 }
                 else
                 {

@@ -142,7 +142,16 @@ MOS_STATUS VpScalabilityMultiPipeNext::Initialize(const MediaScalabilityOption &
     SCALABILITY_CHK_NULL_RETURN(vpScalabilityOption);
     m_scalabilityOption = vpScalabilityOption;
 
-    m_frameTrackingEnabled = m_osInterface->bEnableKmdMediaFrameTracking ? true : false;
+    if (m_hwInterface->m_bIsMediaSfcInterfaceInUse)
+    {
+        m_frameTrackingEnabled = false;
+        VP_PUBLIC_NORMALMESSAGE("Media Frame Tracking is disabled for Media Sfc Interface enalbed.");
+    }
+    else
+    {
+        m_frameTrackingEnabled = m_osInterface->bEnableKmdMediaFrameTracking ? true : false;
+        VP_PUBLIC_NORMALMESSAGE("Media Frame Tracking flag is %d. Not using Meida Sfc Interface.", m_frameTrackingEnabled);
+    }
 
     //virtual engine init with scalability
     MOS_VIRTUALENGINE_INIT_PARAMS veInitParms;
@@ -169,6 +178,8 @@ MOS_STATUS VpScalabilityMultiPipeNext::Initialize(const MediaScalabilityOption &
     SCALABILITY_CHK_NULL_RETURN(gpuCtxCreateOption);
     gpuCtxCreateOption->LRCACount = vpScalabilityOption->GetLRCACount();
     gpuCtxCreateOption->UsingSFC  = vpScalabilityOption->IsUsingSFC();
+    gpuCtxCreateOption->RAMode    = vpScalabilityOption->GetRAMode();
+    gpuCtxCreateOption->ProtectMode = vpScalabilityOption->GetProtectMode();
 
 #if (_DEBUG || _RELEASE_INTERNAL)
     if (m_osInterface->bEnableDbgOvrdInVE)
@@ -616,7 +627,7 @@ MOS_STATUS VpScalabilityMultiPipeNext::UpdateState(void *statePars)
     SCALABILITY_FUNCTION_ENTER;
 
     StateParams *vpStatePars = (StateParams *)statePars;
-    if (vpStatePars->currentPipe < 0 || vpStatePars->currentPipe >= m_pipeNum)
+    if (vpStatePars->currentPipe >= m_pipeNum)
     {
         SCALABILITY_ASSERTMESSAGE("UpdateState failed with invalid parameter: currentPipe %d!",
             vpStatePars->currentPipe);

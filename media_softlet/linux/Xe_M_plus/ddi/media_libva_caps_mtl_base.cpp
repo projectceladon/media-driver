@@ -34,7 +34,7 @@
 #include "codec_def_encode_av1.h"
 #include "codec_def_common.h"
 #include "media_ddi_decode_const.h"
-#include "media_ddi_decode_const_g12.h"
+#include "media_ddi_decode_const_xe_m_plus.h"
 #include "media_ddi_encode_const.h"
 #include "drm_fourcc.h"
 
@@ -176,8 +176,7 @@ VAStatus MediaLibvaCapsMtlBase::LoadAv1EncProfileEntrypoints()
         (*attributeList)[VAConfigAttribEncDynamicScaling] = 0;
         (*attributeList)[VAConfigAttribEncTileSupport]    = 1;
         (*attributeList)[VAConfigAttribEncDirtyRect]      = VA_ATTRIB_NOT_SUPPORTED;
-        (*attributeList)[VAConfigAttribEncMaxRefFrames]   = CODEC_AV1_NUM_REFL0P_FRAMES |
-            CODEC_AV1_NUM_REFL0B_FRAMES<<8 | CODEC_AV1_NUM_REFL1B_FRAMES<<16;
+        (*attributeList)[VAConfigAttribEncMaxRefFrames]   = CODEC_AV1_NUM_REFL0P_FRAMES | CODEC_AV1_NUM_REFL1B_FRAMES<<16;
 
         VAConfigAttrib attrib;
         attrib.type = (VAConfigAttribType) VAConfigAttribEncAV1;
@@ -348,7 +347,7 @@ std::string MediaLibvaCapsMtlBase::GetDecodeCodecKey(VAProfile profile)
         case VAProfileHEVCSccMain10:
         case VAProfileHEVCSccMain444:
         case VAProfileHEVCSccMain444_10:
-            return DECODE_ID_HEVC_G12;
+            return DECODE_ID_HEVC_REXT;
         case VAProfileAV1Profile0:
         case VAProfileAV1Profile1:
             return DECODE_ID_AV1;
@@ -1887,8 +1886,8 @@ VAStatus MediaLibvaCapsMtlBase::QuerySurfaceAttributes(
                                    VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM |
                                    VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME |
                                    VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2 |
-				   0x00100000;
-                                   //VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_GRALLOC;
+                                   0x00100000;
+                                   // VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_GRALLOC;
 #else
         attribs[i].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_VA |
                                    VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR |
@@ -2698,16 +2697,16 @@ VAStatus MediaLibvaCapsMtlBase::SetExternalSurfaceTileFormat(DDI_MEDIA_SURFACE* 
     switch (mediaSurface->pSurfDesc->modifier)
     {
         case I915_FORMAT_MOD_4_TILED:
-            tileformat = I915_TILING_Y;
+            tileformat = TILING_Y;
             bMemCompEnable = false;
             break;
         case I915_FORMAT_MOD_4_TILED_MTL_RC_CCS_CC:
-            tileformat = I915_TILING_Y;
+            tileformat = TILING_Y;
             bMemCompEnable = true;
             bMemCompRC = true;
             break;
         case I915_FORMAT_MOD_4_TILED_MTL_MC_CCS:
-            tileformat = I915_TILING_Y;
+            tileformat = TILING_Y;
             bMemCompEnable = true;
             bMemCompRC = false;
             break;

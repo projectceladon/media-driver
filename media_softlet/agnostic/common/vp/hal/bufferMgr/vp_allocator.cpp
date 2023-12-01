@@ -886,7 +886,23 @@ MOS_STATUS VpAllocator::ReAllocateSurface(
 
     if (!surfInfoCheck(surface))
     {
-        VP_PUBLIC_ASSERTMESSAGE("Incorrect surface parameters.");
+        VP_PUBLIC_ASSERTMESSAGE("Allocated surface is not matched with allocating parameter.");
+        VP_PUBLIC_ASSERTMESSAGE("Allocated surface : format %d, compressible %d, compressionMode %d, tileType %d, bufferWidth %d, bufferHeight %d, width %d, height %d",
+            surface->osSurface->Format,
+            surface->osSurface->bCompressible,
+            surface->osSurface->CompressionMode,
+            surface->osSurface->TileType,
+            surface->bufferWidth,
+            surface->bufferHeight,
+            surface->osSurface->dwWidth,
+            surface->osSurface->dwHeight);
+        VP_PUBLIC_ASSERTMESSAGE("Parameter to allocate : format %d, compressible %d, compressionMode %d, tileType %d, width %d, height %d",
+            format,
+            compressible,
+            compressionMode,
+            defaultTileType,
+            width,
+            height);
     }
 
     MT_LOG7(MT_VP_HAL_REALLOC_SURF, MT_NORMAL, MT_VP_HAL_INTER_SURF_TYPE, surfaceName ? *((int64_t*)surfaceName) : 0,
@@ -1412,7 +1428,7 @@ MOS_STATUS VpAllocator::SetMmcFlags(MOS_SURFACE &osSurface)
 
         osSurface.bCompressible   = true;
         osSurface.bIsCompressed   = true;
-        m_mmc->GetSurfaceMmcFormat(&osSurface, &mmcFormat);
+        VP_PUBLIC_CHK_STATUS_RETURN(m_mmc->GetSurfaceMmcFormat(&osSurface, &mmcFormat));
         osSurface.CompressionFormat = mmcFormat;
     }
     else

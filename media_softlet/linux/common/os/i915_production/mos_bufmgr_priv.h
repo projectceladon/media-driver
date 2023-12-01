@@ -83,9 +83,9 @@ struct mos_bufmgr {
      * argument provides a hint about how the object will be used initially.
      *
      * Valid tiling formats are:
-     *  I915_TILING_NONE
-     *  I915_TILING_X
-     *  I915_TILING_Y
+     *  TILING_NONE
+     *  TILING_X
+     *  TILING_Y
      *
      * Note the tiling format may be rejected; callers should check the
      * 'tiling_mode' field on return, as well as the pitch value, which
@@ -427,6 +427,7 @@ struct mos_bufmgr {
                     struct drm_i915_gem_context_param_sseu sseu);
     int (*query_sys_engines)(struct mos_bufmgr *bufmgr, MEDIA_SYSTEM_INFO* gfx_info);
     int (*query_device_blob)(struct mos_bufmgr *bufmgr, MEDIA_SYSTEM_INFO* gfx_info);
+    int (*get_driver_info)(struct mos_bufmgr *bufmgr, struct LinuxDriverInfo *drvInfo);
     int (*query_hw_ip_version)(struct mos_bufmgr *bufmgr, __u16 engine_class, void *ip_ver_info);
     uint64_t (*get_platform_information)(struct mos_bufmgr *bufmgr);
     void (*set_platform_information)(struct mos_bufmgr *bufmgr, uint64_t p);

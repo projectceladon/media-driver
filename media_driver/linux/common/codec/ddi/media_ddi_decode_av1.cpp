@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2017-2021, Intel Corporation
+* Copyright (c) 2017-2023, Intel Corporation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -26,8 +26,6 @@
 
 #include "media_libva_decoder.h"
 #include "media_libva_util.h"
-
-#include "media_ddi_decode_const_g12.h"
 #include "media_ddi_decode_av1.h"
 #include "mos_solo_generic.h"
 #include "codechal_memdecomp.h"
@@ -822,7 +820,7 @@ VAStatus DdiDecodeAV1::CodecHalInit(
     m_codechalSettings->intelEntrypointInUse = false;
 
     //VAProfileAV1Profile0 supports both 420 8bit and 420 10bit
-    m_codechalSettings->lumaChromaDepth = CODECHAL_LUMA_CHROMA_DEPTH_8_BITS | CODECHAL_LUMA_CHROMA_DEPTH_10_BITS;
+    m_codechalSettings->lumaChromaDepth = CODECHAL_LUMA_CHROMA_DEPTH_8_BITS;
 
     m_codechalSettings->shortFormatInUse = m_ddiDecodeCtx->bShortFormatInUse;
 

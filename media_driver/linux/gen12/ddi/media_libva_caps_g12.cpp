@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018-2021, Intel Corporation
+* Copyright (c) 2018-2023, Intel Corporation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -288,7 +288,7 @@ std::string MediaLibvaCapsG12::GetDecodeCodecKey(VAProfile profile)
         case VAProfileHEVCSccMain10:
         case VAProfileHEVCSccMain444:
         case VAProfileHEVCSccMain444_10:
-            return DECODE_ID_HEVC_G12;
+            return DECODE_ID_HEVC_REXT;
         case VAProfileVC1Simple:
         case VAProfileVC1Main:
         case VAProfileVC1Advanced:
@@ -1366,8 +1366,8 @@ VAStatus MediaLibvaCapsG12::QuerySurfaceAttributes(
             VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM |
             VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME |
             VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2 |
-	    0x00100000;
-            //VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_GRALLOC;
+            0x00100000;
+            // VA_SURFACE_ATTRIB_MEM_TYPE_ANDROID_GRALLOC;
 #else
         attribs[i].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_VA |
             VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR |
@@ -2769,26 +2769,26 @@ VAStatus MediaLibvaCapsG12::SetExternalSurfaceTileFormat(DDI_MEDIA_SURFACE* medi
     switch (mediaSurface->pSurfDesc->modifier)
     {
         case DRM_FORMAT_MOD_LINEAR:
-            tileformat = I915_TILING_NONE;
+            tileformat = TILING_NONE;
             bMemCompEnable = false;
             break;
         case I915_FORMAT_MOD_X_TILED:
-            tileformat = I915_TILING_X;
+            tileformat = TILING_X;
             bMemCompEnable = false;
             break;
         case I915_FORMAT_MOD_4_TILED:
         case I915_FORMAT_MOD_Yf_TILED:
         case I915_FORMAT_MOD_Y_TILED:
-            tileformat = I915_TILING_Y;
+            tileformat = TILING_Y;
             bMemCompEnable = false;
             break;
         case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
-            tileformat = I915_TILING_Y;
+            tileformat = TILING_Y;
             bMemCompEnable = true;
             bMemCompRC = true;
             break;
         case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
-            tileformat = I915_TILING_Y;
+            tileformat = TILING_Y;
             bMemCompEnable = true;
             bMemCompRC = false;
             break;

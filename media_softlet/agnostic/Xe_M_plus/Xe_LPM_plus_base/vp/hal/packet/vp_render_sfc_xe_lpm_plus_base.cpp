@@ -456,13 +456,14 @@ bool SfcRenderXe_Lpm_Plus_Base::IsSFCUncompressedWriteNeeded(PVP_SURFACE targetS
     }
 
     byteInpixel = targetSurface->osSurface->OsResource.pGmmResInfo->GetBitsPerPixel() >> 3;
-#endif // !EMUL
 
     if (byteInpixel == 0)
     {
         VP_RENDER_NORMALMESSAGE("surface format is not a valid format for sfc");
         return false;
     }
+#endif  // !EMUL
+
     uint32_t writeAlignInWidth  = 32 / byteInpixel;
     uint32_t writeAlignInHeight = 8;
     
@@ -636,9 +637,10 @@ bool SfcRenderXe_Lpm_Plus_Base::IsOutputChannelSwapNeeded(MOS_FORMAT outputForma
 bool SfcRenderXe_Lpm_Plus_Base::IsCscNeeded(SFC_CSC_PARAMS &cscParams)
 {
     VP_FUNC_CALL();
-    if (m_bVdboxToSfc && m_videoConfig.codecStandard == CODECHAL_JPEG)
+
+    if (m_bVdboxToSfc && cscParams.inputFormat != cscParams.outputFormat)
     {
-        if (cscParams.inputFormat != cscParams.outputFormat)
+        if (m_videoConfig.codecStandard == CODECHAL_JPEG || cscParams.outputFormat == Format_A8R8G8B8)
         {
             return true;
         }

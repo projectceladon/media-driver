@@ -607,9 +607,10 @@ MOS_STATUS CodechalEncodeVp8::AllocateResources()
             "Per MB Quant Data Buffer"));
 
     ///pred mv data surface
+    uint32_t picSizeInMb = m_picWidthInMb * m_picHeightInMb;
     CODECHAL_ENCODE_CHK_STATUS_RETURN(
         AllocateBuffer(&m_resPredMvDataSurface,
-            4 * m_picWidthInMb * m_picHeightInMb * sizeof(uint32_t),
+            4 * picSizeInMb * sizeof(uint32_t),
             "Per MV data surface"));
 
     //ModeCostUpdate Surface used by P-kernel and MPU kernel
@@ -1286,7 +1287,18 @@ MOS_STATUS CodechalEncodeVp8::SetPictureStructs()
     else
     {
         m_averagePFrameQp     = averageQp;
-        m_pFramePositionInGop = m_vp8SeqParams->RateControlMethod == RATECONTROL_CQP ? 0 : (m_storeData - 1) % m_vp8SeqParams->GopPicSize;
+        if (m_vp8SeqParams->RateControlMethod == RATECONTROL_CQP)
+        {
+            m_pFramePositionInGop = 0;
+        }
+        else
+        {
+            if (m_vp8SeqParams->GopPicSize == 0)
+            {
+                return MOS_STATUS_INVALID_PARAMETER;
+            }
+            m_pFramePositionInGop = (m_storeData - 1) % m_vp8SeqParams->GopPicSize;
+        }
     }
 
     numRef = 0;
@@ -3734,11 +3746,11 @@ MOS_STATUS CodechalEncodeVp8::EncodeSliceLevelBrc(PMOS_COMMAND_BUFFER cmdBuffer)
 
 MOS_STATUS CodechalEncodeVp8::ExecuteSliceLevel()
 {
-    MOS_COMMAND_BUFFER                          cmdBuffer;
-    MOS_SYNC_PARAMS                             syncParams;
-    EncodeReadBrcPakStatsParams                 readBrcPakStatsParams;
-    uint32_t                                    *data;
-    MOS_LOCK_PARAMS                             lockFlagsWriteOnly;
+    MOS_COMMAND_BUFFER                          cmdBuffer = {};
+    MOS_SYNC_PARAMS                             syncParams = {};
+    EncodeReadBrcPakStatsParams                 readBrcPakStatsParams = {};
+    uint32_t                                    *data = nullptr;
+    MOS_LOCK_PARAMS                             lockFlagsWriteOnly = {};
     MOS_STATUS                                  status = MOS_STATUS_SUCCESS;
 
     CODECHAL_ENCODE_FUNCTION_ENTER;

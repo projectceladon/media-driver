@@ -321,7 +321,7 @@ private:
     //!
     //! \return   Codehal function
     //!
-    CODECHAL_FUNCTION GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint) override;
+    CODECHAL_FUNCTION GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint, bool bVDEnc) override;
     //!
     //! \brief    Return internal encode mode for given profile and entrypoint
     //!
@@ -338,6 +338,7 @@ private:
     uint32_t savedTargetBit[ENCODE_AV1_MAX_NUM_TEMPORAL_LAYERS]  = { 0 };
     uint32_t savedFrameRate[ENCODE_AV1_MAX_NUM_TEMPORAL_LAYERS]  = { 0 };
     uint32_t savedMaxBitRate[ENCODE_AV1_MAX_NUM_TEMPORAL_LAYERS] = { 0 };
+    uint32_t savedQualityFactor = 0;
 
     uint32_t allocatedTileNum = 0;
     bool m_isSegParamsChanged = false;

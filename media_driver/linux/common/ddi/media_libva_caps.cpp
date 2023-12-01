@@ -3780,18 +3780,18 @@ VAStatus MediaLibvaCaps::GetSurfaceModifier(DDI_MEDIA_SURFACE* mediaSurface, uin
             modifier = I915_FORMAT_MOD_X_TILED;
             break;
         case GMM_NOT_TILED:
-            modifier = DRM_FORMAT_MOD_NONE;
+            modifier = DRM_FORMAT_MOD_LINEAR;
             break;
         default:
             //handle other possible tile format
-            if(I915_TILING_Y == mediaSurface->TileType)
+            if(TILING_Y == mediaSurface->TileType)
             {
                 modifier = GmmFlags.Info.MediaCompressed ? I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS :
                     (GmmFlags.Info.RenderCompressed ? I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS : I915_FORMAT_MOD_Y_TILED);
             }
             else
             {
-                modifier = DRM_FORMAT_MOD_NONE;
+                modifier = DRM_FORMAT_MOD_LINEAR;
             }
             break;
 
@@ -3808,25 +3808,25 @@ VAStatus MediaLibvaCaps::SetExternalSurfaceTileFormat(DDI_MEDIA_SURFACE* mediaSu
     switch (mediaSurface->pSurfDesc->modifier)
     {
         case DRM_FORMAT_MOD_LINEAR:
-            tileformat = I915_TILING_NONE;
+            tileformat = TILING_NONE;
             bMemCompEnable = false;
             break;
         case I915_FORMAT_MOD_X_TILED:
-            tileformat = I915_TILING_X;
+            tileformat = TILING_X;
             bMemCompEnable = false;
             break;
         case I915_FORMAT_MOD_Y_TILED:
         case I915_FORMAT_MOD_Yf_TILED:
-            tileformat = I915_TILING_Y;
+            tileformat = TILING_Y;
             bMemCompEnable = false;
             break;
         case I915_FORMAT_MOD_Y_TILED_GEN12_RC_CCS:
-            tileformat = I915_TILING_Y;
+            tileformat = TILING_Y;
             bMemCompEnable = true;
             bMemCompRC = true;
             break;
         case I915_FORMAT_MOD_Y_TILED_GEN12_MC_CCS:
-            tileformat = I915_TILING_Y;
+            tileformat = TILING_Y;
             bMemCompEnable = true;
             bMemCompRC = false;
             break;

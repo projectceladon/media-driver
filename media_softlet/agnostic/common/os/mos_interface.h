@@ -1690,6 +1690,19 @@ public:
         uint32_t            bpp,
         bool                outputCompressed);
 
+    //!
+    //! \brief   Check whether the parameter of mos surface is valid for copy
+    //!
+    //! \param    [in] mosSurface
+    //!           Pointer to MosSurface
+    //!
+    //! \return   bool
+    //!           Whether the paramter of mosSurface is valid
+    //!
+    static MOS_STATUS VerifyMosSurface(
+        PMOS_SURFACE mosSurface,
+        bool        &bIsValid);
+
     // GPU Status interfaces
     //!
     //! \brief   Get Gpu Status Tag
@@ -2289,7 +2302,7 @@ public:
         GPU_CONTEXT_HANDLE  gpuContextHandle);
 
     static void GetRtLogResourceInfo(
-        MOS_STREAM_HANDLE streamState,
+        PMOS_INTERFACE osInterface,
         PMOS_RESOURCE &osResource,
         uint32_t &size);
 

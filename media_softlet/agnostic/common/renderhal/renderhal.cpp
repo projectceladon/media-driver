@@ -4059,6 +4059,7 @@ MOS_STATUS RenderHal_GetSurfaceStateEntries(
                       PlaneDefinition == RENDERHAL_PLANES_PL3                             ||
                       PlaneDefinition == RENDERHAL_PLANES_YV12                            ||
                       PlaneDefinition == RENDERHAL_PLANES_R16_UNORM                       ||
+                      PlaneDefinition == RENDERHAL_PLANES_R8                              ||
                       PlaneDefinition == RENDERHAL_PLANES_A8))
             {
                 dwSurfaceWidth = dwSurfaceWidth / OutputSurfaceWidthRatio;
@@ -6439,7 +6440,7 @@ MOS_STATUS RenderHal_GetSamplerOffsetAndPtr(
     MHW_RENDERHAL_CHK_NULL_RETURN(pSamplerParams);
 
     ElementType = pSamplerParams->ElementType;
-    SamplerType = (pSamplerParams) ? pSamplerParams->SamplerType : MHW_SAMPLER_TYPE_3D;
+    SamplerType = pSamplerParams->SamplerType;
 
     if (SamplerType == MHW_SAMPLER_TYPE_VME)
     {
@@ -6783,11 +6784,19 @@ MOS_STATUS RenderHal_SendSurfaceStateEntry(
                 *(pdwCmd + 11) = *(pdwCmd + 11) | (uint32_t)((auxAddress & 0x0000FFFF00000000) >> 32);
             }
 
-            if (pMosResource->pGmmResInfo->GetUnifiedAuxSurfaceOffset(GMM_AUX_CC))
+            uint64_t clearAddress = 0;
+            if (pOsInterface->trinityPath != TRINITY_DISABLED)
+            {
+                clearAddress = pOsInterface->pfnGetResourceClearAddress(pOsInterface, pMosResource);
+            }
+            else if (pMosResource->pGmmResInfo->GetUnifiedAuxSurfaceOffset(GMM_AUX_CC))
             {
                 // Set GFX address of ClearAddress
                 // Should use original resource address here
-                uint64_t clearAddress = ui64GfxAddressWithoutOffset + (uint32_t)pMosResource->pGmmResInfo->GetUnifiedAuxSurfaceOffset(GMM_AUX_CC);
+                clearAddress = ui64GfxAddressWithoutOffset + (uint32_t)pMosResource->pGmmResInfo->GetUnifiedAuxSurfaceOffset(GMM_AUX_CC);
+            }
+            if (clearAddress)
+            {
                 *(pdwCmd + 12) = (*(pdwCmd + 12) & 0x0000001F) | (uint32_t)(clearAddress & 0x00000000FFFFFFE0);
                 *(pdwCmd + 13) = *(pdwCmd + 13) | (uint32_t)((clearAddress & 0x0000FFFF00000000) >> 32);
             }
