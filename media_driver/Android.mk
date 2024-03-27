@@ -1403,9 +1403,6 @@ LOCAL_SHARED_LIBRARIES := \
     libdrm \
     libva \
     liblog \
-
-
-LOCAL_STATIC_LIBRARIES = \
     libgmm_umd \
 
 LOCAL_CPPFLAGS = \
@@ -1495,7 +1492,8 @@ LOCAL_CPPFLAGS = \
     -D__STDC_CONSTANT_MACROS \
     -D__STDC_LIMIT_MACROS \
     -D__VPHAL_SFC_SUPPORTED=1 \
-    -DiHD_drv_video_EXPORTS
+    -DiHD_drv_video_EXPORTS \
+    -DGMM_LIB_DLL
 
 LOCAL_CONLYFLAGS = -x c++
 LOCAL_CFLAGS = $(LOCAL_CPPFLAGS)
