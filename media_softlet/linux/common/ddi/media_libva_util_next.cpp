@@ -326,10 +326,17 @@ VAStatus MediaLibvaUtilNext::GenerateGmmParamsForNoneCompressionExternalSurface(
     gmmCustomParams.BaseAlignment = 4096;
     gmmCustomParams.NoOfPlanes    = mediaSurface->pSurfDesc->uiPlanes;
     gmmCustomParams.CpTag         = params.cpTag;
+
+    PDDI_MEDIA_CONTEXT mediaDrvCtx = mediaSurface->pMediaCtx;
+    int32_t deviceId = mediaDrvCtx->iDeviceId;
     switch (params.tileFormat)
     {
         case I915_TILING_Y:
-            gmmCustomParams.Flags.Info.TiledY = true;
+	    //DG2 pciid from kernel/include/drm/i915_pciids.h#696
+	    if (deviceId >= 0x5690 && deviceId <= 0x56B3)
+                gmmCustomParams.Flags.Info.Tile4 = true;
+	    else
+		gmmCustomParams.Flags.Info.TiledY = true;
             break;
         case I915_TILING_X:
             gmmCustomParams.Flags.Info.TiledX = true;
