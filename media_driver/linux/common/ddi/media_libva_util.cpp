@@ -471,10 +471,17 @@ VAStatus DdiMediaUtil_AllocateSurface(
         gmmCustomParams.BaseAlignment = 4096;
         gmmCustomParams.NoOfPlanes    = mediaSurface->pSurfDesc->uiPlanes;
         gmmCustomParams.CpTag         = cpTag;
+
+        int32_t deviceId = mediaDrvCtx->iDeviceId;
+
         switch (tileformat)
         {
             case I915_TILING_Y:
-                gmmCustomParams.Flags.Info.TiledY = true;
+		//DG2 pciid from kernel/include/drm/i915_pciids.h#696
+		if (deviceId >= 0x5690 && deviceId <= 0x56B3)
+                    gmmCustomParams.Flags.Info.Tile4 = true;
+		else
+                    gmmCustomParams.Flags.Info.TiledY = true;
                 gmmCustomParams.Flags.Gpu.MMC    = false;
                 if (MEDIA_IS_SKU(&mediaDrvCtx->SkuTable, FtrE2ECompression) &&
                     (!MEDIA_IS_WA(&mediaDrvCtx->WaTable, WaDisableVPMmc)    &&
