@@ -25,6 +25,7 @@
 //! \details
 //!
 
+
 #ifndef __MHW_VEBOX_XE_LPM_PLUS_BASE_NEXT_IMPL_H__
 #define __MHW_VEBOX_XE_LPM_PLUS_BASE_NEXT_IMPL_H__
 
@@ -2334,6 +2335,7 @@ MOS_STATUS DumpDNDIStates(uint8_t *pDndiSate)
 
         if (pVeboxGamutParams->ColorSpace == MHW_CSpace_BT2020)  // Limited->Full
         {
+            MHW_CHK_NULL_RETURN(pVeboxIecpParams);
             if (pVeboxIecpParams->s1DLutParams.bActive)
             {
                 // The updated value for TGL VEBOX HDR and Fp16 path
@@ -2497,7 +2499,7 @@ MOS_STATUS DumpDNDIStates(uint8_t *pDndiSate)
         uiOETF[255] = 65535;
 
         // Back end CSC setting, need to convert BT2020 YUV input to RGB before GE
-        VeboxInterface_BT2020YUVToRGB(pVeboxHeap, pVeboxIecpParams, pVeboxGamutParams);
+        MHW_CHK_STATUS_RETURN(VeboxInterface_BT2020YUVToRGB(pVeboxHeap, pVeboxIecpParams, pVeboxGamutParams));
 
         // Global setting
         pGamutState->DW0.GlobalModeEnable = true;
@@ -2796,10 +2798,10 @@ MOS_STATUS DumpDNDIStates(uint8_t *pDndiSate)
 
         veboxInputSurfCtrlBits.DW0.IndexToMemoryObjectControlStateMocsTables =
             veboxOutputSurfCtrlBits.DW0.IndexToMemoryObjectControlStateMocsTables =
-                (this->m_osItf->pfnCachePolicyGetMemoryObject(
-                     MOS_HW_RESOURCE_USAGE_VP_INTERNAL_READ_WRITE_FF,
-                     this->m_osItf->pfnGetGmmClientContext(this->m_osItf)))
-                    .XE_LPG.Index;
+            (this->m_osItf->pfnCachePolicyGetMemoryObject(
+                MOS_HW_RESOURCE_USAGE_VP_INTERNAL_READ_WRITE_FF,
+                this->m_osItf->pfnGetGmmClientContext(this->m_osItf)))
+            .XE_LPG.Index;
 
         MOS_ZeroMemory(&ResourceParams, sizeof(MHW_RESOURCE_PARAMS));
         InitMocsParams(ResourceParams, &cmd.DW1_2.Value[0], 1, 6);
@@ -2816,6 +2818,8 @@ MOS_STATUS DumpDNDIStates(uint8_t *pDndiSate)
             cmdBuffer,
             &ResourceParams));
 
+        cmd.DW1_2.InputSurfaceControlBits = veboxInputSurfCtrlBits.DW0.Value;
+
         MOS_ZeroMemory(&ResourceParams, sizeof(MHW_RESOURCE_PARAMS));
         InitMocsParams(ResourceParams, &cmd.DW3_4.Value[0], 1, 6);
         ResourceParams.presResource = outputSurface;
@@ -2830,6 +2834,8 @@ MOS_STATUS DumpDNDIStates(uint8_t *pDndiSate)
             this->m_osItf,
             cmdBuffer,
             &ResourceParams));
+
+        cmd.DW3_4.OutputSurfaceControlBits = veboxOutputSurfCtrlBits.DW0.Value;
 
         m_osItf->pfnAddCommand(cmdBuffer, &cmd, cmd.byteSize);
 
@@ -3891,6 +3897,7 @@ _MHW_SETCMD_OVERRIDE_DECL(VEB_DI_IECP)
     return MOS_STATUS_SUCCESS;
 
 }
+
 
 protected:
     using base_t = vebox::Impl<mhw::vebox::xe_lpm_plus_next::Cmd>;

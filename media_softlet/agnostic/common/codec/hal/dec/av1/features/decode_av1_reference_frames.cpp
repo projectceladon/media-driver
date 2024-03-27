@@ -216,6 +216,10 @@ namespace decode
         DECODE_FUNC_CALL();
 
         // override internal reference list with anchor_frame_list passed from APP
+        if (picParams.m_anchorFrameNum > CODECHAL_MAX_DPB_NUM_LST_AV1)
+        {
+            return MOS_STATUS_INVALID_PARAMETER;
+        }
         for (auto i = 0; i < picParams.m_anchorFrameNum; i++)
         {
             DECODE_CHK_STATUS(m_allocator->GetSurfaceInfo(&picParams.m_anchorFrameList[i]));
@@ -258,7 +262,7 @@ namespace decode
                             picParams.m_picInfoFlags.m_fields.m_largeScaleTile && (picParams.m_currPic.FrameIdx >= CODECHAL_MAX_DPB_NUM_LST_AV1)),
                         "Invalid frame index of current frame");
         m_currRefList = m_refList[picParams.m_currPic.FrameIdx];
-        MOS_ZeroMemory(m_currRefList, sizeof(m_currRefList));
+        MOS_ZeroMemory(m_currRefList, sizeof(CODEC_REF_LIST_AV1));
 
         DECODE_CHK_STATUS(UpdateCurResource(m_currRefList));
         m_currRefList->m_frameWidth     = picParams.m_superResUpscaledWidthMinus1 + 1;  //DPB buffer are always stored in full frame resolution (Super-Res up-scaled resolution)

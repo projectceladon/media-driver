@@ -1448,10 +1448,10 @@ MOS_STATUS CompositeState::IntermediateAllocation(PVPHAL_SURFACE &pIntermediate,
             // Get resource info (width, height, pitch, tiling, etc)
             MOS_ZeroMemory(&Info, sizeof(VPHAL_GET_SURFACE_INFO));
 
-            VpHal_GetSurfaceInfo(
+            VPHAL_RENDER_CHK_STATUS_RETURN(VpHal_GetSurfaceInfo(
                 pOsInterface,
                 &Info,
-                pIntermediate);
+                pIntermediate));
         }
     }
 
@@ -1668,10 +1668,10 @@ bool CompositeState::PreparePhases(
                 // Get resource info (width, height, pitch, tiling, etc)
                 MOS_ZeroMemory(&Info, sizeof(VPHAL_GET_SURFACE_INFO));
 
-                VpHal_GetSurfaceInfo(
+                VPHAL_RENDER_CHK_STATUS(VpHal_GetSurfaceInfo(
                     pOsInterface,
                     &Info,
-                    pIntermediate);
+                    pIntermediate));
             }
         }
 
@@ -1686,6 +1686,7 @@ bool CompositeState::PreparePhases(
         pIntermediate->bIEF              = false;
     }
 
+finish:
     return bMultiplePhases;
 }
 
@@ -1993,6 +1994,8 @@ MOS_STATUS CompositeState::RenderMultiPhase(
     for (index = 0, phase = 0; (!bLastPhase); phase++)
     {
         bool                   disableAvsSampler = false;
+        // AdjustParamsBasedOnFcLimit must be called before IsDisableAVSSampler in legacy path, or it will miss the AVS WA
+        bool                   adjustParamBasedOnFcLimit = AdjustParamsBasedOnFcLimit(pcRenderParams);
         VPHAL_COMPOSITE_PARAMS  CompositeParams;
         // Prepare compositing structure
         ResetCompParams(&CompositeParams);
@@ -4684,6 +4687,7 @@ bool CompositeState::SubmitStates(
         pStatic    = &pRenderingData->Static;
     }
 
+    VPHAL_RENDER_CHK_NULL(pStatic);
     // Get Pointer to Render Target Surface
     pTarget        = pRenderingData->pTarget[0];
 
@@ -4803,7 +4807,7 @@ bool CompositeState::SubmitStates(
                 }
             }
 
-            if (dst_cspace == CSpace_None) // if color space is invlaid return false
+            if (dst_cspace == CSpace_None) // if color space is invalid return false
             {
                 VPHAL_RENDER_ASSERTMESSAGE("Failed to assign dst color spcae for iScale case.");
                 goto finish;
@@ -5856,39 +5860,20 @@ bool CompositeState::RenderBufferMediaWalker(
 
     if (pRenderingData->pTarget[1] == nullptr)
     {
-        if (pRenderingData->bCmFcEnable && pRenderingData->iLayers > 0)
-        {
-            pWalkerStatic->DW69.DestHorizontalBlockOrigin               =
-                (uint16_t)pRenderingData->pTarget[0]->rcDst.left;
-            pWalkerStatic->DW69.DestVerticalBlockOrigin                 =
-                (uint16_t)pRenderingData->pTarget[0]->rcDst.top;
-        }
-        else
-        {
-            pWalkerStatic->DW69.DestHorizontalBlockOrigin               =
-                 (uint16_t)pRenderingData->pTarget[0]->rcDst.left;
-            pWalkerStatic->DW69.DestVerticalBlockOrigin                 =
-                 (uint16_t)pRenderingData->pTarget[0]->rcDst.top;
-        }
+        pWalkerStatic->DW69.DestHorizontalBlockOrigin               =
+            (uint16_t)pRenderingData->pTarget[0]->rcDst.left;
+        pWalkerStatic->DW69.DestVerticalBlockOrigin                 =
+            (uint16_t)pRenderingData->pTarget[0]->rcDst.top;
         AlignedRect   = pRenderingData->pTarget[0]->rcDst;
     }
     else
     {
         // Horizontal and Vertical base on non-rotated in case of dual output
-        if (pRenderingData->bCmFcEnable && pRenderingData->iLayers > 0)
-        {
-            pWalkerStatic->DW69.DestHorizontalBlockOrigin               =
-                (uint16_t)pRenderingData->pTarget[1]->rcDst.left;
-            pWalkerStatic->DW69.DestVerticalBlockOrigin                 =
-                (uint16_t)pRenderingData->pTarget[1]->rcDst.top;
-        }
-        else
-        {
-            pWalkerStatic->DW69.DestHorizontalBlockOrigin               =
-                (uint16_t)pRenderingData->pTarget[1]->rcDst.left;
-            pWalkerStatic->DW69.DestVerticalBlockOrigin                 =
-                 (uint16_t)pRenderingData->pTarget[1]->rcDst.top;
-        }
+        pWalkerStatic->DW69.DestHorizontalBlockOrigin               =
+            (uint16_t)pRenderingData->pTarget[1]->rcDst.left;
+        pWalkerStatic->DW69.DestVerticalBlockOrigin                 =
+            (uint16_t)pRenderingData->pTarget[1]->rcDst.top;
+        
         AlignedRect   = pRenderingData->pTarget[1]->rcDst;
     }
 
@@ -6101,6 +6086,44 @@ bool CompositeState::RenderBufferComputeWalker(
 
     PrintWalkerParas(pWalkerParams);
     return bResult;
+}
+
+//!
+//! \brief    Adjust Params Based On Fc Limit
+//! \param    [in,out] pCompParams
+//!           Pointer to Composite parameters.
+//! \return   bool
+//!
+bool CompositeState::AdjustParamsBasedOnFcLimit(
+    PCVPHAL_RENDER_PARAMS pcRenderParam)
+{
+    //The kernel is using the rectangle data to calculate mask. If the rectangle configuration does not comply to kernel requirement, the mask calculation will be incorrect and will see corruption.
+    if (pcRenderParam->pColorFillParams == nullptr &&
+        pcRenderParam->uSrcCount == 1 &&
+        pcRenderParam->uDstCount == 1 &&
+        pcRenderParam->pSrc[0] != nullptr &&
+        pcRenderParam->pTarget[0] != nullptr)
+    {
+         if (pcRenderParam->pSrc[0]->rcDst.top >= pcRenderParam->pTarget[0]->rcDst.top &&
+             pcRenderParam->pSrc[0]->rcDst.left >= pcRenderParam->pTarget[0]->rcDst.left &&
+             pcRenderParam->pSrc[0]->rcDst.right <= pcRenderParam->pTarget[0]->rcDst.right &&
+             pcRenderParam->pSrc[0]->rcDst.bottom <= pcRenderParam->pTarget[0]->rcDst.bottom)
+         {
+            VPHAL_RENDER_NORMALMESSAGE("Render Path : 1 Surface to 1 Surface FC Composition. ColorFill is Disabled. Output Dst is bigger than Input Dst. Will make Output Dst become Input Dst to Avoid FC Corruption. (%d %d %d %d) -> (%d %d %d %d)",
+                pcRenderParam->pTarget[0]->rcDst.left,
+                pcRenderParam->pTarget[0]->rcDst.top,
+                pcRenderParam->pTarget[0]->rcDst.right,
+                pcRenderParam->pTarget[0]->rcDst.bottom,
+                pcRenderParam->pSrc[0]->rcDst.left,
+                pcRenderParam->pSrc[0]->rcDst.top,
+                pcRenderParam->pSrc[0]->rcDst.right,
+                pcRenderParam->pSrc[0]->rcDst.bottom);
+            pcRenderParam->pTarget[0]->rcSrc = pcRenderParam->pSrc[0]->rcDst;
+            pcRenderParam->pTarget[0]->rcDst = pcRenderParam->pSrc[0]->rcDst;
+            return true;
+         }
+    }
+    return false;
 }
 
 //!
@@ -6523,15 +6546,19 @@ MOS_STATUS CompositeState::RenderPhase(
             case CSpace_BT2020:
                 pSource->ExtendedGamut = false;
                 pSource->ColorSpace    = CSpace_BT2020;
+                break;
             case CSpace_BT2020_FullRange:
                 pSource->ExtendedGamut = false;
                 pSource->ColorSpace    = CSpace_BT2020_FullRange;
+                break;
             case CSpace_BT2020_RGB:
                 pSource->ExtendedGamut = false;
                 pSource->ColorSpace    = CSpace_BT2020_RGB;
+                break;
             case CSpace_BT2020_stRGB:
                 pSource->ExtendedGamut = false;
                 pSource->ColorSpace    = CSpace_BT2020_stRGB;
+                break;
             default:
                 pSource->ExtendedGamut = false;
                 pSource->ColorSpace    = CSpace_sRGB;

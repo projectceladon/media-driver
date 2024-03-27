@@ -165,11 +165,11 @@ MOS_STATUS CodechalEncodeSwScoreboardMdfG12::SetupKernelArgs()
     )
 
     m_cmKrn->SetKernelArg(idx++, sizeof(curbe), &curbe);
-    m_scoreboardSurface->GetIndex(pSurfIndex);
+    CODECHAL_ENCODE_CHK_STATUS_RETURN(m_scoreboardSurface->GetIndex(pSurfIndex));
     m_cmKrn->SetKernelArg(idx++, sizeof(SurfaceIndex), pSurfIndex);
     if (m_lcuInfoSurface)
     {
-        m_lcuInfoSurface->GetIndex(pSurfIndex);
+        CODECHAL_ENCODE_CHK_STATUS_RETURN(m_lcuInfoSurface->GetIndex(pSurfIndex));
     }
     m_cmKrn->SetKernelArg(idx++, sizeof(SurfaceIndex), pSurfIndex);
 

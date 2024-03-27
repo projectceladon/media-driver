@@ -34,6 +34,10 @@
 #include "mos_os_virtualengine_next.h"
 #include "mos_interface.h"
 #include "mos_os_cp_interface_specific.h"
+#ifdef ENABLE_NEW_KMD
+// This header file is in close source temporarily. Could not find this header file in open source repo.
+#include "mos_gpucontext_specific_next_xe.h"
+#endif
 
 #define MI_BATCHBUFFER_END 0x05000000
 static pthread_mutex_t command_dump_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -94,6 +98,35 @@ GpuContextSpecificNext::~GpuContextSpecificNext()
     MOS_OS_FUNCTION_ENTER;
 
     Clear();
+}
+
+GpuContextNext *GpuContextSpecificNext::Create(
+    const MOS_GPU_NODE    gpuNode,
+    CmdBufMgrNext         *cmdBufMgr,
+    GpuContextNext        *reusedContext)
+{
+    MOS_OS_FUNCTION_ENTER;
+    if (nullptr == cmdBufMgr)
+    {
+        return nullptr;
+    }
+    OsContextSpecificNext *osDeviceContext = dynamic_cast<OsContextSpecificNext*>(cmdBufMgr->m_osContext);
+    if (nullptr == osDeviceContext)
+    {
+        return nullptr;
+    }
+    int type = osDeviceContext->GetDeviceType();
+    if (DEVICE_TYPE_I915 == type)
+    {
+        return MOS_New(GpuContextSpecificNext, gpuNode, cmdBufMgr, reusedContext);
+    }
+#ifdef ENABLE_NEW_KMD
+    else if (DEVICE_TYPE_XE == type)
+    {
+        return MOS_New(GpuContextSpecificNextXe, gpuNode, cmdBufMgr, reusedContext);
+    }
+#endif
+    return nullptr;
 }
 
 MOS_STATUS GpuContextSpecificNext::RecreateContext(bool bIsProtected, MOS_STREAM_HANDLE streamState)
@@ -1412,6 +1445,8 @@ MOS_STATUS GpuContextSpecificNext::SubmitCommandBuffer(
             return MOS_STATUS_UNKNOWN;
         }
     }
+    // dump before cmd buffer unmap
+    MOS_TraceDumpExt("CmdBuffer", m_gpuContext, cmdBuffer->pCmdBase, cmdBuffer->iOffset);
 
     // Now, we can unmap the video command buffer, since we don't need CPU access anymore.
     MOS_OS_CHK_NULL_RETURN(cmdBuffer->OsResource.pGfxResourceNext);

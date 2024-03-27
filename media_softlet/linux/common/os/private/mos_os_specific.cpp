@@ -1878,28 +1878,6 @@ MOS_STATUS Mos_Specific_GetIndirectStatePointer(
     uint32_t offset = 0;
     uint32_t size   = 0;
     return MosInterface::GetIndirectState(osInterface->osStreamState, indirectState, offset, size);
-
-    MOS_OS_CHK_NULL_RETURN(osInterface->pOsContext);
-
-    osContext = osInterface->pOsContext;
-
-    if (osInterface->CurrentGpuContextHandle == MOS_GPU_CONTEXT_INVALID_HANDLE)
-    {
-        MOS_OS_ASSERTMESSAGE("Invalid input parameter gpuContext.");
-        return MOS_STATUS_INVALID_PARAMETER;
-    }
-
-    MOS_OS_GPU_CONTEXT  &osGpuContext = osContext->OsGpuContext[osInterface->CurrentGpuContextOrdinal];
-
-    MOS_OS_CHK_NULL_RETURN(osGpuContext.pCB);
-    MOS_OS_CHK_NULL_RETURN(osGpuContext.pCB->pCmdBase);
-
-    *indirectState =
-        (uint8_t*)osGpuContext.pCB->pCmdBase   +
-        osGpuContext.uiCommandBufferSize    -
-        osContext->uIndirectStateSize;
-
-    return MOS_STATUS_SUCCESS;
 }
 
 //!
@@ -1978,6 +1956,24 @@ uint64_t Mos_Specific_GetResourceGfxAddress(
     MOS_OS_CHK_NULL_RETURN(osInterface);
 
     return MosInterface::GetResourceGfxAddress(osInterface->osStreamState, resource);
+}
+
+//!
+//! \brief    Get Clear Color Address
+//! \details  The clear color address
+//! \param    PMOS_INTERFACE pOsInterface
+//!           [in] OS Interface
+//! \param    PMOS_RESOURCE pResource
+//!           [in] OS resource structure
+//! \return   uint64_t
+//!           The clear color address
+//!
+uint64_t Mos_Specific_GetResourceClearAddress(
+    PMOS_INTERFACE pOsInterface,
+    PMOS_RESOURCE  pResource)
+{
+    uint64_t ui64ClearColorAddress = 0;
+    return ui64ClearColorAddress;
 }
 
 //!
@@ -3419,6 +3415,7 @@ MOS_STATUS Mos_Specific_LoadFunction(
     osInterface->pfnResetResourceAllocationIndex    = Mos_Specific_ResetResourceAllocationIndex;
     osInterface->pfnGetResourceAllocationIndex      = Mos_Specific_GetResourceAllocationIndex;
     osInterface->pfnGetResourceGfxAddress           = Mos_Specific_GetResourceGfxAddress;
+    osInterface->pfnGetResourceClearAddress         = Mos_Specific_GetResourceClearAddress;
     osInterface->pfnGetCommandBuffer                = Mos_Specific_GetCommandBuffer;
     osInterface->pfnResetCommandBuffer              = Mos_Specific_ResetCommandBuffer;
     osInterface->pfnReturnCommandBuffer             = Mos_Specific_ReturnCommandBuffer;
@@ -3616,8 +3613,18 @@ MOS_STATUS Mos_Specific_InitInterface(
     osInterface->dwGPUPendingBatch  = 0;
 
     // enable it on Linux
-    osInterface->bMediaReset          = true;
+    osInterface->bMediaReset         = true;
+    osInterface->trinityPath         = TRINITY_DISABLED;
     osInterface->umdMediaResetEnable = true;
+
+    // disable Media Reset for non-xe platform who has no media reset support on Linux
+    auto skuTable = osInterface->pfnGetSkuTable(osInterface);
+    MOS_OS_CHK_NULL_RETURN(skuTable);
+    if(!MEDIA_IS_SKU(skuTable, FtrSWMediaReset))
+    {
+        osInterface->bMediaReset         = false;
+        osInterface->umdMediaResetEnable = false;
+    }
 
     pMediaWatchdog = getenv("INTEL_MEDIA_RESET_WATCHDOG");
     if (pMediaWatchdog != nullptr)
@@ -3691,11 +3698,11 @@ MOS_STATUS Mos_Specific_InitInterface(
 MOS_TILE_TYPE LinuxToMosTileType(uint32_t type)
 {
     switch (type) {
-        case I915_TILING_NONE:
+        case TILING_NONE:
             return MOS_TILE_LINEAR;
-        case I915_TILING_X:
+        case TILING_X:
             return MOS_TILE_X;
-        case I915_TILING_Y:
+        case TILING_Y:
             return MOS_TILE_Y;
         default:
             return MOS_TILE_INVALID;

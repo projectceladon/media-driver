@@ -332,7 +332,7 @@ MOS_STATUS Vp9DecodePicPkt::SetRefMmcStatus(uint8_t surfaceID, PMOS_SURFACE pSur
     DECODE_CHK_STATUS(m_mmcState->GetSurfaceMmcState(pSurface, &mmcState));
     m_refsMmcEnable |= (mmcState == MOS_MEMCOMP_RC || mmcState == MOS_MEMCOMP_MC) ? (1 << (surfaceID - 2)) : 0;
     m_refsMmcType |= (mmcState == MOS_MEMCOMP_RC) ? (1 << (surfaceID - 2)) : 0;
-    if (mmcState == MOS_MEMCOMP_RC || mmcState == MOS_MEMCOMP_MC)
+    if (m_mmcState->IsMmcEnabled())
     {
         DECODE_CHK_STATUS(m_mmcState->GetSurfaceMmcFormat(pSurface, &m_mmcFormat));
     }
@@ -458,14 +458,7 @@ MHW_SETPAR_DECL_SRC(HCP_SURFACE_STATE, Vp9DecodePicPkt)
         }
     }
 
-    if (m_curHcpSurfStateId == CODECHAL_HCP_SRC_SURFACE_ID)
-    {
-        uvPlaneAlignment = dwUVPlaneAlignment ? dwUVPlaneAlignment : m_rawUVPlaneAlignment;
-    }
-    else
-    {
-        uvPlaneAlignment = dwUVPlaneAlignment ? dwUVPlaneAlignment : m_reconUVPlaneAlignment;
-    }
+    uvPlaneAlignment = dwUVPlaneAlignment;
 
     params.yOffsetForUCbInPixel =
         MOS_ALIGN_CEIL((psSurface->UPlaneOffset.iSurfaceOffset - psSurface->dwOffset) / psSurface->dwPitch + psSurface->RenderOffset.YUV.U.YOffset, uvPlaneAlignment);

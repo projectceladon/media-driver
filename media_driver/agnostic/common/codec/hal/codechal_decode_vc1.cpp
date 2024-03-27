@@ -704,6 +704,18 @@ void CodechalDecodeVc1::PackMotionVectors(
         vc1PicParams->picture_fields.is_first_field,
         vc1PicParams->picture_fields.picture_type) ? true : false;
 
+    if (packedLumaMvs == nullptr)
+    {
+        CODECHAL_DECODE_ASSERTMESSAGE("ERROR: packedLumaMvs is nullptr");
+        return;
+    }
+
+    if (packedChromaMv == nullptr)
+    {
+        CODECHAL_DECODE_ASSERTMESSAGE("ERROR: packedChromaMv is nullptr");
+        return;
+    }
+
     packedLumaMvs[0] = packedLumaMvs[2] = packedLumaMvs[4] = packedLumaMvs[6] = 0;
     packedLumaMvs[1] = packedLumaMvs[3] = packedLumaMvs[5] = packedLumaMvs[7] = 0;
 
@@ -4612,6 +4624,7 @@ MOS_STATUS CodechalDecodeVc1::UpdateVc1KernelState()
     PMHW_KERNEL_STATE                      kernelState = &m_olpKernelState;
 
     decodeKernel = (PCODECHAL_DECODE_VC1_KERNEL_HEADER_CM)kernelState->KernelParams.pBinary;
+    CODECHAL_DECODE_CHK_NULL_RETURN(decodeKernel);
     kernelState->dwKernelBinaryOffset =
         decodeKernel->OLP.KernelStartPointer << MHW_KERNEL_OFFSET_SHIFT;
     m_olpDshSize =
@@ -4840,6 +4853,8 @@ CodechalDecodeVc1::CodechalDecodeVc1(
     MOS_ZeroMemory(&m_resBitplaneBuffer, sizeof(m_resBitplaneBuffer));
     MOS_ZeroMemory(&m_resSyncObjectWaContextInUse, sizeof(m_resSyncObjectWaContextInUse));
     MOS_ZeroMemory(&m_resSyncObjectVideoContextInUse, sizeof(m_resSyncObjectVideoContextInUse));
+    MOS_ZeroMemory(m_presReferences, (sizeof(PMOS_RESOURCE) * CODEC_MAX_NUM_REF_FRAME_NON_AVC));
+    MOS_ZeroMemory(m_vc1RefList, (sizeof(PCODEC_REF_LIST) * CODECHAL_NUM_UNCOMPRESSED_SURFACE_VC1));
 #if (_DEBUG || _RELEASE_INTERNAL)
     m_reportFrameCrc = true;
 #endif

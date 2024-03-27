@@ -675,7 +675,7 @@ MOS_STATUS HevcBasicFeature::GetRecycleBuffers()
         }
     }
 
-    if (recycleBufferIdx == -1 || recycleBufferIdx >= m_maxSyncDepth)
+    if (recycleBufferIdx == -1)
     {
         return MOS_STATUS_SUCCESS;
     }
@@ -1142,7 +1142,7 @@ MHW_SETPAR_DECL_SRC(VDENC_CMD2, HevcBasicFeature)
         params.frameIdxL1Ref0 = 0;
     }
 
-    ENCODE_CHK_COND_RETURN(m_SubPelMode < 0 || m_SubPelMode > 3, "Invalid subPelMode");
+    ENCODE_CHK_COND_RETURN(m_SubPelMode > 3, "Invalid subPelMode");
     params.subPelMode = m_bEnableSubPelMode ? m_SubPelMode : 3;
     auto settings = static_cast<HevcVdencFeatureSettings *>(m_constSettings);
     ENCODE_CHK_NULL_RETURN(settings);

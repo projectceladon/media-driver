@@ -76,11 +76,6 @@ public:
         if (cacheSettings)
         {
             MHW_RENDER_ENGINE_L3_CACHE_SETTINGS *cacheSettingsHpg = (MHW_RENDER_ENGINE_L3_CACHE_SETTINGS*)cacheSettings;
-            if (cacheSettingsHpg == nullptr)
-            {
-                MHW_ASSERTMESSAGE("Hpg-Specific Params are needed.");
-                return MOS_STATUS_INVALID_PARAMETER;
-            }
             m_l3CacheConfig.dwL3CacheAllocReg_Setting  = cacheSettingsHpg->dwAllocReg;
             m_l3CacheConfig.dwL3CacheTcCntlReg_Setting = cacheSettingsHpg->dwTcCntlReg;
             // update default settings is needed from CM HAL call
@@ -117,14 +112,14 @@ public:
                 l3CachePar = {};
                 l3CachePar.dwRegister = m_l3CacheConfig.dwRcsL3CacheAllocReg_Register;
                 l3CachePar.dwData     = m_l3CacheConfig.dwL3CacheAllocReg_Setting;
-                miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(cmdBuffer);
+                MHW_MI_CHK_STATUS(miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(cmdBuffer));
 
                 //update L3 TcCntlReg setting for RCS; CCS L3 TcCntlReg setting will be dulicated from RCS
                 auto& rcsL3CacheTcCntlPar = miItf->MHW_GETPAR_F(MI_LOAD_REGISTER_IMM)();
                 rcsL3CacheTcCntlPar = {};
                 rcsL3CacheTcCntlPar.dwRegister = m_l3CacheConfig.dwRcsL3CacheTcCntlReg_Register;
                 rcsL3CacheTcCntlPar.dwData     = m_l3CacheConfig.dwL3CacheTcCntlReg_Setting;
-                miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(cmdBuffer);
+                MHW_MI_CHK_STATUS(miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(cmdBuffer));
 
             }
         }
@@ -201,7 +196,16 @@ public:
         cmd.interface_descriptor_data.DW4.BindingTablePointer = MOS_ROUNDUP_SHIFT(params.dwBindingTableOffset, MHW_BINDING_TABLE_ID_SHIFT);
         cmd.interface_descriptor_data.DW5.NumberOfThreadsInGpgpuThreadGroup = params.dwNumberofThreadsInGPGPUGroup;
         cmd.interface_descriptor_data.DW5.SharedLocalMemorySize = params.dwSharedLocalMemorySize;
-
+        if (params.dwSharedLocalMemorySize > 0)
+        {
+            cmd.interface_descriptor_data.DW6_7.PreferredSlmAllocationSizePerSubslice = mhw::render::xe_hpg::Cmd::COMPUTE_WALKER_CMD::INTERFACE_DESCRIPTOR_DATA_G12HP_CMD::PREFERRED_SLM_ALLOCATION_SIZE_PER_SUBSLICE_SLMENCODES96K;
+        }
+        else  // if (params.dwSharedLocalMemorySize == 0)
+        {
+            cmd.interface_descriptor_data.DW6_7.PreferredSlmAllocationSizePerSubslice = params.forcePreferredSLMZero ? 
+                mhw::render::xe_hpg::Cmd::COMPUTE_WALKER_CMD::INTERFACE_DESCRIPTOR_DATA_G12HP_CMD::PREFERRED_SLM_ALLOCATION_SIZE_PER_SUBSLICE_SLMENCODESMAX :
+                mhw::render::xe_hpg::Cmd::COMPUTE_WALKER_CMD::INTERFACE_DESCRIPTOR_DATA_G12HP_CMD::PREFERRED_SLM_ALLOCATION_SIZE_PER_SUBSLICE_SLMENCODES0K;
+        }
         // when Barriers is not 0, the EU fusion will close.
         // Assigns barrier count.
         if (params.bBarrierEnable)

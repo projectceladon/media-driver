@@ -2091,10 +2091,10 @@ PRENDERHAL_MEDIA_STATE RenderHal_DSH_AssignDynamicState(
     pCurrentPtr = performanceMemory;
     pCurrentPtr += (sizeof(uint64_t) * 2);
     *((RENDERHAL_COMPONENT *)pCurrentPtr) = componentID;
-    pDynamicState->memoryBlock.AddData(
+    MHW_RENDERHAL_CHK_STATUS(pDynamicState->memoryBlock.AddData(
         performanceMemory, 
         pDynamicState->Performance.dwOffset, 
-        performanceSize);
+        performanceSize));
 
 finish:
 
@@ -2193,7 +2193,7 @@ MOS_STATUS RenderHal_DSH_SubmitDynamicState(
     pMediaStateLegacy->bBusy = true;
 
     blocks.push_back(pMediaStateLegacy->pDynamicState->memoryBlock);
-    pRenderHal->dgsheapManager->SubmitBlocks(blocks);
+    MHW_RENDERHAL_CHK_STATUS(pRenderHal->dgsheapManager->SubmitBlocks(blocks));
 
     // Attached to end of submitted queue (media state in execution queue)
     pList = &pRenderHal->pStateHeap->SubmittedStates;

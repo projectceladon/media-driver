@@ -17,7 +17,7 @@ You may obtain a copy of the License at [MIT](https://opensource.org/licenses/MI
 For Ubuntu 16.04+
 
 ```
-apt install autoconf libtool libdrm-dev xorg xorg-dev openbox libx11-dev libgl1-mesa-glx libgl1-mesa-dev
+apt install autoconf libtool libdrm-dev xorg xorg-dev openbox libx11-dev libgl1-mesa-glx
 ```
 
 Equivalents for other distributions should work.
@@ -108,10 +108,10 @@ Media driver supports two build types as below
 | JPEG | <u>Full-Feature</u><br><i>Free-Kernel</i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D</u><br><i>D<i> |
 | VP8 | <u>Full-Feature</u><br><i>Free-Kernel</i> | <u>D</u><br><i>D<i> | <u>&nbsp;</u><br><i>&nbsp;<i> | <u>&nbsp;</u><br><i>&nbsp;<i> | <u>D*</u><br><i>D*<i> | <u>D</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> | <u>D</u><br><i>D<i> | <u>D</u><br><i>D<i> | <u>D</u><br><i>D<i> |
 | HEVC 8bit | <u>Full-Feature</u><br><i>Free-Kernel</i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E/Es</u><br><i>D/E<i> | <u>D/E/Es</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E/Es</u><br><i>D/E<i> | <u>D/Es</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> |  |
-| HEVC 8bit 422 | <u>Full-Feature</u><br><i>Free-Kernel</i> | <u>D</u><br><i>D<i>| <u>D</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> | <u>D</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> |  |  |  |  |
+| HEVC 8bit 422 | <u>Full-Feature</u><br><i>Free-Kernel</i> | <u>D</u><br><i>D<i>| <u>D/E</u><br><i>D/E<i> | <u>D/Es</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> | <u>D</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> |  |  |  |  |
 | HEVC 8bit 444 | <u>Full-Feature</u><br><i>Free-Kernel</i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> |  |  |  |  |
 | HEVC 10bit | <u>Full-Feature</u><br><i>Free-Kernel</i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E/Es</u><br><i>D/E<i> | <u>D/E/Es</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E/Es</u><br><i>D/E<i> | <u>D/Es</u><br><i>D<i> | <u>D</u><br><i>D<i> |  |  |
-| HEVC 10bit 422 | <u>Full-Feature</u><br><i>Free-Kernel</i> | <u>D</u><br><i>D<i> | <u>D</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> | <u>D</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> |  |  |  |  |
+| HEVC 10bit 422 | <u>Full-Feature</u><br><i>Free-Kernel</i> | <u>D</u><br><i>D<i> | <u>D/E</u><br><i>D/E<i> | <u>D/Es</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> | <u>D</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> |  |  |  |  |
 | HEVC 10bit 444 | <u>Full-Feature</u><br><i>Free-Kernel</i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> | <u>D/E</u><br><i>D/E<i> |  |  |  |  |
 | HEVC 12bit | <u>Full-Feature</u><br><i>Free-Kernel</i> | <u>D</u><br><i>D<i> | <u>D</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> | <u>D/Es</u><br><i>D<i> |  |  |  |  |  |  |
 | HEVC 12bit 422 | <u>Full-Feature</u><br><i>Free-Kernel</i> | <u>D</u><br><i>D<i> | <u>D</u><br><i>D<i> | <u>D</u><br><i>D<i> | <u>D</u><br><i>D<i> |  |  |  |  |  |  |
@@ -131,6 +131,7 @@ Media driver supports two build types as below
 - E  - Hardware Encoding, Low Power Encoding(VDEnc/Huc)
 - Es - Hardware(PAK) + Shader(media kernel+VME) Encoding
 
+***Note:*** Low Power Encoding(VAEntrypointEncSliceLP) and Shader Encoding(VAEntrypointEncSlice) are consolidated to the unified interface(VAEntrypointEncSlice) from ***MTL*** platform. It goes through VDEnc/Huc for HW acceleration to unleash GPU resource to customers.
 
 
 For more decoding and encoding features information, please refer to

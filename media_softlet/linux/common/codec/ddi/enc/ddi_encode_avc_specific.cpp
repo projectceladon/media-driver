@@ -1897,9 +1897,6 @@ MOS_STATUS DdiEncodeAvc::CheckPackedSlcHeaderData(
     *ppOutSlcHdr = NULL;
     OutBitSize = 0;
 
-    if (VAEntrypointEncSliceLP != m_encodeCtx->vaEntrypoint)
-        return MOS_STATUS_SUCCESS;
-
     if (0 == InBitSize || NULL == pInSlcHdr)
         return MOS_STATUS_SUCCESS;
 
@@ -2277,10 +2274,10 @@ void DdiEncodeAvc::ClearPicParams()
     }
 }
 
-CODECHAL_FUNCTION DdiEncodeAvc::GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint)
+CODECHAL_FUNCTION DdiEncodeAvc::GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint, bool bVDEnc)
 {
     CODECHAL_FUNCTION codecFunction = CODECHAL_FUNCTION_INVALID;
-   if (entrypoint == VAEntrypointEncSliceLP)
+    if (bVDEnc)
     {
         codecFunction = CODECHAL_FUNCTION_ENC_VDENC_PAK;
     }

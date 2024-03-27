@@ -54,8 +54,10 @@ FilmGrainGrvPacket::FilmGrainGrvPacket(MediaPipeline *pipeline, MediaTask *task,
         m_vdencInterface = hwInterface->GetVdencInterface();
         m_renderHal      = hwInterface->GetRenderHalInterface();
     }
-
-    m_cpInterface = m_hwInterface->GetCpInterface();
+    if (m_hwInterface != nullptr)
+    {
+        m_cpInterface = m_hwInterface->GetCpInterface();
+    }
 }
 
 MOS_STATUS FilmGrainGrvPacket::Init()
@@ -345,7 +347,7 @@ MOS_STATUS FilmGrainGrvPacket::KernelStateSetup()
 
     PRENDERHAL_INTERFACE_LEGACY pRenderHalLegacy = (PRENDERHAL_INTERFACE_LEGACY)m_renderHal;
     // Initialize States
-    MOS_ZeroMemory(m_filter, sizeof(m_filter));
+    MOS_ZeroMemory(m_filter, sizeof(Kdll_FilterEntry));
     MOS_ZeroMemory(&m_renderData.KernelEntry, sizeof(Kdll_CacheEntry));
 
     // Set Kernel Parameter

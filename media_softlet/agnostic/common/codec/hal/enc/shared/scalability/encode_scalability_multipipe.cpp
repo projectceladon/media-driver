@@ -97,7 +97,7 @@ MOS_STATUS EncodeScalabilityMultiPipe::AllocateSemaphore()
             &m_resSemaphoreOnePipeWait[i],
             &lockFlagsWriteOnly);
         SCALABILITY_CHK_NULL_RETURN(data);
-        *data = 1;
+        *data = 0;
         SCALABILITY_CHK_STATUS_RETURN(m_osInterface->pfnUnlockResource(
             m_osInterface,
             &m_resSemaphoreOnePipeWait[i]));
@@ -328,7 +328,7 @@ MOS_STATUS EncodeScalabilityMultiPipe::VerifySpaceAvailable(uint32_t requestedSi
     {
         SCALABILITY_CHK_STATUS_RETURN(MediaScalability::VerifySpaceAvailable(
             requestedSize, requestedPatchListSize, bothPatchListAndCmdBufChkSuccess));
-        if (bothPatchListAndCmdBufChkSuccess = true)
+        if (bothPatchListAndCmdBufChkSuccess == true)
         {
             singleTaskPhaseSupportedInPak = m_singleTaskPhaseSupported;
             return eStatus;
@@ -484,6 +484,7 @@ MOS_STATUS EncodeScalabilityMultiPipe::ReturnCmdBuffer(PMOS_COMMAND_BUFFER cmdBu
     uint32_t bufIdxPlus1 = m_currentPipe + 1;  //Make CMD buffer one next to one.
     m_secondaryCmdBuffer[bufIdxPlus1 - 1] = *cmdBuffer;  //Need to record the iOffset, ptr and other data of CMD buffer, it's not maintain in the mos.
     m_osInterface->pfnReturnCommandBuffer(m_osInterface, &m_secondaryCmdBuffer[bufIdxPlus1 - 1], bufIdxPlus1);
+    m_primaryCmdBuffer.Attributes.bFrequencyBoost |= cmdBuffer->Attributes.bFrequencyBoost;
     m_osInterface->pfnReturnCommandBuffer(m_osInterface, &m_primaryCmdBuffer, 0);
     return eStatus;
 }
@@ -680,11 +681,11 @@ MOS_STATUS EncodeScalabilityMultiPipe::ResetSemaphore(uint32_t syncType, uint32_
         }
         break;
     case syncOnePipeWaitOthers:
-        if (!Mos_ResourceIsNull(&m_resSemaphoreOnePipeWait[m_currentPipe]))
+        if (!Mos_ResourceIsNull(&m_resSemaphoreOnePipeWait[semaphoreId]))
         {
             SCALABILITY_CHK_STATUS_RETURN(
                 m_hwInterface->SendMiStoreDataImm(
-                    &m_resSemaphoreOnePipeWait[m_currentPipe],
+                    &m_resSemaphoreOnePipeWait[semaphoreId],
                     0,
                     cmdBuffer));
         }
@@ -721,7 +722,7 @@ MOS_STATUS EncodeScalabilityMultiPipe::UpdateState(void *statePars)
     SCALABILITY_FUNCTION_ENTER;
     MOS_STATUS   eStatus         = MOS_STATUS_SUCCESS;
     StateParams *encodeStatePars = (StateParams *)statePars;
-    if (encodeStatePars->currentPipe < 0 || encodeStatePars->currentPipe >= m_pipeNum)
+    if (encodeStatePars->currentPipe >= m_pipeNum)
     {
         eStatus = MOS_STATUS_INVALID_PARAMETER;
         SCALABILITY_ASSERTMESSAGE("UpdateState failed with invalid parameter:currentPipe!");

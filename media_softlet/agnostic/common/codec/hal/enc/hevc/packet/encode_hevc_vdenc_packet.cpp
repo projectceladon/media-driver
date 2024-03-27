@@ -378,8 +378,7 @@ namespace encode
 
         ENCODE_CHK_STATUS_RETURN(m_miItf->SetWatchdogTimerThreshold(m_basicFeature->m_frameWidth, m_basicFeature->m_frameHeight, true));
 
-        uint16_t perfTag = m_pipeline->IsFirstPass() ? CODECHAL_ENCODE_PERFTAG_CALL_PAK_ENGINE : CODECHAL_ENCODE_PERFTAG_CALL_PAK_ENGINE_SECOND_PASS;
-        SetPerfTag(perfTag, (uint16_t)m_basicFeature->m_mode, m_basicFeature->m_pictureCodingType);
+        SetPerfTag();
 
         auto feature = dynamic_cast<HEVCEncodeBRC*>(m_featureManager->GetFeature(HevcFeatureIDs::hevcBrcFeature));
         ENCODE_CHK_NULL_RETURN(feature);
@@ -398,7 +397,7 @@ namespace encode
             if (m_pipeline->IsFirstPass())
             {
                 // Reset multi-pipe sync semaphores
-                ENCODE_CHK_STATUS_RETURN(scalability->ResetSemaphore(syncOnePipeWaitOthers, 0, &cmdBuffer));
+                ENCODE_CHK_STATUS_RETURN(scalability->ResetSemaphore(syncOnePipeWaitOthers, m_pipeline->GetCurrentPipe(), &cmdBuffer));
             }
 
             // For brc case, other pipes wait for BRCupdate done on first pipe
@@ -651,6 +650,7 @@ namespace encode
         PMOS_COMMAND_BUFFER tempCmdBuffer         = &cmdBuffer;
         PMHW_BATCH_BUFFER   tileLevelBatchBuffer  = nullptr;
         auto                eStatus               = MOS_STATUS_SUCCESS;
+        MOS_COMMAND_BUFFER constructTileBatchBuf = {};
 
         RUN_FEATURE_INTERFACE_RETURN(HevcEncodeTile, HevcFeatureIDs::encodeTile, SetCurrentTile, tileRow, tileCol, m_pipeline);
 
@@ -661,8 +661,6 @@ namespace encode
 
         if (!m_osInterface->bUsesPatchList)
         {
-            MOS_COMMAND_BUFFER constructTileBatchBuf = {};
-
             // Begin patching tile level batch cmds
             RUN_FEATURE_INTERFACE_RETURN(HevcEncodeTile, HevcFeatureIDs::encodeTile, BeginPatchTileLevelBatch, tileRowPass, constructTileBatchBuf);
 
@@ -800,6 +798,25 @@ namespace encode
         SETPAR_AND_ADDCMD(VD_PIPELINE_FLUSH, m_vdencItf, &cmdBuffer);
 
         ENCODE_CHK_STATUS_RETURN(EnsureAllCommandsExecuted(cmdBuffer));
+
+        // read info from MMIO register in VDENC, incase pak int can't get info
+        auto feature = dynamic_cast<HEVCEncodeBRC *>(m_featureManager->GetFeature(HevcFeatureIDs::hevcBrcFeature));
+        ENCODE_CHK_NULL_RETURN(feature);
+        if (m_pipeline->GetPipeNum() <= 1 && !m_pipeline->IsSingleTaskPhaseSupported())
+        {
+            ENCODE_CHK_STATUS_RETURN(ReadHcpStatus(m_vdboxIndex, m_statusReport, cmdBuffer));
+            // BRC PAK statistics different for each pass
+            if (feature->IsBRCEnabled())
+            {
+                uint8_t                     ucPass = (uint8_t)m_pipeline->GetCurrentPass();
+                EncodeReadBrcPakStatsParams readBrcPakStatsParams;
+                MOS_RESOURCE               *osResource = nullptr;
+                uint32_t                    offset     = 0;
+                m_statusReport->GetAddress(statusReportNumberPasses, osResource, offset);
+                RUN_FEATURE_INTERFACE_RETURN(HEVCEncodeBRC, HevcFeatureIDs::hevcBrcFeature, SetReadBrcPakStatsParams, ucPass, offset, osResource, readBrcPakStatsParams);
+                ReadBrcPakStatistics(&cmdBuffer, &readBrcPakStatsParams);
+            }
+        }
 
         // Wait all pipe cmds done for the packet
         auto scalability = m_pipeline->GetMediaScalability();
@@ -1293,8 +1310,8 @@ namespace encode
         auto cpInterface = m_hwInterface->GetCpInterface();
         cpInterface->GetCpStateLevelCmdSize(cpCmdsize, cpPatchListSize);
 
-        m_hwInterface->GetHucStateCommandSize(
-            m_basicFeature->m_mode, (uint32_t *)&hucCommandsSize, (uint32_t *)&hucPatchListSize, &stateCmdSizeParams);
+        ENCODE_CHK_STATUS_RETURN(m_hwInterface->GetHucStateCommandSize(
+            m_basicFeature->m_mode, (uint32_t *)&hucCommandsSize, (uint32_t *)&hucPatchListSize, &stateCmdSizeParams));
 
         m_defaultPictureStatesSize    = hcpCommandsSize + hucCommandsSize + (uint32_t)cpCmdsize;
         m_defaultPicturePatchListSize = hcpPatchListSize + hucPatchListSize + (uint32_t)cpPatchListSize;
@@ -1322,6 +1339,9 @@ namespace encode
             // 2nd level batch buffer
             PMHW_BATCH_BUFFER secondLevelBatchBufferUsed = vdencBatchBuffer;
             ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_BATCH_BUFFER_START(&cmdBuffer, secondLevelBatchBufferUsed)));
+            ENCODE_CHK_STATUS_RETURN(AddAllCmds_HCP_PAK_INSERT_OBJECT_BRC(&cmdBuffer));
+            secondLevelBatchBufferUsed->dwOffset = m_basicFeature->m_vdencBatchBufferPerSlicePart2Start[currSlcIdx];
+            ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_BATCH_BUFFER_START(&cmdBuffer, secondLevelBatchBufferUsed)));
         }
         else
         {
@@ -1342,6 +1362,75 @@ namespace encode
         SETPAR_AND_ADDCMD(VDENC_WALKER_STATE, m_vdencItf, &cmdBuffer);
         return eStatus;
     }
+
+MOS_STATUS HevcVdencPkt::AddAllCmds_HCP_PAK_INSERT_OBJECT_BRC(PMOS_COMMAND_BUFFER cmdBuffer) const
+{
+    ENCODE_FUNC_CALL();
+
+    ENCODE_CHK_NULL_RETURN(cmdBuffer);
+
+    auto &params = m_hcpItf->MHW_GETPAR_F(HCP_PAK_INSERT_OBJECT)();
+    params       = {};
+
+    PCODECHAL_NAL_UNIT_PARAMS *ppNalUnitParams = (CODECHAL_NAL_UNIT_PARAMS **)m_nalUnitParams;
+
+    auto brcFeature = dynamic_cast<HEVCEncodeBRC *>(m_featureManager->GetFeature(HevcFeatureIDs::hevcBrcFeature));
+    ENCODE_CHK_NULL_RETURN(brcFeature);
+
+    PBSBuffer pBsBuffer = &(m_basicFeature->m_bsBuffer);
+    uint32_t  bitSize   = 0;
+    uint32_t  offSet    = 0;
+
+    //insert AU, SPS, PSP headers before first slice header
+    if (m_basicFeature->m_curNumSlices == 0)
+    {
+        uint32_t maxBytesInPakInsertObjCmd = ((2 << 11) - 1) * 4;  // 12 bits for Length field in PAK_INSERT_OBJ cmd
+
+        for (auto i = 0; i < HEVC_MAX_NAL_UNIT_TYPE; i++)
+        {
+            uint32_t nalunitPosiSize   = ppNalUnitParams[i]->uiSize;
+            uint32_t nalunitPosiOffset = ppNalUnitParams[i]->uiOffset;
+
+            while (nalunitPosiSize > 0)
+            {
+                bitSize = MOS_MIN(maxBytesInPakInsertObjCmd * 8, nalunitPosiSize * 8);
+                offSet  = nalunitPosiOffset;
+
+                params = {};
+
+                params.dwPadding                 = (MOS_ALIGN_CEIL((bitSize + 7) >> 3, sizeof(uint32_t))) / sizeof(uint32_t);
+                params.bEmulationByteBitsInsert  = ppNalUnitParams[i]->bInsertEmulationBytes;
+                params.uiSkipEmulationCheckCount = ppNalUnitParams[i]->uiSkipEmulationCheckCount;
+                params.dataBitsInLastDw          = bitSize % 32;
+                if (params.dataBitsInLastDw == 0)
+                {
+                    params.dataBitsInLastDw = 32;
+                }
+
+                if (nalunitPosiSize > maxBytesInPakInsertObjCmd)
+                {
+                    nalunitPosiSize -= maxBytesInPakInsertObjCmd;
+                    nalunitPosiOffset += maxBytesInPakInsertObjCmd;
+                }
+                else
+                {
+                    nalunitPosiSize = 0;
+                }
+                m_hcpItf->MHW_ADDCMD_F(HCP_PAK_INSERT_OBJECT)(cmdBuffer);
+                uint32_t byteSize = (bitSize + 7) >> 3;
+                if (byteSize)
+                {
+                    MHW_MI_CHK_NULL(pBsBuffer);
+                    MHW_MI_CHK_NULL(pBsBuffer->pBase);
+                    uint8_t *data = (uint8_t *)(pBsBuffer->pBase + offSet);
+                    MHW_MI_CHK_STATUS(Mhw_AddCommandCmdOrBB(m_osInterface, cmdBuffer, nullptr, data, byteSize));
+                }
+            }
+        }
+    }
+
+    return MOS_STATUS_SUCCESS;
+}
 
     MOS_STATUS HevcVdencPkt::AddCondBBEndForLastPass(MOS_COMMAND_BUFFER &cmdBuffer)
     {
@@ -1566,15 +1655,22 @@ namespace encode
         return eStatus;
     }
 
-    void HevcVdencPkt::SetPerfTag(uint16_t type, uint16_t mode, uint16_t picCodingType)
+    void HevcVdencPkt::SetPerfTag()
     {
         ENCODE_FUNC_CALL();
 
+        uint16_t callType = m_pipeline->IsFirstPass() ? CODECHAL_ENCODE_PERFTAG_CALL_PAK_ENGINE : CODECHAL_ENCODE_PERFTAG_CALL_PAK_ENGINE_SECOND_PASS;
+        uint16_t picType  = m_basicFeature->m_pictureCodingType;
+        if (m_basicFeature->m_pictureCodingType == B_TYPE && m_basicFeature->m_ref.IsLowDelay())
+        {
+            picType = 0;
+        }
+
         PerfTagSetting perfTag;
         perfTag.Value             = 0;
-        perfTag.Mode              = mode & CODECHAL_ENCODE_MODE_BIT_MASK;
-        perfTag.CallType          = type;
-        perfTag.PictureCodingType = picCodingType > 3 ? 0 : picCodingType;
+        perfTag.Mode              = (uint16_t)m_basicFeature->m_mode & CODECHAL_ENCODE_MODE_BIT_MASK;
+        perfTag.CallType          = callType;
+        perfTag.PictureCodingType = picType;
         m_osInterface->pfnSetPerfTag(m_osInterface, perfTag.Value);
         m_osInterface->pfnIncPerfBufferID(m_osInterface);
     }
@@ -2821,12 +2917,6 @@ namespace encode
             PBSBuffer         pBsBuffer   = &(m_basicFeature->m_bsBuffer);
             uint32_t          bitSize     = 0;
             uint32_t          offSet      = 0;
-
-            if (cmdBuffer == nullptr && batchBuffer == nullptr)
-            {
-                ENCODE_ASSERTMESSAGE("There was no valid buffer to add the HW command to.");
-                return MOS_STATUS_NULL_POINTER;
-            }
 
             //insert AU, SPS, PSP headers before first slice header
             if (m_basicFeature->m_curNumSlices == 0)

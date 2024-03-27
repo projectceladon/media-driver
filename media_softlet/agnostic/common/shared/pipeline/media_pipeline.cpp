@@ -50,7 +50,11 @@ MediaPipeline::MediaPipeline(PMOS_INTERFACE osInterface) : m_osInterface(osInter
     }
     else
     {
-        perfProfiler->Initialize((void *)this, m_osInterface);
+        MOS_STATUS status = perfProfiler->Initialize((void *)this, m_osInterface);
+        if (status != MOS_STATUS_SUCCESS)
+        {
+            MOS_OS_ASSERTMESSAGE("Initialize perfProfiler failed!");
+        }
     }
 }
 
@@ -155,7 +159,11 @@ MediaPacket *MediaPipeline::GetOrCreate(uint32_t packetId)
         iter = m_packetList.find(packetId);
         if (iter != m_packetList.end())
         {
-            iter->second->Init();
+            MOS_STATUS status = iter->second->Init();
+            if (MOS_FAILED(status))
+            {
+                MOS_OS_ASSERTMESSAGE("Media packet init failed!");
+            }
             return iter->second;
         }
     }

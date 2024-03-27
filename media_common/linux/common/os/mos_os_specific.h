@@ -27,17 +27,16 @@
 #ifndef __MOS_OS_SPECIFIC_H__
 #define __MOS_OS_SPECIFIC_H__
 #include "mos_defs.h"
+#include "media_fourcc.h"
 #include "media_skuwa_specific.h"
 #include "GmmLib.h"
 #include "mos_resource_defs.h"
 #include "mos_os_hw.h"
+#include "mos_utilities.h"
 #ifdef ANDROID
 #include <utils/Log.h>
 #endif
-#include "i915_drm.h"
 #include "mos_bufmgr.h"
-#include "xf86drm.h"
-
 #include <vector>
 
 typedef unsigned int MOS_OS_FORMAT;
@@ -49,6 +48,120 @@ class MosOcaInterface;
 class GraphicsResourceNext;
 
 ////////////////////////////////////////////////////////////////////
+extern PerfUtility *g_perfutility;
+
+#define PERF_DECODE "DECODE"
+#define PERF_ENCODE "ENCODE"
+#define PERF_VP "VP"
+#define PERF_CP "CP"
+#define PERF_MOS "MOS"
+
+#define PERF_LEVEL_DDI "DDI"
+#define PERF_LEVEL_HAL "HAL"
+
+#define DECODE_DDI (1)
+#define DECODE_HAL (1 << 1)
+#define ENCODE_DDI (1 << 4)
+#define ENCODE_HAL (1 << 5)
+#define VP_DDI     (1 << 8)
+#define VP_HAL     (1 << 9)
+#define CP_DDI     (1 << 12)
+#define CP_HAL     (1 << 13)
+#define MOS_DDI    (1 << 16)
+#define MOS_HAL    (1 << 17)
+
+#define PERFUTILITY_IS_ENABLED(sCOMP,sLEVEL)                                                              \
+    (((sCOMP == "DECODE" && sLEVEL == "DDI") && (g_perfutility->dwPerfUtilityIsEnabled & DECODE_DDI)) ||  \
+     ((sCOMP == "DECODE" && sLEVEL == "HAL") && (g_perfutility->dwPerfUtilityIsEnabled & DECODE_HAL)) ||  \
+     ((sCOMP == "ENCODE" && sLEVEL == "DDI") && (g_perfutility->dwPerfUtilityIsEnabled & ENCODE_DDI)) ||  \
+     ((sCOMP == "ENCODE" && sLEVEL == "HAL") && (g_perfutility->dwPerfUtilityIsEnabled & ENCODE_HAL)) ||  \
+     ((sCOMP == "VP" && sLEVEL == "DDI") && (g_perfutility->dwPerfUtilityIsEnabled & VP_DDI)) ||          \
+     ((sCOMP == "VP" && sLEVEL == "HAL") && (g_perfutility->dwPerfUtilityIsEnabled & VP_HAL)) ||          \
+     ((sCOMP == "CP" && sLEVEL == "DDI") && (g_perfutility->dwPerfUtilityIsEnabled & CP_DDI)) ||          \
+     ((sCOMP == "CP" && sLEVEL == "HAL") && (g_perfutility->dwPerfUtilityIsEnabled & CP_HAL)) ||          \
+     ((sCOMP == "MOS" && sLEVEL == "DDI") && (g_perfutility->dwPerfUtilityIsEnabled & MOS_DDI)) ||        \
+     ((sCOMP == "MOS" && sLEVEL == "HAL") && (g_perfutility->dwPerfUtilityIsEnabled & MOS_HAL)))
+
+#define PERF_UTILITY_START(TAG,COMP,LEVEL)                                 \
+    do                                                                     \
+    {                                                                      \
+        if (PERFUTILITY_IS_ENABLED((std::string)COMP,(std::string)LEVEL))  \
+        {                                                                  \
+            g_perfutility->startTick(TAG);                                 \
+        }                                                                  \
+    } while(0)
+
+#define PERF_UTILITY_STOP(TAG, COMP, LEVEL)                                \
+    do                                                                     \
+    {                                                                      \
+        if (PERFUTILITY_IS_ENABLED((std::string)COMP,(std::string)LEVEL))  \
+        {                                                                  \
+            g_perfutility->stopTick(TAG);                                  \
+        }                                                                  \
+    } while (0)
+
+static int perf_count_start = 0;
+static int perf_count_stop = 0;
+
+#define PERF_UTILITY_START_ONCE(TAG, COMP,LEVEL)                           \
+    do                                                                     \
+    {                                                                      \
+        if (perf_count_start == 0                                          \
+            && PERFUTILITY_IS_ENABLED((std::string)COMP,(std::string)LEVEL))  \
+        {                                                                  \
+                g_perfutility->startTick(TAG);                             \
+        }                                                                  \
+        perf_count_start++;                                                \
+    } while(0)
+
+#define PERF_UTILITY_STOP_ONCE(TAG, COMP, LEVEL)                           \
+    do                                                                     \
+    {                                                                      \
+        if (perf_count_stop == 0                                           \
+            && PERFUTILITY_IS_ENABLED((std::string)COMP,(std::string)LEVEL))  \
+        {                                                                  \
+            g_perfutility->stopTick(TAG);                                  \
+        }                                                                  \
+        perf_count_stop++;                                                 \
+    } while (0)
+
+#define PERF_UTILITY_AUTO(TAG,COMP,LEVEL) AutoPerfUtility apu(TAG,COMP,LEVEL)
+
+#define PERF_UTILITY_PRINT                         \
+    do                                             \
+    {                                              \
+        if (g_perfutility->dwPerfUtilityIsEnabled && MosUtilities::MosIsProfilerDumpEnabled()) \
+        {                                          \
+            g_perfutility->savePerfData();         \
+        }                                          \
+    } while(0)
+
+class AutoPerfUtility
+{
+public:
+    AutoPerfUtility(std::string tag, std::string comp, std::string level)
+    {
+        if (PERFUTILITY_IS_ENABLED(comp, level))
+        {
+            g_perfutility->startTick(tag);
+            autotag = tag;
+            bEnable = true;
+        }
+    }
+    ~AutoPerfUtility()
+    {
+        if (bEnable)
+        {
+            g_perfutility->stopTick(autotag);
+        }
+    }
+
+private:
+    bool bEnable = false;
+    std::string autotag ="intialized";
+};
+
+////////////////////////////////////////////////////////////////////
 
 typedef void* HINSTANCE;
 
@@ -56,10 +169,6 @@ typedef void* HINSTANCE;
     Mos_InitOsInterface(osInterface, osDriverContext, component)
 
 #define Mos_ResourceIsNull(resource)    MosInterface::MosResourceIsNull(resource)
-
-#define MAKEFOURCC(ch0, ch1, ch2, ch3)  \
-    ((uint32_t)(uint8_t)(ch0) | ((uint32_t)(uint8_t)(ch1) << 8) |  \
-    ((uint32_t)(uint8_t)(ch2) << 16) | ((uint32_t)(uint8_t)(ch3) << 24 ))
 
 #define GMM_LIBVA_LINUX 3
 
@@ -179,13 +288,13 @@ typedef enum _MOS_MEDIA_OPERATION
 //!
 typedef enum _MOS_GPU_NODE
 {
-    MOS_GPU_NODE_3D      = I915_EXEC_RENDER,
-    MOS_GPU_NODE_COMPUTE = (5<<0), //To change to compute CS later when linux define the name
-    MOS_GPU_NODE_VE      = I915_EXEC_VEBOX,
-    MOS_GPU_NODE_VIDEO   = I915_EXEC_BSD,
-    MOS_GPU_NODE_VIDEO2  = I915_EXEC_VCS2,
-    MOS_GPU_NODE_BLT     = I915_EXEC_BLT,
-    MOS_GPU_NODE_MAX     = 7//GFX_MAX(I915_EXEC_RENDER, I915_EXEC_VEBOX, I915_EXEC_BSD, I915_EXEC_VCS2, I915_EXEC_BLT) + 1
+    MOS_GPU_NODE_3D      = DRM_EXEC_RENDER,
+    MOS_GPU_NODE_COMPUTE = DRM_EXEC_COMPUTE,
+    MOS_GPU_NODE_VE      = DRM_EXEC_VEBOX,
+    MOS_GPU_NODE_VIDEO   = DRM_EXEC_BSD,
+    MOS_GPU_NODE_VIDEO2  = DRM_EXEC_VCS2,
+    MOS_GPU_NODE_BLT     = DRM_EXEC_BLT,
+    MOS_GPU_NODE_MAX     = 7//GFX_MAX(DRM_EXEC_RENDER, DRM_EXEC_COMPUTE, DRM_EXEC_VEBOX, DRM_EXEC_BSD, DRM_EXEC_VCS2, DRM_EXEC_BLT) + 1
 } MOS_GPU_NODE, *PMOS_GPU_NODE;
 
 //!

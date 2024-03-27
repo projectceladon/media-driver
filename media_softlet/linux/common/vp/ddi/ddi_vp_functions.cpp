@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2021-2022, Intel Corporation
+* Copyright (c) 2021-2023, Intel Corporation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -1530,6 +1530,9 @@ void DdiVpFunctions::VpConfigValuesInit(
     configValues->dwScalerCompressModeReported  = LIBVA_VP_CONFIG_NOT_REPORTED;
     configValues->dwPrimaryCompressibleReported = LIBVA_VP_CONFIG_NOT_REPORTED;
     configValues->dwPrimaryCompressModeReported = LIBVA_VP_CONFIG_NOT_REPORTED;
+
+    configValues->dwReportedVeboxScalability    = LIBVA_VP_CONFIG_NOT_REPORTED;
+    configValues->dwReportedVPApogeios          = LIBVA_VP_CONFIG_NOT_REPORTED;
     return;
 }
 
@@ -1627,6 +1630,29 @@ void DdiVpFunctions::VpFeatureReport(PVP_CONFIG config, PDDI_VP_CONTEXT vpCtx)
 
 #endif
 #endif //(_DEBUG || _RELEASE_INTERNAL)
+
+    if (config->dwCurrentVeboxScalability != config->dwReportedVeboxScalability)
+    {
+        ReportUserSetting(
+            userSettingPtr,
+            __MEDIA_USER_FEATURE_VALUE_ENABLE_VEBOX_SCALABILITY_MODE,
+            config->dwCurrentVeboxScalability,
+            MediaUserSetting::Group::Device);
+
+        config->dwReportedVeboxScalability = config->dwCurrentVeboxScalability;
+    }
+
+    if (config->dwCurrentVPApogeios != config->dwReportedVPApogeios)
+    {
+        ReportUserSetting(
+            userSettingPtr,
+            __MEDIA_USER_FEATURE_VALUE_VPP_APOGEIOS_ENABLE,
+            config->dwCurrentVPApogeios,
+            MediaUserSetting::Group::Sequence);
+
+        config->dwReportedVPApogeios = config->dwCurrentVPApogeios;
+    }
+
     return;
 }
 
@@ -3991,23 +4017,21 @@ VAStatus DdiVpFunctions::DdiSetProcPipelineParams(
     }
 #endif  //(_DEBUG || _RELEASE_INTERNAL)
 
-    // Set stream type using pipeline_flags VA_PROC_PIPELINE_FAST flag
     // Currently we only support 1 primary surface in VP
-    if (pipelineParam->pipeline_flags & VA_PROC_PIPELINE_FAST)
+    if (vpCtx->iPriSurfs < VP_MAX_PRIMARY_SURFS)
     {
-        vpHalSrcSurf->SurfType = SURF_IN_SUBSTREAM;
+        vpHalSrcSurf->SurfType = SURF_IN_PRIMARY;
+        vpCtx->iPriSurfs++;
     }
     else
     {
-        if (vpCtx->iPriSurfs < VP_MAX_PRIMARY_SURFS)
-        {
-            vpHalSrcSurf->SurfType = SURF_IN_PRIMARY;
-            vpCtx->iPriSurfs++;
-        }
-        else
-        {
-            vpHalSrcSurf->SurfType = SURF_IN_SUBSTREAM;
-        }
+        vpHalSrcSurf->SurfType = SURF_IN_SUBSTREAM;
+    }
+
+    // Set workload path using pipeline_flags VA_PROC_PIPELINE_FAST flag
+    if (pipelineParam->pipeline_flags & VA_PROC_PIPELINE_FAST)
+    {
+        vpHalRenderParams->bForceToRender = true;
     }
 
     // Set src rect
@@ -4619,19 +4643,19 @@ VAStatus DdiVpFunctions::PutSurfaceLinuxHW(
     {
         switch (drawableTilingMode)
         {
-            case I915_TILING_Y:
+            case TILING_Y:
                 tileType = MOS_TILE_Y;
                 break;
-            case I915_TILING_X:
+            case TILING_X:
                 tileType = MOS_TILE_X;
                 gmmParams.Flags.Info.TiledX    = true;
                 break;
-            case I915_TILING_NONE:
+            case TILING_NONE:
                tileType = MOS_TILE_LINEAR;
                gmmParams.Flags.Info.Linear    = true;
                break;
             default:
-                drawableTilingMode          = I915_TILING_NONE;
+                drawableTilingMode          = TILING_NONE;
                 tileType = MOS_TILE_LINEAR;
                 gmmParams.Flags.Info.Linear    = true;
                 break;
@@ -4640,7 +4664,7 @@ VAStatus DdiVpFunctions::PutSurfaceLinuxHW(
     }
     else
     {
-        target.OsResource.TileType = (MOS_TILE_TYPE)I915_TILING_NONE;
+        target.OsResource.TileType = (MOS_TILE_TYPE)TILING_NONE;
         tileType = MOS_TILE_LINEAR;
         gmmParams.Flags.Info.Linear    = true;
     }

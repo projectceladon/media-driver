@@ -262,6 +262,23 @@ public:
     //!
     static bool IsLargeResouceDumpSupported();
 
+    //!
+    //! \brief  Add cp IO Message to oca log section.
+    //! \param  [in] ocaInterface
+    //!         Reference to MosOcaInterface.
+    //! \param  [in] hOcaBuf
+    //!         Reference to MOS_OCA_BUFFER_HANDLE.
+    //! \param  [in] mosCtx
+    //!         DDI device context.
+    //! \param  [in] pCpDumper
+    //!         Pointer to cp dumper object.
+    //! \param  [in] type
+    //!         Cp message type.
+    //! \return void
+    //!         No return value. Handle all exception inside the function.
+    //!
+    static void DumpCpIoMsg(MOS_COMMAND_BUFFER &cmdBuffer, MOS_CONTEXT_HANDLE mosContext, void *pCpDumper, int type);
+
 protected:
     static MOS_STATUS MhwMiLoadRegisterImmCmd(
         std::shared_ptr<mhw::mi::Itf>    miItf,
@@ -340,9 +357,6 @@ protected:
     HalOcaInterfaceNext();
     HalOcaInterfaceNext(HalOcaInterfaceNext &);
     HalOcaInterfaceNext& operator= (HalOcaInterfaceNext &);
-
-protected:
-    static std::map<uint32_t*, MOS_OCA_BUFFER_HANDLE> s_hOcaMap;        //!< Oca buffer handle map to current command
 
 MEDIA_CLASS_DEFINE_END(HalOcaInterfaceNext)
 };

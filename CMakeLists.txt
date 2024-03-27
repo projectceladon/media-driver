@@ -20,7 +20,7 @@
 
 cmake_minimum_required(VERSION 3.5)
 project(IntelMediaDriver)
-set(MEDIA_VERSION "23.2.4${MEDIA_VERSION_EXTRA}" CACHE STRING "" FORCE)
+set(MEDIA_VERSION "23.3.5${MEDIA_VERSION_EXTRA}" CACHE STRING "" FORCE)
 
 
 
@@ -56,7 +56,6 @@ cmake_dependent_option( BUILD_KERNELS
 option (BUILD_CMRTLIB "Build and Install cmrtlib together with media driver" ON)
 
 option (ENABLE_PRODUCTION_KMD "Enable Production KMD header files" OFF)
-option (ENABLE_XE_KMD "Enable XE KMD header files" ON)
 
 include(GNUInstallDirs)
 

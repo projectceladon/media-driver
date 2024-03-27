@@ -186,9 +186,10 @@ MOS_STATUS Av1BasicFeature::Update(void *params)
     m_picWidthInSb = m_miCols >> mibSizeLog2;
     m_picHeightInSb = m_miRows >> mibSizeLog2;
 
+    // EnableFrameOBU thread safety
     if (m_av1PicParams->PicFlags.fields.EnableFrameOBU)
     {
-        m_frameHdrOBUSizeByteOffset[m_av1PicParams->CurrOriginalPic.FrameIdx % ASYNC_NUM] = m_av1PicParams->FrameHdrOBUSizeByteOffset;
+        m_frameHdrOBUSizeByteOffset = m_av1PicParams->FrameHdrOBUSizeByteOffset;
     }
 
     // Only for first frame
@@ -944,6 +945,12 @@ MHW_SETPAR_DECL_SRC(AVP_PIC_STATE, Av1BasicFeature)
     params.minFramSizeUnits = 3;
     params.minFramSize      = MOS_ALIGN_CEIL(minFrameBytes, 16) / 16;
 
+    auto waTable = m_osInterface->pfnGetWaTable(m_osInterface);
+    if (MEDIA_IS_WA(waTable, Wa_15013355402))
+    {
+        params.minFramSize = MOS_ALIGN_CEIL(13 * 64, 16) / 16;
+    }
+
     params.bitOffsetForFirstPartitionSize = 0;
 
     params.class0_SSE_Threshold0 = 0;
@@ -961,8 +968,6 @@ MHW_SETPAR_DECL_SRC(AVP_PIC_STATE, Av1BasicFeature)
         params.minFramSizeUnits                = 0;
         params.autoBistreamStitchingInHardware = false;
     }
-
-    params.postCdefReconPixelStreamoutEn = true;  // Always needed, since this is recon for VDENC
 
     MHW_CHK_STATUS_RETURN(m_ref.MHW_SETPAR_F(AVP_PIC_STATE)(params));
 
@@ -1006,7 +1011,8 @@ MHW_SETPAR_DECL_SRC(AVP_INLOOP_FILTER_STATE, Av1BasicFeature)
         params.LoopRestorationType[1] == 0 &&
         params.LoopRestorationType[2] == 0)
     {
-        params.LoopRestorationSizeLuma = 0;
+        params.LoopRestorationSizeLuma             = 0;
+        params.UseSameLoopRestorationSizeForChroma = false;
     }
     else
     {

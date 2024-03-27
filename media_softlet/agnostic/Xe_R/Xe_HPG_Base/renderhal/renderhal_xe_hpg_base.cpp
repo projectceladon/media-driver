@@ -160,6 +160,10 @@ MOS_STATUS XRenderHal_Interface_Xe_Hpg_Base::SetupSurfaceState(
                                            pSurfaceEntry->iSurfStateID * dwSurfaceSize;   // Offset  to Surface State within the area
 
         // Obtain the Pointer to the Surface state from SSH Buffer
+        if (pSurfaceEntry->dwFormat == MHW_GFX3DSTATE_SURFACEFORMAT_L8_UNORM && !IsL8FormatSupported())
+        {
+            pSurfaceEntry->dwFormat = MHW_GFX3DSTATE_SURFACEFORMAT_R8_UNORM;
+        }
         SurfStateParams.pSurfaceState         = pSurfaceEntry->pSurfaceState;
         SurfStateParams.bUseAdvState          = pSurfaceEntry->bAVS;
         SurfStateParams.dwWidth               = pSurfaceEntry->dwWidth;
@@ -622,19 +626,19 @@ MOS_STATUS XRenderHal_Interface_Xe_Hpg_Base::SetCompositePrologCmd(
         parImm = {};
         parImm.dwRegister = m_miItf->GetMmioInterfaces(mhw::mi::MHW_MMIO_RCS_AUX_TABLE_BASE_LOW);
         parImm.dwData = (auxTableBaseAddr & 0xffffffff);
-        m_miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(pCmdBuffer);
+        MHW_MI_CHK_STATUS(m_miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(pCmdBuffer));
 
         parImm.dwRegister = m_miItf->GetMmioInterfaces(mhw::mi::MHW_MMIO_RCS_AUX_TABLE_BASE_HIGH);
         parImm.dwData = ((auxTableBaseAddr >> 32) & 0xffffffff);
-        m_miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(pCmdBuffer);
+        MHW_MI_CHK_STATUS(m_miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(pCmdBuffer));
 
         parImm.dwRegister = m_miItf->GetMmioInterfaces(mhw::mi::MHW_MMIO_CCS0_AUX_TABLE_BASE_LOW);
         parImm.dwData = (auxTableBaseAddr & 0xffffffff);
-        m_miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(pCmdBuffer);
+        MHW_MI_CHK_STATUS(m_miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(pCmdBuffer));
 
         parImm.dwRegister = m_miItf->GetMmioInterfaces(mhw::mi::MHW_MMIO_CCS0_AUX_TABLE_BASE_HIGH);
         parImm.dwData = ((auxTableBaseAddr >> 32) & 0xffffffff);
-        m_miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(pCmdBuffer);
+        MHW_MI_CHK_STATUS(m_miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(pCmdBuffer));
     }
 
     return eStatus;
@@ -1134,6 +1138,7 @@ MHW_SETPAR_DECL_SRC(COMPUTE_WALKER, XRenderHal_Interface_Xe_Hpg_Base)
     params.dwNumberofThreadsInGPGPUGroup = m_interfaceDescriptorParams->dwNumberofThreadsInGPGPUGroup;
     params.dwSharedLocalMemorySize = m_interfaceDescriptorParams->dwSharedLocalMemorySize;
     params.IndirectDataStartAddress = m_gpgpuWalkerParams->IndirectDataStartAddress;
+    params.forcePreferredSLMZero = m_gpgpuWalkerParams->ForcePreferredSLMZero;
 
     if (m_gpgpuWalkerParams->ThreadDepth == 0)
     {

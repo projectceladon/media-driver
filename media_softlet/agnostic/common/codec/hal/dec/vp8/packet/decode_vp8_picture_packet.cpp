@@ -254,10 +254,6 @@ namespace decode
         {
             uvPlaneAlignment = MHW_VDBOX_MFX_RAW_UV_PLANE_ALIGNMENT_GEN9;
         }
-        else if ((params.surfaceId == CODECHAL_MFX_REF_SURFACE_ID) || params.surfaceId == CODECHAL_MFX_DSRECON_SURFACE_ID)
-        {
-            uvPlaneAlignment = uvPlaneAlignment ? uvPlaneAlignment : MHW_VDBOX_MFX_RECON_UV_PLANE_ALIGNMENT;
-        }
         else
         {
             uvPlaneAlignment = MHW_VDBOX_MFX_UV_PLANE_ALIGNMENT_LEGACY;
@@ -292,8 +288,8 @@ namespace decode
     #ifdef _MMC_SUPPORTED
             auto m_mmcEnabled = m_mmcState->IsMmcEnabled();
             Vp8DecodeMemComp *vp8DecodeMemComp = dynamic_cast<Vp8DecodeMemComp *>(m_mmcState);
-            vp8DecodeMemComp->m_mmcEnabled = m_mmcEnabled;
             DECODE_CHK_NULL(vp8DecodeMemComp);
+            vp8DecodeMemComp->m_mmcEnabled = m_mmcEnabled;
             DECODE_CHK_STATUS(vp8DecodeMemComp->SetPipeBufAddr(*m_vp8BasicFeature, params.PostDeblockSurfMmcState, params.PreDeblockSurfMmcState));
     #endif
 

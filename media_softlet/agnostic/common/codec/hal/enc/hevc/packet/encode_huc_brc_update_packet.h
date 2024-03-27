@@ -245,24 +245,24 @@ namespace encode
 
         MOS_STATUS AddAllCmds_HCP_WEIGHTOFFSET_STATE(PMOS_COMMAND_BUFFER cmdBuffer) const;
 
-        MOS_STATUS AddAllCmds_HCP_PAK_INSERT_OBJECT(PMOS_COMMAND_BUFFER cmdBuffer) const;
+        MOS_STATUS AddAllCmds_HCP_PAK_INSERT_OBJECT_SLICE(PMOS_COMMAND_BUFFER cmdBuffer) const;
 
 #if USE_CODECHAL_DEBUG_TOOL
         MOS_STATUS DumpHucBrcUpdate(bool isInput);
 
         virtual MOS_STATUS DumpInput() override;
 #endif
-
+        uint32_t m_alignSize[ENCODE_HEVC_VDENC_NUM_MAX_SLICES] = {0};
         static constexpr uint32_t               m_vdboxHucHevcBrcUpdateKernelDescriptor = 9;//!< Huc HEVC Brc init kernel descriptor
         static constexpr uint32_t               m_vdboxHucHevcBrcLowdelayKernelDescriptor = 10;//!< Huc HEVC Brc low delay kernel descriptor
 
         // Batch Buffer for VDEnc
-        MOS_RESOURCE                            m_vdencReadBatchBuffer[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM][VDENC_BRC_NUM_OF_PASSES];  //!< VDEnc read batch buffer
-        MOS_RESOURCE                            m_vdencBrcConstDataBuffer[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM];                         //!< VDEnc brc constant data buffer
+        MOS_RESOURCE                            m_vdencReadBatchBuffer[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM][VDENC_BRC_NUM_OF_PASSES] = {};  //!< VDEnc read batch buffer
+        MOS_RESOURCE                            m_vdencBrcConstDataBuffer[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM] = {};                        //!< VDEnc brc constant data buffer
 
         MOS_RESOURCE                            m_dataFromPicsBuffer = {}; //!< Data Buffer of Current and Reference Pictures for Weighted Prediction
         uint32_t                                m_vdenc2ndLevelBatchBufferSize[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM] = { 0 };
-        MOS_RESOURCE                            m_vdencBrcUpdateDmemBuffer[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM][VDENC_BRC_NUM_OF_PASSES];  //!< VDEnc BrcUpdate DMEM buffer
+        MOS_RESOURCE                            m_vdencBrcUpdateDmemBuffer[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM][VDENC_BRC_NUM_OF_PASSES] = { 0 };  //!< VDEnc BrcUpdate DMEM buffer
 
         mutable uint32_t                        m_1stPakInsertObjectCmdSize = 0;                   //!< Size of 1st PAK_INSERT_OBJ cmd
         mutable uint32_t                        m_hcpWeightOffsetStateCmdSize   = 0;               //!< Size of HCP_WEIGHT_OFFSET_STATE cmd

@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018-2022, Intel Corporation
+* Copyright (c) 2018-2023, Intel Corporation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -66,6 +66,14 @@ MOS_STATUS VpVeboxCmdPacket::SetupSurfaceStates(
     pVeboxSurfaceStateCmdParams->pSurfDNOutput = m_veboxPacketSurface.pDenoisedCurrOutput;
     pVeboxSurfaceStateCmdParams->bDIEnable     = m_PacketCaps.bDI;
     pVeboxSurfaceStateCmdParams->b3DlutEnable  = m_PacketCaps.bHDR3DLUT;  // Need to consider cappipe
+
+    if (pVeboxSurfaceStateCmdParams->pSurfOutput &&
+        pVeboxSurfaceStateCmdParams->pSurfOutput->osSurface &&
+        pVeboxSurfaceStateCmdParams->pSurfOutput->osSurface->OsResource.bUncompressedWriteNeeded)
+    {
+        VP_RENDER_NORMALMESSAGE("Force compression as RC for bUncompressedWriteNeeded being true");
+        pVeboxSurfaceStateCmdParams->pSurfOutput->osSurface->CompressionMode = MOS_MMC_RC;
+    }
 
     UpdateCpPrepareResources();
     return MOS_STATUS_SUCCESS;
@@ -399,6 +407,35 @@ MOS_STATUS VpVeboxCmdPacket::SetSfcMmcParams()
     VP_PUBLIC_CHK_NULL_RETURN(m_renderTarget);
     VP_PUBLIC_CHK_NULL_RETURN(m_renderTarget->osSurface);
     VP_PUBLIC_CHK_NULL_RETURN(m_mmc);
+
+    // Decompress resource if surfaces need write from a un-align offset
+    if ((m_renderTarget->osSurface->CompressionMode != MOS_MMC_DISABLED) && m_sfcRender->IsSFCUncompressedWriteNeeded(m_renderTarget))
+    {
+        MOS_STATUS eStatus = MOS_STATUS_SUCCESS;
+        MOS_SURFACE details = {};
+
+        eStatus = m_osInterface->pfnGetResourceInfo(m_osInterface, &m_renderTarget->osSurface->OsResource, &details);
+
+        if (eStatus != MOS_STATUS_SUCCESS)
+        {
+            VP_RENDER_ASSERTMESSAGE("Get SFC target surface resource info failed.");
+        }
+
+        if (!m_renderTarget->osSurface->OsResource.bUncompressedWriteNeeded)
+        {
+            eStatus = m_osInterface->pfnDecompResource(m_osInterface, &m_renderTarget->osSurface->OsResource);
+
+            if (eStatus != MOS_STATUS_SUCCESS)
+            {
+                VP_RENDER_ASSERTMESSAGE("inplace decompression failed for sfc target.");
+            }
+            else
+            {
+                VP_RENDER_NORMALMESSAGE("inplace decompression enabled for sfc target RECT is not compression block align.");
+                m_renderTarget->osSurface->OsResource.bUncompressedWriteNeeded = 1;
+            }
+        }
+    }
 
     VP_PUBLIC_CHK_STATUS_RETURN(m_sfcRender->SetMmcParams(m_renderTarget->osSurface,
                                                         IsFormatMMCSupported(m_renderTarget->osSurface->Format),
@@ -1885,6 +1922,10 @@ MOS_STATUS VpVeboxCmdPacket::RenderVeboxCmd(
 
         VP_RENDER_CHK_STATUS_RETURN(pRenderHal->pRenderHalPltInterface->AddPerfCollectEndCmd(pRenderHal, pOsInterface, pCmdBufferInUse));
 
+#if (_DEBUG || _RELEASE_INTERNAL)
+        VP_RENDER_CHK_STATUS_RETURN(StallBatchBuffer(pCmdBufferInUse));
+#endif
+
         HalOcaInterfaceNext::On1stLevelBBEnd(*pCmdBufferInUse, *pOsInterface);
 
         if (pOsInterface->bNoParsingAssistanceInKmd)
@@ -1906,18 +1947,15 @@ MOS_STATUS VpVeboxCmdPacket::RenderVeboxCmd(
     if (bMultipipe)
     {
         scalability->SetCurrentPipeIndex(inputPipe);
-        VP_RENDER_CHK_STATUS_RETURN(ReportUserSetting(m_userSettingPtr, __MEDIA_USER_FEATURE_VALUE_ENABLE_VEBOX_SCALABILITY_MODE, true, MediaUserSetting::Group::Device));
     }
-    else
-    {
-        VP_RENDER_CHK_STATUS_RETURN(ReportUserSetting(m_userSettingPtr, __MEDIA_USER_FEATURE_VALUE_ENABLE_VEBOX_SCALABILITY_MODE, false, MediaUserSetting::Group::Device));
-    }
+
+    auto report                             = (VpFeatureReport *)(m_hwInterface->m_reporting);
+    report->GetFeatures().VeboxScalability  = bMultipipe;
 
     MT_LOG2(MT_VP_HAL_RENDER_VE, MT_NORMAL, MT_VP_MHW_VE_SCALABILITY_EN, bMultipipe, MT_VP_MHW_VE_SCALABILITY_USE_SFC, m_IsSfcUsed);
 
     return eStatus;
 }
-
 
 void VpVeboxCmdPacket::AddCommonOcaMessage(PMOS_COMMAND_BUFFER pCmdBufferInUse, MOS_CONTEXT_HANDLE pOsContext, PMOS_INTERFACE pOsInterface, PRENDERHAL_INTERFACE pRenderHal, PMHW_MI_MMIOREGISTERS pMmioRegisters)
 {
@@ -2134,13 +2172,15 @@ MOS_STATUS VpVeboxCmdPacket::DumpVeboxStateHeap()
         &kernelResource,
         counter,
         0,
-        VPHAL_DUMP_TYPE_VEBOX_DRIVERHEAP);
+        VPHAL_DUMP_TYPE_VEBOX_DRIVERHEAP,
+        VPHAL_SURF_DUMP_DDI_VP_BLT);
 
     VP_SURFACE_DUMP(debuginterface,
         &kernelResource,
         counter,
         0,
-        VPHAL_DUMP_TYPE_VEBOX_KERNELHEAP);
+        VPHAL_DUMP_TYPE_VEBOX_KERNELHEAP,
+        VPHAL_SURF_DUMP_DDI_VP_BLT);
 
     counter++;
 #endif
@@ -2296,7 +2336,10 @@ MOS_STATUS VpVeboxCmdPacket::SetUpdatedExecuteResource(
     VP_SURFACE_SETTING                  &surfSetting)
 {
     VP_FUNC_CALL();
-
+    VP_RENDER_CHK_NULL_RETURN(inputSurface);
+    VP_RENDER_CHK_NULL_RETURN(outputSurface);
+    VP_RENDER_CHK_NULL_RETURN(inputSurface->osSurface);
+    VP_RENDER_CHK_NULL_RETURN(outputSurface->osSurface);
     m_allocator->UpdateResourceUsageType(&inputSurface->osSurface->OsResource, MOS_HW_RESOURCE_USAGE_VP_INPUT_PICTURE_FF);
     m_allocator->UpdateResourceUsageType(&outputSurface->osSurface->OsResource, MOS_HW_RESOURCE_USAGE_VP_OUTPUT_PICTURE_FF);
 
@@ -2984,7 +3027,6 @@ MOS_STATUS VpVeboxCmdPacket::VeboxSetPerfTagNv12()
                         *pPerfTag = VPHAL_NV12_DN_422CP;
                         break;
                     case Format_RGB32:
-                        *pPerfTag = VPHAL_NV12_DN_RGB32CP;
                     case Format_A8R8G8B8:
                     case Format_A8B8G8R8:
                         *pPerfTag = VPHAL_NV12_DN_RGB32CP;
@@ -3029,6 +3071,7 @@ MOS_STATUS VpVeboxCmdPacket::VeboxSetPerfTagNv12()
                         break;
                     case Format_RGB32:
                         *pPerfTag = VPHAL_NV12_RGB32CP;
+                        break;
                     case Format_A8R8G8B8:
                     case Format_A8B8G8R8:
                     case Format_R10G10B10A2:

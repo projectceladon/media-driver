@@ -28,13 +28,9 @@
 #include "oca_rtlog_section_mgr.h"
 #include "mos_context_specific_next.h"
 
-bool MosOcaRTLogMgr::m_enableOcaRTLog = true;
-MosMutex MosOcaRTLogMgr::s_ocaMutex;
-
 /****************************************************************************************************/
 /*                                      MosOcaRTLogMgr                                              */
 /****************************************************************************************************/
-
 MOS_STATUS MosOcaRTLogMgr::RegisterCtx(OsContextNext *osDriverContext, MOS_CONTEXT *osContext)
 {
     MOS_OCA_RTLOG_RES_AND_INTERFACE resInterface = {};
@@ -77,6 +73,9 @@ MOS_STATUS MosOcaRTLogMgr::RegisterRes(OsContextNext *osDriverContext, MOS_OCA_R
     sParams.Format                  = Format_Buffer;
     sParams.pBufName                = "OcaRtlog";
     sParams.bIsPersistent           = 1;
+    // Use encode output bitstream to ensure coherency being enabled for CPU catchable surface, which
+    // will be checked during MapGpuVirtualAddress w/ critical message for invalid case.
+    sParams.ResUsageType            = MOS_HW_RESOURCE_USAGE_ENCODE_OUTPUT_BITSTREAM;
     resInterface->ocaRTLogResource  = (PMOS_RESOURCE)MOS_AllocAndZeroMemory(sizeof(MOS_RESOURCE));
     if (nullptr == resInterface->ocaRTLogResource)
     {
@@ -149,6 +148,7 @@ MosOcaRTLogMgr::~MosOcaRTLogMgr()
 {
     m_globleIndex = -1;
     m_isMgrInitialized = false;
+    s_isOcaRtlogMgrDestoryed = true;
 }
 
 
@@ -157,15 +157,15 @@ MosOcaRTLogMgr& MosOcaRTLogMgr::operator= (MosOcaRTLogMgr&)
     return *this;
 }
 
-MosOcaRTLogMgr &MosOcaRTLogMgr::GetInstance()
+MosOcaRTLogMgr *MosOcaRTLogMgr::GetInstance()
 {
     static MosOcaRTLogMgr mgr;
-    return mgr;
+    return &mgr;
 }
 
 void MosOcaRTLogMgr::RegisterContext(OsContextNext *osDriverContext, MOS_CONTEXT *osContext)
 {
-    if (!m_enableOcaRTLog)
+    if (!s_enableOcaRTLog)
     {
         return;
     }
@@ -173,8 +173,8 @@ void MosOcaRTLogMgr::RegisterContext(OsContextNext *osDriverContext, MOS_CONTEXT
     {
         return;
     }
-    MosOcaRTLogMgr &ocaRTLogMgr = GetInstance();
-    MOS_STATUS      status      = ocaRTLogMgr.RegisterCtx(osDriverContext, osContext);
+    MosOcaRTLogMgr *ocaRTLogMgr = GetInstance();
+    MOS_STATUS      status      = ocaRTLogMgr->RegisterCtx(osDriverContext, osContext);
     if (status != MOS_STATUS_SUCCESS)
     {
         MOS_OS_NORMALMESSAGE("MosOcaRTLogMgr RegisterContext failed!");
@@ -183,19 +183,19 @@ void MosOcaRTLogMgr::RegisterContext(OsContextNext *osDriverContext, MOS_CONTEXT
 
 void MosOcaRTLogMgr::UnRegisterContext(OsContextNext *osDriverContext)
 {
-    if (!m_enableOcaRTLog)
+    if (!s_enableOcaRTLog)
     {
         return;
     }
-    MosOcaRTLogMgr &ocaRTLogMgr = GetInstance();
-    MOS_STATUS      status      = ocaRTLogMgr.UnRegisterCtx(osDriverContext);
+    if (s_isOcaRtlogMgrDestoryed)
+    {
+        MOS_OS_NORMALMESSAGE("MosOcaRTLogMgr have be destroyed!");
+        return;
+    }
+    MosOcaRTLogMgr *ocaRTLogMgr = GetInstance();
+    MOS_STATUS      status      = ocaRTLogMgr->UnRegisterCtx(osDriverContext);
     if (status != MOS_STATUS_SUCCESS)
     {
         MOS_OS_NORMALMESSAGE("MosOcaRTLogMgr UnRegisterContext failed!");
     }
-}
-
-int32_t MosOcaRTLogMgr::GetGlobleIndex()
-{
-    return MosUtilities::MosAtomicIncrement(&m_globleIndex);
 }

@@ -1765,7 +1765,7 @@ public:
         }
 
         // VDEnc CQP case ROI settings, BRC ROI will be handled in HuC FW
-        if (!params->bVdencBRCEnabled && avcPicParams->NumROI)
+        if (!params->bVdencBRCEnabled && avcPicParams->NumROI && avcPicParams->bNativeROI)
         {
             MHW_ASSERT(avcPicParams->NumROI < 4);
 
@@ -2522,6 +2522,10 @@ public:
                 refFrameId = hevcSlcParams->RefPicList[1][0].FrameIdx;
                 diffPoc                          = ((refFrameId >= CODEC_MAX_NUM_REF_FRAME_HEVC) ? 0x0 : hevcPicParams->RefFramePOCList[refFrameId]) - hevcPicParams->CurrPicOrderCnt;
                 cmd.DW3.PocNumberForRefid0InL1   = CodecHal_Clip3(-16, 16, -diffPoc);
+                if (refFrameId >= CODEC_MAX_NUM_REF_FRAME_HEVC)
+                {
+                    return MOS_STATUS_INVALID_PARAMETER;
+                }
                 cmd.DW2.LongTermReferenceFlagsL1 = CodecHal_PictureIsLongTermRef(hevcPicParams->RefFrameList[refFrameId]);
 
                 cmd.DW3.PocNumberForRefid1InL1 = cmd.DW3.PocNumberForRefid1InL0;

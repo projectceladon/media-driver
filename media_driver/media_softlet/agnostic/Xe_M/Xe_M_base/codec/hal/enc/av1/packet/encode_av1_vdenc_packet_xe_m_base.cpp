@@ -207,17 +207,6 @@ namespace encode
         return MOS_STATUS_SUCCESS;
     }
 
-    MOS_STATUS Av1VdencPktXe_M_Base::Prepare()
-    {
-        ENCODE_FUNC_CALL();
-
-        Av1VdencPkt::Prepare();
-
-        m_basicFeature->m_ref.SetPostCdefAsEncRef(true);
-
-        return MOS_STATUS_SUCCESS;
-    }
-
     MOS_STATUS Av1VdencPktXe_M_Base::Submit(
         MOS_COMMAND_BUFFER* commandBuffer,
         uint8_t packetPhase)
@@ -282,10 +271,7 @@ namespace encode
         if (m_pipeline->GetPipeNum() >= 2)
         {
             auto scalability = m_pipeline->GetMediaScalability();
-            if (m_pipeline->IsFirstPass())
-            {
-                ENCODE_CHK_STATUS_RETURN(scalability->ResetSemaphore(syncOnePipeWaitOthers, 0, &cmdBuffer));
-            }
+
             ENCODE_CHK_STATUS_RETURN(scalability->SyncPipe(syncOtherPipesForOne, 0, &cmdBuffer));
         }
 
@@ -459,7 +445,7 @@ namespace encode
         // End patching tile level batch cmds
         RUN_FEATURE_INTERFACE_RETURN(Av1EncodeTile, Av1FeatureIDs::encodeTile, EndPatchTileLevelBatch);
 
-        if (tileRowPass != 1)
+        if (tileRowPass != 1) // for dummy tile, donnot calculate tile size into frame size.
         {
             if (m_pipeline->GetPipeNum() > 1)
             {
@@ -577,6 +563,10 @@ namespace encode
 
         if (m_pipeline->IsFirstPipe()) 
         {
+            for (auto i = 0; i < m_pipeline->GetPipeNum(); ++i)
+            {
+                ENCODE_CHK_STATUS_RETURN(scalability->ResetSemaphore(syncOnePipeWaitOthers, i, &cmdBuffer));
+            }
             ENCODE_CHK_STATUS_RETURN(EndStatusReport(statusReportMfx, &cmdBuffer));
         }
         else{
@@ -600,6 +590,11 @@ namespace encode
         else if (m_pipeline->IsLastPass() && m_pipeline->IsFirstPipe())
         {
             ENCODE_CHK_STATUS_RETURN(MediaPacket::UpdateStatusReportNext(statusReportGlobalCount, &cmdBuffer));
+        }
+
+        if (m_pipeline->IsDualEncEnabled())
+        {
+            SETPAR_AND_ADDCMD(VDENC_CONTROL_STATE, m_vdencItf, &cmdBuffer);
         }
 
         CODECHAL_DEBUG_TOOL(

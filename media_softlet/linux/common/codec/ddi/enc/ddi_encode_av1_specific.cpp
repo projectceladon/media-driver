@@ -396,7 +396,20 @@ VAStatus DdiEncodeAV1::ParseSeqParams(void *ptr)
     av1SeqParams->GopPicSize    = seqParams->intra_period;
     av1SeqParams->GopRefDist    = seqParams->ip_period;
  
-    av1SeqParams->RateControlMethod = VARC2HalRC(m_encodeCtx->uiRCMethod);
+    switch ((uint32_t)m_encodeCtx->uiRCMethod)
+    {
+    case VA_RC_VBR:
+        av1SeqParams->RateControlMethod = (uint8_t)RATECONTROL_VBR;
+        break;
+    case VA_RC_CQP:
+        av1SeqParams->RateControlMethod = (uint8_t)RATECONTROL_CQP;
+        break;
+    case VA_RC_ICQ:
+        av1SeqParams->RateControlMethod = (uint8_t)RATECONTROL_CQL;
+        break;
+    default:
+        av1SeqParams->RateControlMethod = (uint8_t)RATECONTROL_CBR;
+    }
 
     /* the bits_per_second is only used when the target bit_rate is not initialized */
     if (av1SeqParams->TargetBitRate[0] == 0)
@@ -935,6 +948,19 @@ VAStatus DdiEncodeAV1::ParseMiscParamRC(void *data)
             savedMaxBitRate[temporalId] = bitRate;
         }
     }
+    else if (VA_RC_ICQ == m_encodeCtx->uiRCMethod)
+    {   
+        seqParams->RateControlMethod = RATECONTROL_CQL;
+        seqParams->ICQQualityFactor = vaEncMiscParamRC->quality_factor;
+        if (savedQualityFactor != seqParams->ICQQualityFactor)
+        {
+            if (savedQualityFactor != 0)
+            {
+                seqParams->SeqFlags.fields.ResetBRC |= 0x01;
+            }
+            savedQualityFactor = seqParams->ICQQualityFactor;
+        }
+    }
 
     /* the reset flag in RC will be considered. */
     seqParams->SeqFlags.fields.ResetBRC |= vaEncMiscParamRC->rc_flags.bits.reset;
@@ -1121,10 +1147,10 @@ uint32_t DdiEncodeAV1::getSliceParameterBufferSize()
 }
 
 
-CODECHAL_FUNCTION DdiEncodeAV1::GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint)
+CODECHAL_FUNCTION DdiEncodeAV1::GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint, bool bVDEnc)
 {
     CODECHAL_FUNCTION codecFunction = CODECHAL_FUNCTION_INVALID;
-   if (entrypoint == VAEntrypointEncSliceLP)
+    if (bVDEnc)
     {
         codecFunction = CODECHAL_FUNCTION_ENC_VDENC_PAK;
     }

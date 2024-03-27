@@ -657,6 +657,7 @@ MOS_STATUS Mos_InitOsInterface(
     pOsInterface->pfnGetResourceHandle                  = Mos_GetResourceHandle;
     pOsInterface->pfnGetRtLogResourceInfo               = Mos_GetRtLogResourceInfo;
     pOsInterface->pfnResetResource                      = Mos_ResetMosResource;
+    pOsInterface->pfnVerifyMosSurface                   = Mos_VerifyMosSurface;
 
     pOsInterface->pfnCreateMhwCpInterface               = Create_MhwCpInterface;
     pOsInterface->pfnDeleteMhwCpInterface               = Delete_MhwCpInterface;
@@ -913,12 +914,6 @@ MOS_STATUS Mos_CheckVirtualEngineSupported(
             MediaUserSetting::Group::Device);
         osInterface->bSupportVirtualEngine = value ? true : false;
 #endif
-        // force bSupportVirtualEngine to false when virtual engine not enabled by default
-        if ((!veDefaultEnable || !osInterface->veDefaultEnable) &&
-            (eStatus == MOS_STATUS_USER_FEATURE_KEY_OPEN_FAILED))
-        {
-            osInterface->bSupportVirtualEngine = false;
-        }
 
         auto skuTable = osInterface->pfnGetSkuTable(osInterface);
         MOS_OS_CHK_NULL_RETURN(skuTable);
@@ -959,11 +954,6 @@ MOS_STATUS Mos_CheckVirtualEngineSupported(
             MediaUserSetting::Group::Device);
         osInterface->bSupportVirtualEngine = value ? true : false;
 #endif
-        // force bSupportVirtualEngine to false when virtual engine not enabled by default
-        if (!osInterface->veDefaultEnable && (eStatus == MOS_STATUS_USER_FEATURE_KEY_READ_FAILED || eStatus == MOS_STATUS_USER_FEATURE_KEY_OPEN_FAILED))
-        {
-            osInterface->bSupportVirtualEngine = false;
-        }
 
         auto skuTable = osInterface->pfnGetSkuTable(osInterface);
         MOS_OS_CHK_NULL_RETURN(skuTable);
@@ -1120,12 +1110,19 @@ uint64_t Mos_GetResourceHandle(
     return MosInterface::GetResourceHandle(streamState, osResource);
 }
 
+MOS_STATUS Mos_VerifyMosSurface(
+    PMOS_SURFACE            mosSurface,
+    bool&                   bIsValid)
+{
+    return MosInterface::VerifyMosSurface(mosSurface, bIsValid);
+}
+
 void Mos_GetRtLogResourceInfo(
-    MOS_STREAM_HANDLE       streamState,
+    PMOS_INTERFACE          osInterface,
     PMOS_RESOURCE           &osResource,
     uint32_t                &size)
 {
-    return MosInterface::GetRtLogResourceInfo(streamState, osResource, size);
+    return MosInterface::GetRtLogResourceInfo(osInterface, osResource, size);
 }
 
 void Mos_ResetMosResource(

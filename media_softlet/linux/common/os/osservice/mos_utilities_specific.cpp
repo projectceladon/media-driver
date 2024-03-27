@@ -40,7 +40,7 @@
 #include <sys/types.h>
 #include <sys/sem.h>
 #include <sys/mman.h>
-//#include "mos_compat.h" // libc variative definitions: backtrace
+#include "mos_compat.h" // libc variative definitions: backtrace
 #include "mos_user_setting.h"
 #include "mos_utilities_specific.h"
 #include "mos_utilities.h"
@@ -51,14 +51,20 @@ int32_t g_mosMemAllocCounter         = 0;
 int32_t g_mosMemAllocFakeCounter     = 0;
 int32_t g_mosMemAllocCounterGfx      = 0;
 uint8_t g_mosUltFlag                 = 0;
+int32_t g_mosMemAllocIndex           = 0;
 
 int32_t *MosUtilities::m_mosMemAllocCounter       = &g_mosMemAllocCounter;
 int32_t *MosUtilities::m_mosMemAllocFakeCounter   = &g_mosMemAllocFakeCounter;
 int32_t *MosUtilities::m_mosMemAllocCounterGfx    = &g_mosMemAllocCounterGfx;
 uint8_t *MosUtilities::m_mosUltFlag               = &g_mosUltFlag;
+int32_t *MosUtilities::m_mosMemAllocIndex         = &g_mosMemAllocIndex;
 
 const char           *MosUtilitiesSpecificNext::m_szUserFeatureFile     = USER_FEATURE_FILE;
 MOS_PUF_KEYLIST      MosUtilitiesSpecificNext::m_ufKeyList              = nullptr;
+
+#if ANDROID
+#define USER_FEATURE_FILE_NEXT "/etc/igfx_user_feature_next.txt"
+#endif
 
 #if (_DEBUG || _RELEASE_INTERNAL)
 int32_t g_mosMemoryFailSimulateAllocCounter = 0;
@@ -1003,7 +1009,25 @@ MOS_STATUS MosUtilitiesSpecificNext::UserFeatureDumpDataToFile(const char *szFil
     MOS_PUF_KEYLIST   pKeyTmp;
     int32_t           j;
 
+   // For release version: writes to the file if it exists,
+// skips if it does not exist
+// For other version: always writes to the file
+
+#if(_RELEASE)
+    File = fopen(szFileName, "r");
+    if (File == NULL)
+    {
+        return MOS_STATUS_SUCCESS;
+    }
+    else
+    {
+        fclose(File);
+        File = fopen(szFileName, "w+");
+    }
+#else
     File = fopen(szFileName, "w+");
+#endif
+
     if ( !File )
     {
         return MOS_STATUS_USER_FEATURE_KEY_WRITE_FAILED;
@@ -1526,8 +1550,7 @@ MOS_STATUS MosUtilities::MosInitializeReg(RegBufferMap &regBufferMap)
     std::ifstream regStream;
     try
     {
-        //regStream.open(USER_FEATURE_FILE_NEXT);
-	regStream.open("/etc/igfx_user_feature_next.txt");
+        regStream.open(USER_FEATURE_FILE_NEXT);
         if (regStream.good())
         {
             std::string id       = "";
@@ -1604,8 +1627,25 @@ MOS_STATUS MosUtilities::MosUninitializeReg(RegBufferMap &regBufferMap)
     std::ofstream regStream;
     try
     {
-        //regStream.open(USER_FEATURE_FILE_NEXT, std::ios::out | std::ios::trunc);
-	regStream.open("/etc/igfx_user_feature_next.txt", std::ios::out | std::ios::trunc);
+// For release version: writes to the file if it exists,
+// skips if it does not exist
+// For other version: always writes to the file
+#if(_RELEASE)
+        std::ifstream regFile(USER_FEATURE_FILE_NEXT);
+        regStream.open("/etc/igfx_user_feature_next.txt");
+        if (regFile.good())
+        {
+            regFile.close();
+            regStream.open(USER_FEATURE_FILE_NEXT, std::ios::out | std::ios::trunc);
+        }
+        else
+        {
+            regFile.close();
+            return status;
+        }
+#else
+        regStream.open(USER_FEATURE_FILE_NEXT, std::ios::out | std::ios::trunc);
+#endif
         if (regStream.good())
         {
             for(auto pair: regBufferMap)
@@ -1743,6 +1783,33 @@ MOS_STATUS MosUtilities::MosGetRegValue(
     }
 
     return status;
+}
+
+MOS_STATUS MosUtilities::MosPrintCPUAllocateMemory(int32_t event_id, int32_t level, int32_t param_id_1, int64_t value_1, int32_t param_id_2, int64_t value_2,
+    const char *funName, const char *fileName, int32_t line)
+{
+#if (_RELEASE_INTERNAL)
+    if (MOS_IS_MEMORY_FOOT_PRINT_ENABLED())
+    {
+        MosAtomicIncrement(m_mosMemAllocIndex);
+        MT_LOG3(event_id, level, param_id_1, value_1, MT_MEMORY_INDEX, *MosUtilities::m_mosMemAllocIndex, param_id_2, value_2);
+    }
+
+#endif
+    return MOS_STATUS_SUCCESS;
+}
+
+MOS_STATUS MosUtilities::MosPrintCPUDestroyMemory(int32_t event_id, int32_t level, int32_t param_id_1, int64_t value_1, 
+    const char *funName, const char *fileName, int32_t line)
+{
+#if (_RELEASE_INTERNAL)
+    if (MOS_IS_MEMORY_FOOT_PRINT_ENABLED())
+    {
+        MosAtomicDecrement(m_mosMemAllocIndex);
+        MT_LOG2(event_id, level, param_id_1, value_1, MT_MEMORY_INDEX, *MosUtilities::m_mosMemAllocIndex);
+    }
+#endif
+    return MOS_STATUS_SUCCESS;
 }
 
 MOS_STATUS MosUtilities::MosSetRegValue(

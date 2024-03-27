@@ -240,7 +240,12 @@ MOS_STATUS MemoryBlockManager::RegisterHeap(uint32_t heapId, uint32_t size , boo
 
     auto heap = MOS_New(Heap, heapId);
     HEAP_CHK_NULL(heap);
-    HEAP_CHK_STATUS(heap->RegisterOsInterface(m_osInterface));
+    eStatus = heap->RegisterOsInterface(m_osInterface);
+    if (MOS_FAILED(eStatus))
+    {
+        MOS_Delete(heap);
+        HEAP_CHK_STATUS(eStatus);
+    }
     size = MOS_ALIGN_CEIL(size, m_heapAlignment);
     
     if (hwWriteOnly)
@@ -248,19 +253,39 @@ MOS_STATUS MemoryBlockManager::RegisterHeap(uint32_t heapId, uint32_t size , boo
         heap->SetHeapHwWriteOnly(hwWriteOnly);
     }
 
-    HEAP_CHK_STATUS(heap->Allocate(size, m_lockHeapsOnAllocate));
+    eStatus = heap->Allocate(size, m_lockHeapsOnAllocate);
+    if (MOS_FAILED(eStatus))
+    {
+        MOS_Delete(heap);
+        HEAP_CHK_STATUS(eStatus);
+    }
 
     if (heap->IsValid())
     {
         MemoryBlockInternal *adjacencyListBegin = nullptr;
         adjacencyListBegin = MOS_New(MemoryBlockInternal);
-        HEAP_CHK_NULL(adjacencyListBegin);
+        if (adjacencyListBegin == nullptr)
+        {
+            MOS_Delete(heap);
+            HEAP_CHK_STATUS(MOS_STATUS_NULL_POINTER);
+        }
         auto block = GetBlockFromPool();
-        HEAP_CHK_NULL(block);
+        if (block == nullptr)
+        {
+            MOS_Delete(adjacencyListBegin);
+            MOS_Delete(heap);
+            HEAP_ASSERTMESSAGE("block be null");
+            return MOS_STATUS_NULL_POINTER;
+        }
 
         std::shared_ptr<HeapWithAdjacencyBlockList> managedHeap = nullptr;
         managedHeap = MakeShared<HeapWithAdjacencyBlockList>();
-        HEAP_CHK_NULL(managedHeap);
+        if (managedHeap == nullptr)
+        {
+            MOS_Delete(heap);
+            MOS_Delete(adjacencyListBegin);
+            HEAP_CHK_STATUS(MOS_STATUS_NULL_POINTER);
+        }
         managedHeap->m_heap = heap;
         managedHeap->m_size = managedHeap->m_heap->GetSize();
         managedHeap->m_adjacencyListBegin = adjacencyListBegin;
@@ -294,7 +319,7 @@ MOS_STATUS MemoryBlockManager::UnregisterHeap(uint32_t heapId)
         if (heapId == (*iterator)->m_heap->GetId())
         {
             bool blocksUpdated = false;
-            RefreshBlockStates(blocksUpdated);
+            HEAP_CHK_STATUS(RefreshBlockStates(blocksUpdated));
             (*iterator)->m_heap->PrepareForFree();
             m_totalSizeOfHeaps -= (*iterator)->m_heap->GetSize();
 
@@ -316,7 +341,7 @@ MOS_STATUS MemoryBlockManager::UnregisterHeap(uint32_t heapId)
                 }
                 else
                 {
-                    HEAP_ASSERTMESSAGE("A block with an invlid heap is in the free list!");
+                    HEAP_ASSERTMESSAGE("A block with an invalid heap is in the free list!");
                     return MOS_STATUS_UNKNOWN;
                 }
                 block = next;

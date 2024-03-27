@@ -151,7 +151,13 @@ MOS_STATUS AvcVdencPreEnc::PreparePreEncConfig(void *params)
     m_preEncConfig.GopRefDist       = (uint8_t)m_avcSeqParams->GopRefDist;
 
     uint8_t  depth = 0;
-    uint32_t poc   = m_preEncConfig.CurrPicOrderCnt % m_preEncConfig.GopRefDist;
+    uint32_t poc   = 0;
+    if (m_preEncConfig.GopRefDist == 0)
+    {
+        return MOS_STATUS_INVALID_PARAMETER;
+    }
+    poc = m_preEncConfig.CurrPicOrderCnt % m_preEncConfig.GopRefDist;
+    
 
     if (poc == 0)
     {
@@ -180,6 +186,7 @@ MOS_STATUS AvcVdencPreEnc::PreparePreEncConfig(void *params)
     }
     m_preEncConfig.HierarchLevelPlus1 = depth + 1;
 
+    ENCODE_CHK_COND_RETURN(m_avcSliceParams->slice_type >= 10, "slice_type cannot bigger than 10.");
     m_preEncConfig.SliceType       = (uint8_t)HevcSliceType[m_avcSliceParams->slice_type];
     m_preEncConfig.CurrOriginalPic = m_avcPicParams->CurrOriginalPic;
     m_preEncConfig.UsedAsRef       = m_avcPicParams->RefPicFlag;

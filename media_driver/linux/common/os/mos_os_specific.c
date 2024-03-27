@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2009-2022, Intel Corporation
+* Copyright (c) 2009-2023, Intel Corporation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -2321,7 +2321,7 @@ MOS_STATUS Mos_Specific_AllocateResource(
     }
 
     caller              = nullptr;
-    tileformat_linux    = I915_TILING_NONE;
+    tileformat_linux    = TILING_NONE;
     iAlignedHeight      = iHeight = pParams->dwHeight;
     eStatus             = MOS_STATUS_SUCCESS;
     resourceType        = RESOURCE_2D;
@@ -2410,7 +2410,7 @@ MOS_STATUS Mos_Specific_AllocateResource(
     switch(tileformat)
     {
         case MOS_TILE_Y:
-            tileformat_linux               = I915_TILING_Y;
+            tileformat_linux               = TILING_Y;
             if (pParams->bIsCompressible                                             && 
                 MEDIA_IS_SKU(&pOsInterface->pOsContext->m_skuTable, FtrE2ECompression) &&
                 MEDIA_IS_SKU(&pOsInterface->pOsContext->m_skuTable, FtrCompressibleSurfaceDefault))
@@ -2440,11 +2440,11 @@ MOS_STATUS Mos_Specific_AllocateResource(
             break;
         case MOS_TILE_X:
             GmmParams.Flags.Info.TiledX    = true;
-            tileformat_linux               = I915_TILING_X;
+            tileformat_linux               = TILING_X;
             break;
         default:
             GmmParams.Flags.Info.Linear    = true;
-            tileformat_linux               = I915_TILING_NONE;
+            tileformat_linux               = TILING_NONE;
     }
     GmmParams.Flags.Info.LocalOnly = MEDIA_IS_SKU(&pOsInterface->pOsContext->m_skuTable, FtrLocalMemory);
 
@@ -2456,19 +2456,19 @@ MOS_STATUS Mos_Specific_AllocateResource(
     {
         case GMM_TILED_X:
             tileformat = MOS_TILE_X;
-            tileformat_linux               = I915_TILING_X;
+            tileformat_linux               = TILING_X;
             break;
         case GMM_TILED_Y:
             tileformat = MOS_TILE_Y;
-            tileformat_linux               = I915_TILING_Y;
+            tileformat_linux               = TILING_Y;
             break;
         case GMM_NOT_TILED:
             tileformat = MOS_TILE_LINEAR;
-            tileformat_linux               = I915_TILING_NONE;
+            tileformat_linux               = TILING_NONE;
             break;
         default:
             tileformat = MOS_TILE_Y;
-            tileformat_linux               = I915_TILING_Y;
+            tileformat_linux               = TILING_Y;
             break;
     }
 
@@ -2493,7 +2493,7 @@ MOS_STATUS Mos_Specific_AllocateResource(
     mem_type = MemoryPolicyManager::UpdateMemoryPolicy(&memPolicyPar);
 
     // Only Linear and Y TILE supported
-    if( tileformat_linux == I915_TILING_NONE )
+    if( tileformat_linux == TILING_NONE )
     {
         bo = mos_bo_alloc(pOsInterface->pOsContext->bufmgr, bufname, iSize, 4096, mem_type);
     }
@@ -4269,6 +4269,24 @@ uint64_t Mos_Specific_GetResourceGfxAddress(
         mos_bo_set_softpin(pResource->bo);
     }
     return pResource->bo->offset64;
+}
+
+//!
+//! \brief    Get Clear Color Address
+//! \details  The clear color address
+//! \param    PMOS_INTERFACE pOsInterface
+//!           [in] OS Interface
+//! \param    PMOS_RESOURCE pResource
+//!           [in] OS resource structure
+//! \return   uint64_t
+//!           The clear color address
+//!
+uint64_t Mos_Specific_GetResourceClearAddress(
+    PMOS_INTERFACE pOsInterface,
+    PMOS_RESOURCE  pResource)
+{
+    uint64_t ui64ClearColorAddress = 0;
+    return ui64ClearColorAddress;
 }
 
 //!
@@ -7047,6 +7065,7 @@ MOS_STATUS Mos_Specific_InitInterface(
     pOsInterface->pfnResetResourceAllocationIndex           = Mos_Specific_ResetResourceAllocationIndex;
     pOsInterface->pfnGetResourceAllocationIndex             = Mos_Specific_GetResourceAllocationIndex;
     pOsInterface->pfnGetResourceGfxAddress                  = Mos_Specific_GetResourceGfxAddress;
+    pOsInterface->pfnGetResourceClearAddress                = Mos_Specific_GetResourceClearAddress;
     pOsInterface->pfnGetCommandBuffer                       = Mos_Specific_GetCommandBuffer;
     pOsInterface->pfnResetCommandBuffer                     = Mos_Specific_ResetCommandBuffer;
     pOsInterface->pfnReturnCommandBuffer                    = Mos_Specific_ReturnCommandBuffer;
@@ -7303,6 +7322,7 @@ MOS_STATUS Mos_Specific_InitInterface(
 
     // enable it on Linux
     pOsInterface->bMediaReset         = true;
+    pOsInterface->trinityPath         = TRINITY_DISABLED;
     pOsInterface->umdMediaResetEnable = true;
 
     pMediaWatchdog = getenv("INTEL_MEDIA_RESET_WATCHDOG");
@@ -7316,6 +7336,17 @@ MOS_STATUS Mos_Specific_InitInterface(
         }
     }
 
+    // Check SKU table to detect if simulation environment (HAS) is enabled
+    pSkuTable = pOsInterface->pfnGetSkuTable(pOsInterface);
+    MOS_OS_CHK_NULL(pSkuTable);
+
+    // disable Media Reset for non-xe platform who has no media reset support on Linux
+    if(!MEDIA_IS_SKU(pSkuTable, FtrSWMediaReset))
+    {
+        pOsInterface->bMediaReset         = false;
+        pOsInterface->umdMediaResetEnable = false;
+    }
+
     // initialize MOS_CP interface
     pOsInterface->osCpInterface = Create_MosCpInterface(pOsInterface);
     if (pOsInterface->osCpInterface == nullptr)
@@ -7323,10 +7354,6 @@ MOS_STATUS Mos_Specific_InitInterface(
         MOS_OS_ASSERTMESSAGE("fail to create osCpInterface.");
         return MOS_STATUS_UNKNOWN;
     }
-
-    // Check SKU table to detect if simulation environment (HAS) is enabled
-    pSkuTable = pOsInterface->pfnGetSkuTable(pOsInterface);
-    MOS_OS_CHK_NULL(pSkuTable);
 
 #if (_DEBUG || _RELEASE_INTERNAL)
     // read the "Force VDBOX" user feature key
@@ -7409,11 +7436,11 @@ finish:
 MOS_TILE_TYPE LinuxToMosTileType(uint32_t type)
 {
     switch (type) {
-        case I915_TILING_NONE:
+        case TILING_NONE:
             return MOS_TILE_LINEAR;
-        case I915_TILING_X:
+        case TILING_X:
             return MOS_TILE_X;
-        case I915_TILING_Y:
+        case TILING_Y:
             return MOS_TILE_Y;
         default:
             return MOS_TILE_INVALID;

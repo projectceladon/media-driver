@@ -415,7 +415,6 @@ LOCAL_SRC_FILES := \
     ../media_softlet/agnostic/common/os/mos_cmdbufmgr_next.cpp \
     ../media_softlet/agnostic/common/os/mos_commandbuffer_next.cpp \
     ../media_softlet/agnostic/common/os/mos_context_next.cpp \
-    ../media_softlet/agnostic/common/os/mos_gpucontext_next.cpp \
     ../media_softlet/agnostic/common/os/mos_gpucontextmgr_next.cpp \
     ../media_softlet/agnostic/common/os/mos_graphicsresource_next.cpp \
     ../media_softlet/agnostic/common/os/mos_oca_rtlog_mgr.cpp \
@@ -1395,6 +1394,8 @@ LOCAL_SRC_FILES := \
     media_softlet/agnostic/m12/m12/vp/hal/packet/vp_render_sfc_m12.cpp \
     media_softlet/agnostic/m12/m12_0/shared/mediacopy/media_copy_m12_0.cpp \
     media_softlet/agnostic/m12/m12_0/vp/hal/feature_manager/vp_feature_manager_m12_0.cpp \
+    ../media_softlet/agnostic/common/os/mos_oca_rtlog_mgr_base.cpp \
+    ../media_softlet/media_interface/media_interfaces_arl/media_interfaces_arl.cpp \
 
 LOCAL_SHARED_LIBRARIES := \
     libsync \
@@ -1952,6 +1953,8 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/../media_common/linux/common/cp/ddi \
     $(LOCAL_PATH)/../cmrtlib/linux/hardware \
     $(LOCAL_PATH)/../Tools/MediaDriverTools/Android/build/media_driver \
+    $(LOCAL_PATH)/../media_softlet/media_interface/media_interfaces_mtl \
+    $(LOCAL_PATH)/../media_softlet/media_interface/media_interfaces_arl \
 
 
 #LOCAL_CPP_FEATURES := rtti exceptions

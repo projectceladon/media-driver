@@ -49,8 +49,7 @@ VAStatus MediaLibvaCapsDG2::LoadAv1EncProfileEntrypoints()
         (*attributeList)[VAConfigAttribEncDynamicScaling] = 0;
         (*attributeList)[VAConfigAttribEncTileSupport]    = 1;
         (*attributeList)[VAConfigAttribEncDirtyRect]      = 0;
-        (*attributeList)[VAConfigAttribEncMaxRefFrames]   = CODEC_AV1_NUM_REFL0P_FRAMES |
-            CODEC_AV1_NUM_REFL0B_FRAMES<<8 | CODEC_AV1_NUM_REFL1B_FRAMES<<16;
+        (*attributeList)[VAConfigAttribEncMaxRefFrames]   = CODEC_AV1_NUM_REFL0P_FRAMES | CODEC_AV1_NUM_REFL1B_FRAMES<<16;
 
         VAConfigAttrib attrib;
         attrib.type = (VAConfigAttribType) VAConfigAttribEncAV1;
@@ -89,6 +88,7 @@ VAStatus MediaLibvaCapsDG2::LoadAv1EncProfileEntrypoints()
         AddEncConfig(VA_RC_CQP);
         AddEncConfig(VA_RC_CBR);
         AddEncConfig(VA_RC_VBR);
+        AddEncConfig(VA_RC_ICQ);
         AddProfileEntry(VAProfileAV1Profile0, VAEntrypointEncSliceLP, attributeList,
                 configStartIdx, m_encConfigs.size() - configStartIdx);
     }
@@ -719,7 +719,7 @@ VAStatus MediaLibvaCapsDG2::CreateEncAttributes(
     }
     if (IsAV1Profile(profile))
     {
-        attrib.value = VA_RC_CQP | VA_RC_CBR | VA_RC_VBR;
+        attrib.value = VA_RC_CQP | VA_RC_CBR | VA_RC_VBR | VA_RC_ICQ;
 #if VA_CHECK_VERSION(1, 10, 0)
         attrib.value |= VA_RC_TCBRC;
 #endif

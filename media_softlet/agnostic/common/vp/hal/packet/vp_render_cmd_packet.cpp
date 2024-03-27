@@ -97,13 +97,16 @@ VpRenderCmdPacket::~VpRenderCmdPacket()
             MOS_FreeMemAndSetNull(samplerstate.second.Avs.pMhwSamplerAvsTableParam);
         }
     }
+
     MOS_Delete(m_surfMemCacheCtl);
     MOS_Delete(m_enlargedStateHeapSetting);
 }
 
 MOS_STATUS VpRenderCmdPacket::Init()
 {
-    return RenderCmdPacket::Init();
+    VP_RENDER_CHK_STATUS_RETURN(RenderCmdPacket::Init());
+
+    return MOS_STATUS_SUCCESS;
 }
 
 MOS_STATUS VpRenderCmdPacket::LoadKernel()
@@ -855,13 +858,14 @@ bool VpRenderCmdPacket::IsRenderUncompressedWriteNeeded(PVP_SURFACE VpSurface)
     }
 
     byteInpixel = VpSurface->osSurface->OsResource.pGmmResInfo->GetBitsPerPixel() >> 3;
-#endif // !EMUL
 
     if (byteInpixel == 0)
     {
         VP_RENDER_NORMALMESSAGE("surface format is not a valid format for Render");
         return false;
     }
+#endif // !EMUL
+
     uint32_t writeAlignInWidth  = 32 / byteInpixel;
     uint32_t writeAlignInHeight = 8;
     
@@ -1703,6 +1707,10 @@ MOS_STATUS VpRenderCmdPacket::SubmitWithMultiKernel(MOS_COMMAND_BUFFER *commandB
         RENDER_PACKET_CHK_STATUS_RETURN(m_renderHal->pRenderHalPltInterface->AddMediaStateFlush(m_renderHal, commandBuffer, &FlushParam));
     }
 
+#if (_DEBUG || _RELEASE_INTERNAL)
+    RENDER_PACKET_CHK_STATUS_RETURN(StallBatchBuffer(commandBuffer));
+#endif
+
     HalOcaInterfaceNext::On1stLevelBBEnd(*commandBuffer, *pOsInterface);
 
     if (pBatchBuffer)
@@ -1798,7 +1806,7 @@ MOS_STATUS VpRenderCmdPacket::SendMediaStates(
     MHW_MI_LOAD_REGISTER_IMM_PARAMS loadRegisterImmParams = {};
     PMHW_MI_MMIOREGISTERS           pMmioRegisters        = nullptr;
     MOS_OCA_BUFFER_HANDLE           hOcaBuf               = 0;
-
+    bool                            flushL1               = false;
     //---------------------------------------
     MHW_RENDERHAL_CHK_NULL(pRenderHal);
     MHW_RENDERHAL_CHK_NULL(pRenderHal->pStateHeap);
@@ -1893,6 +1901,11 @@ MOS_STATUS VpRenderCmdPacket::SendMediaStates(
             pipeCtlParams.dwFlushMode             = MHW_FLUSH_CUSTOM;
             pipeCtlParams.bInvalidateTextureCache = true;
             pipeCtlParams.bFlushRenderTargetCache = true;
+            if (flushL1)
+            {   //Flush L1 cache after consumer walker when there is a producer-consumer relationship walker.
+                pipeCtlParams.bUnTypedDataPortCacheFlush = true;
+                pipeCtlParams.bHdcPipelineFlush          = true;
+            }
             MHW_RENDERHAL_CHK_STATUS(pRenderHal->pRenderHalPltInterface->AddMiPipeControl(pRenderHal,
                 pCmdBuffer,
                 &pipeCtlParams));
@@ -1933,7 +1946,8 @@ MOS_STATUS VpRenderCmdPacket::SendMediaStates(
                 pCmdBuffer,
                 &m_gpgpuWalkerParams));
 
-             PrintWalkerParas(m_mediaWalkerParams);
+            flushL1 = it->second.walkerParam.bFlushL1;
+            PrintWalkerParas(m_mediaWalkerParams);
         }
         else
         {

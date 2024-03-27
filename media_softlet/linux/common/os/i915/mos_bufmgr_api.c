@@ -339,7 +339,7 @@ mos_bo_set_tiling(struct mos_linux_bo *bo, uint32_t * tiling_mode,
         MOS_OS_CRITICALMESSAGE("Unsupported\n");
     }
 
-    *tiling_mode = I915_TILING_NONE;
+    *tiling_mode = TILING_NONE;
     return -EPERM;
 }
 
@@ -362,7 +362,7 @@ mos_bo_get_tiling(struct mos_linux_bo *bo, uint32_t * tiling_mode,
         MOS_OS_CRITICALMESSAGE("Unsupported\n");
     }
 
-    *tiling_mode = I915_TILING_NONE;
+    *tiling_mode = TILING_NONE;
     *swizzle_mode = I915_BIT_6_SWIZZLE_NONE;
     return -EPERM;
 }
@@ -1331,6 +1331,27 @@ mos_query_device_blob(struct mos_bufmgr *bufmgr, MEDIA_SYSTEM_INFO* gfx_info)
     if (bufmgr->query_device_blob)
     {
         return bufmgr->query_device_blob(bufmgr, gfx_info);
+    }
+    else
+    {
+        MOS_OS_CRITICALMESSAGE("Unsupported\n");
+        return -EPERM;
+    }
+}
+
+
+int
+mos_get_driver_info(struct mos_bufmgr *bufmgr, struct LinuxDriverInfo *drvInfo)
+{
+    if(!bufmgr)
+    {
+        MOS_OS_CRITICALMESSAGE("Input null ptr\n");
+        return -EINVAL;
+    }
+
+    if (bufmgr->get_driver_info)
+    {
+        return bufmgr->get_driver_info(bufmgr, drvInfo);
     }
     else
     {

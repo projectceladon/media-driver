@@ -53,7 +53,7 @@ namespace encode{
 
             par.mode = mhw::vdbox::vdenc::RowStorePar::AV1;
 
-            m_vdencItf->SetRowstoreCachingOffsets(par);
+            ENCODE_CHK_STATUS_NO_STATUS_RETURN(m_vdencItf->SetRowstoreCachingOffsets(par));
         }
         if(m_osInterface)
         {
@@ -245,7 +245,7 @@ namespace encode{
         perfTag.Value             = 0;
         perfTag.Mode              = (uint16_t)m_basicFeature->m_mode & CODECHAL_ENCODE_MODE_BIT_MASK;
         perfTag.CallType          = callType;
-        perfTag.PictureCodingType = picType > 3 ? 0 : picType;
+        perfTag.PictureCodingType = picType;
         m_osInterface->pfnSetPerfTag(m_osInterface, perfTag.Value);
         m_osInterface->pfnIncPerfBufferID(m_osInterface);
     }
@@ -441,8 +441,8 @@ namespace encode{
         ENCODE_VERBOSEMESSAGE("statusReportData->numberPasses: %d\n", statusReportData->numberPasses);
 
         uint32_t log2MaxSbSize   = av1MiSizeLog2 + av1MinMibSizeLog2;
-        uint32_t frameWidthInSb  = MOS_ALIGN_CEIL(m_basicFeature->m_frameWidth, (1 << log2MaxSbSize)) >> log2MaxSbSize;
-        uint32_t frameHeightInSb = MOS_ALIGN_CEIL(m_basicFeature->m_frameHeight, (1 << log2MaxSbSize)) >> log2MaxSbSize;
+        uint32_t frameWidthInSb  = MOS_ALIGN_CEIL(statusReportData->frameWidth, (1 << log2MaxSbSize)) >> log2MaxSbSize;
+        uint32_t frameHeightInSb = MOS_ALIGN_CEIL(statusReportData->frameHeight, (1 << log2MaxSbSize)) >> log2MaxSbSize;
         if (frameWidthInSb != 0 && frameHeightInSb != 0)
         {
             ENCODE_CHK_NULL_RETURN(m_basicFeature->m_av1SeqParams);

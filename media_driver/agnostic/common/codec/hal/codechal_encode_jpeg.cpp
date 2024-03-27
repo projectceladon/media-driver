@@ -427,15 +427,7 @@ MOS_STATUS CodechalEncodeJpegState::PackHuffmanTable(
 
     buffer->pBase = (uint8_t*)huffmanHeader;
     buffer->BitOffset = 0;
-
-    if (m_jpegHuffmanTable->m_huffmanData[tableIndex].m_tableClass == 0) // DC table
-    {
-        buffer->BufferSize = (2 * sizeof(uint16_t) * 8) + (sizeof(uint8_t) * 8) + (JPEG_NUM_HUFF_TABLE_AC_BITS * 8) + (totalHuffValues * sizeof(uint8_t) * 8);
-    }
-    else
-    {
-        buffer->BufferSize = (2 * sizeof(uint16_t) * 8) + (sizeof(uint8_t) * 8) + (JPEG_NUM_HUFF_TABLE_AC_BITS * 8) + (totalHuffValues * sizeof(uint8_t) * 8);
-    }
+    buffer->BufferSize = (2 * sizeof(uint16_t) * 8) + (sizeof(uint8_t) * 8) + (JPEG_NUM_HUFF_TABLE_AC_BITS * 8) + (totalHuffValues * sizeof(uint8_t) * 8);
 
     return eStatus;
 }
@@ -753,7 +745,7 @@ MOS_STATUS CodechalEncodeJpegState::ExecuteSliceLevel()
         // set MFC_JPEG_HUFF_TABLE - Convert encoded huffman table to actual table for HW
         // We need a different params struct for JPEG Encode Huffman table because JPEG decode huffman table has Bits and codes,
         // whereas JPEG encode huffman table has huffman code lengths and values
-        MHW_VDBOX_ENCODE_HUFF_TABLE_PARAMS   huffTableParams[JPEG_MAX_NUM_HUFF_TABLE_INDEX];
+        MHW_VDBOX_ENCODE_HUFF_TABLE_PARAMS huffTableParams[JPEG_MAX_NUM_HUFF_TABLE_INDEX] = {};
         for (uint32_t i = 0; i < m_encodeParams.dwNumHuffBuffers; i++)
         {
             CodechalEncodeJpegHuffTable huffmanTable;// intermediate table for each AC/DC component which will be copied to huffTableParams
@@ -963,9 +955,9 @@ MOS_STATUS CodechalEncodeJpegState::ExecuteSliceLevel()
                 if (eStatus != MOS_STATUS_SUCCESS)
                 {
                     MOS_SafeFreeMemory(pakInsertObjectParams.pBsBuffer->pBase);
+                    appDataChunk = nullptr;
                     MOS_SafeFreeMemory(pakInsertObjectParams.pBsBuffer);
                     MOS_SafeFreeMemory(tempJpegQuantMatrix);
-                    MOS_SafeFreeMemory(appDataChunk);
                     CODECHAL_ENCODE_CHK_STATUS_RETURN(eStatus);
                 }
                 pakInsertObjectParams.dwOffset                      = 0;
@@ -987,9 +979,9 @@ MOS_STATUS CodechalEncodeJpegState::ExecuteSliceLevel()
                 if (eStatus != MOS_STATUS_SUCCESS)
                 {
                     MOS_SafeFreeMemory(pakInsertObjectParams.pBsBuffer->pBase);
+                    appDataChunk = nullptr;
                     MOS_SafeFreeMemory(pakInsertObjectParams.pBsBuffer);
                     MOS_SafeFreeMemory(tempJpegQuantMatrix);
-                    MOS_SafeFreeMemory(appDataChunk);
                     CODECHAL_ENCODE_CHK_STATUS_RETURN(eStatus);
                 }
             }

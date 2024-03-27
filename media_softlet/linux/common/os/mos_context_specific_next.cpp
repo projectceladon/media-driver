@@ -80,7 +80,7 @@ MOS_STATUS OsContextSpecificNext::Init(DDI_DEVICE_CONTEXT ddiDriverContext)
         MosUtilities::MosZeroMemory(&m_gtSystemInfo, sizeof(m_gtSystemInfo));
 
         if( nullptr == osDriverContext  ||
-            0 >= osDriverContext->fd )
+            0 > osDriverContext->fd )
         {
             MOS_OS_ASSERT(false);
             return MOS_STATUS_INVALID_HANDLE;
@@ -89,7 +89,7 @@ MOS_STATUS OsContextSpecificNext::Init(DDI_DEVICE_CONTEXT ddiDriverContext)
 
         userSettingPtr = MosInterface::MosGetUserSettingInstance(osDriverContext);
 
-        m_bufmgr = mos_bufmgr_gem_init(m_fd, BATCH_BUFFER_SIZE);
+        m_bufmgr = mos_bufmgr_gem_init(m_fd, BATCH_BUFFER_SIZE, &m_deviceType);
         if (nullptr == m_bufmgr)
         {
             MOS_OS_ASSERTMESSAGE("Not able to allocate buffer manager, fd=0x%d", m_fd);
@@ -154,7 +154,7 @@ MOS_STATUS OsContextSpecificNext::Init(DDI_DEVICE_CONTEXT ddiDriverContext)
 
         uint64_t isRecoverableContextEnabled = 0;
         MOS_LINUX_CONTEXT *intel_context = mos_context_create_ext(m_bufmgr, 0, false);
-        int ret = mos_get_context_param(intel_context, 0, I915_CONTEXT_PARAM_RECOVERABLE, &isRecoverableContextEnabled);
+        int ret = mos_get_context_param(intel_context, 0, DRM_CONTEXT_PARAM_RECOVERABLE, &isRecoverableContextEnabled);
         if (ret == -EINVAL)
         {
             isRecoverableContextEnabled = 1;
@@ -184,7 +184,7 @@ MOS_STATUS OsContextSpecificNext::Init(DDI_DEVICE_CONTEXT ddiDriverContext)
         GMM_WA_TABLE            gmmWaTable    = {};
         GMM_GT_SYSTEM_INFO      gmmGtInfo     = {};
         GMM_ADAPTER_BDF         gmmAdapterBDF = {};
-        eStatus = HWInfo_GetGmmInfo(m_fd, &gmmSkuTable, &gmmWaTable, &gmmGtInfo);
+        eStatus = HWInfo_GetGmmInfo(m_bufmgr, &gmmSkuTable, &gmmWaTable, &gmmGtInfo);
         if (MOS_STATUS_SUCCESS != eStatus)
         {
             MOS_OS_ASSERTMESSAGE("Fatal error - unsuccesfull Gmm Sku/Wa/GtSystemInfo initialization");
