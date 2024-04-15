@@ -24,4 +24,4 @@ if(Xe_M_plus)
     media_include_subdirectory(Xe_M_plus)
 endif()
 
-include(${MEDIA_SOFTLET_EXT}/agnostic/media_srcs_ext.cmake OPTIONAL)
+include(${BS_DIR_MEDIA}/media_softlet_embargo/agnostic/media_srcs_ext.cmake OPTIONAL)

@@ -83,6 +83,8 @@ elseif ("${BUILD_TYPE}" STREQUAL "debug")
     set(CMAKE_BUILD_TYPE "Debug")
 endif()
 
+include(media_pre_top_cmake.cmake OPTIONAL)
+
 include(${BS_DIR_MEDIA}/media_driver/cmake/media_defs.cmake)
 
 include(${MEDIA_DRIVER_CMAKE}/media_utils.cmake)
