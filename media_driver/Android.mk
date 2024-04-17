@@ -572,12 +572,13 @@ LOCAL_SRC_FILES := \
     ../media_softlet/linux/common/ddi/media_libva_util_next.cpp \
     ../media_softlet/linux/common/media_interfaces/media_interfaces_next.cpp \
     ../media_softlet/linux/common/os/hwinfo_linux.cpp \
-    ../media_softlet/linux/common/os/i915/mos_bufmgr.c \
     ../media_softlet/linux/common/os/i915/mos_bufmgr_api.c \
     ../media_softlet/linux/common/os/i915/xf86drm.c \
     ../media_softlet/linux/common/os/i915/xf86drmHash.c \
     ../media_softlet/linux/common/os/i915/xf86drmMode.c \
     ../media_softlet/linux/common/os/i915/xf86drmRandom.c \
+    ../media_softlet/linux/common/os/i915_production/mos_bufmgr.c \
+    ../media_softlet/linux/common/os/i915_production/mos_bufmgr_prelim.cpp \
     ../media_softlet/linux/common/os/mos_auxtable_mgr.cpp \
     ../media_softlet/linux/common/os/mos_commandbuffer_specific_next.cpp \
     ../media_softlet/linux/common/os/mos_context_specific_next.cpp \
@@ -1120,11 +1121,6 @@ LOCAL_SRC_FILES := \
     agnostic/gen9_skl/hw/vdbox/mhw_vdbox_mfx_hwcmd_g9_skl.cpp \
     agnostic/gen9_skl/hw/vdbox/mhw_vdbox_vdenc_g9_skl.cpp \
     agnostic/gen9_skl/hw/vdbox/mhw_vdbox_vdenc_hwcmd_g9_skl.cpp \
-    linux/Xe_M/ddi/media_libva_caps_dg2.cpp \
-    linux/Xe_M/ddi/media_libva_caps_pvc.cpp \
-    linux/Xe_M/ddi/media_libva_caps_xehp_sdv.cpp \
-    linux/Xe_M/ddi/media_sku_wa_xe.cpp \
-    linux/Xe_M/ddi/media_sysinfo_xe.cpp \
     linux/common/cm/ddi/media_libva_cm.c \
     linux/common/cm/hal/cm_command_buffer_os.cpp \
     linux/common/cm/hal/cm_debug_os.cpp \
@@ -1226,7 +1222,6 @@ LOCAL_SRC_FILES := \
     media_interface/media_interfaces_dg2/media_interfaces_dg2.cpp \
     media_interface/media_interfaces_m11_icllp/media_interfaces_g11_icllp.cpp \
     media_interface/media_interfaces_m11_jsl_ehl/media_interfaces_g11_jsl_ehl.cpp \
-    media_interface/media_interfaces_m12_adln/media_interfaces_g12_adln.cpp \
     media_interface/media_interfaces_m12_adlp/media_interfaces_g12_adlp.cpp \
     media_interface/media_interfaces_m12_adls/media_interfaces_g12_adls.cpp \
     media_interface/media_interfaces_m12_dg1/media_interfaces_g12_dg1.cpp \
@@ -1412,8 +1407,6 @@ LOCAL_CPPFLAGS = \
     -fexceptions \
     -frtti \
     -std=c++14 \
-    -DCLASS_TRACE=0 \
-    -DENABLE_KERNELS \
     -Wno-error \
     -Wno-ignored-qualifiers \
     -Wno-unused-parameter \
@@ -1434,21 +1427,13 @@ LOCAL_CPPFLAGS = \
     -Wno-unused-lambda-capture \
     -Wno-unreachable-code-loop-increment \
     -Wno-delete-incomplete \
+    -DGMM_LIB_DLL \
+    -DCLASS_TRACE=0 \
+    -DENABLE_KERNELS \
     -DHEVC_FEI_ENABLE_CMRT \
-    -DIGFX_DG2_SUPPORTED \
     -DIGFX_GEN11_ICLLP_SUPPORTED \
     -DIGFX_GEN11_JSL_SUPPORTED \
     -DIGFX_GEN11_SUPPORTED \
-    -DIGFX_GEN12_ADLN_SUPPORTED \
-    -DIGFX_GEN12_ADLP_SUPPORTED \
-    -DIGFX_GEN12_ADLS_SUPPORTED \
-    -DIGFX_GEN12_DG1_SUPPORTED \
-    -DIGFX_GEN12_RKL_SUPPORTED \
-    -DIGFX_GEN12_SUPPORTED \
-    -DIGFX_GEN12_TGLLP_CMFCPATCH_SUPPORTED \
-    -DIGFX_GEN12_TGLLP_CMFC_SUPPORTED \
-    -DIGFX_GEN12_TGLLP_SUPPORTED \
-    -DIGFX_GEN12_TGLLP_SWSB_SUPPORTED \
     -DIGFX_GEN8_BDW_SUPPORTED \
     -DIGFX_GEN8_SUPPORTED \
     -DIGFX_GEN9_BXT_SUPPORTED \
@@ -1460,12 +1445,8 @@ LOCAL_CPPFLAGS = \
     -DIGFX_GEN9_SKL_SUPPORTED \
     -DIGFX_GEN9_SUPPORTED \
     -DIGFX_MTL_SUPPORTED \
-    -DIGFX_XEHP_SDV_CMFCPATCH_SUPPORTED \
-    -DIGFX_XEHP_SDV_SUPPORTED \
-    -DIGFX_XE_HPG_CMFCPATCH_SUPPORTED \
-    -DIGFX_XE_HPG_SUPPORTED \
     -DMEDIA_VERSION=\"23.2.4\" \
-    -DMEDIA_VERSION_DETAILS=\"cf942344b\" \
+    -DMEDIA_VERSION_DETAILS=\"751bfcd12\" \
     -DVEBOX_AUTO_DENOISE_SUPPORTED=1 \
     -DX11_FOUND \
     -D_AV1_DECODE_SUPPORTED \
@@ -1492,72 +1473,90 @@ LOCAL_CPPFLAGS = \
     -D__STDC_CONSTANT_MACROS \
     -D__STDC_LIMIT_MACROS \
     -D__VPHAL_SFC_SUPPORTED=1 \
-    -DiHD_drv_video_EXPORTS \
-    -DGMM_LIB_DLL
+    -DiHD_drv_video_EXPORTS
 
 LOCAL_CONLYFLAGS = -x c++
 LOCAL_CFLAGS = $(LOCAL_CPPFLAGS)
 
 LOCAL_C_INCLUDES  = \
+    $(LOCAL_PATH)/../Tools/MediaDriverTools/Android/build/media_driver \
+    $(LOCAL_PATH)/../media_common/agnostic/common/os/user_setting \
+    $(LOCAL_PATH)/../media_common/agnostic/common/os \
+    $(LOCAL_PATH)/../media_common/agnostic/common/codec/shared \
+    $(LOCAL_PATH)/../media_common/agnostic/common/vp/hal \
+    $(LOCAL_PATH)/../media_common/agnostic/common/vp/kernel \
+    $(LOCAL_PATH)/../media_common/agnostic/common/vp/kdll \
+    $(LOCAL_PATH)/../media_common/agnostic/common/heap_manager \
+    $(LOCAL_PATH)/../media_common/agnostic/common/hw/vdbox \
+    $(LOCAL_PATH)/../media_common/agnostic/common/hw \
+    $(LOCAL_PATH)/../media_common/agnostic/common/shared \
+    $(LOCAL_PATH)/../media_common/agnostic/common/media_interfaces \
+    $(LOCAL_PATH)/../media_common/agnostic/common/renderhal \
+    $(LOCAL_PATH)/../media_common/agnostic/common/cp \
+    $(LOCAL_PATH)/../media_common/linux/common/os \
+    $(LOCAL_PATH)/../media_common/linux/common/cp/ddi \
+    $(LOCAL_PATH)/../media_common/linux/common/cp/os \
+    $(LOCAL_PATH)/../media_common/linux/common/codec \
     $(LOCAL_PATH)/agnostic/common/cm \
     $(LOCAL_PATH)/agnostic/common/codec/hal \
     $(LOCAL_PATH)/agnostic/common/codec/kernel \
     $(LOCAL_PATH)/agnostic/common/codec/shared \
-    $(LOCAL_PATH)/agnostic/common/os \
-    $(LOCAL_PATH)/agnostic/common/vp/hal \
-    $(LOCAL_PATH)/agnostic/common/hw \
-    $(LOCAL_PATH)/agnostic/common/shared \
-    $(LOCAL_PATH)/agnostic/common/shared/mediacopy \
-    $(LOCAL_PATH)/agnostic/common/media_interfaces \
-    $(LOCAL_PATH)/agnostic/common/renderhal \
-    $(LOCAL_PATH)/agnostic/common/vp/kdll \
     $(LOCAL_PATH)/agnostic/common/hw/vdbox \
+    $(LOCAL_PATH)/agnostic/common/hw \
+    $(LOCAL_PATH)/agnostic/common/media_interfaces \
+    $(LOCAL_PATH)/agnostic/common/os \
+    $(LOCAL_PATH)/agnostic/common/renderhal \
+    $(LOCAL_PATH)/agnostic/common/shared/mediacopy \
+    $(LOCAL_PATH)/agnostic/common/shared \
+    $(LOCAL_PATH)/agnostic/common/vp/hal \
+    $(LOCAL_PATH)/agnostic/common/vp/kdll \
+    $(LOCAL_PATH)/agnostic/gen8/cm \
     $(LOCAL_PATH)/agnostic/gen8/codec/hal \
     $(LOCAL_PATH)/agnostic/gen8/codec/kernel \
+    $(LOCAL_PATH)/agnostic/gen8/hw/vdbox \
+    $(LOCAL_PATH)/agnostic/gen8/hw \
     $(LOCAL_PATH)/agnostic/gen8/renderhal \
-    $(LOCAL_PATH)/agnostic/gen8/cm \
     $(LOCAL_PATH)/agnostic/gen8/vp/hal \
     $(LOCAL_PATH)/agnostic/gen8/vp/kernel \
-    $(LOCAL_PATH)/agnostic/gen8/hw \
-    $(LOCAL_PATH)/agnostic/gen8/hw/vdbox \
     $(LOCAL_PATH)/agnostic/gen8_bdw/codec/hal \
-    $(LOCAL_PATH)/agnostic/gen8_bdw/renderhal \
     $(LOCAL_PATH)/agnostic/gen8_bdw/hw/vdbox \
+    $(LOCAL_PATH)/agnostic/gen8_bdw/renderhal \
+    $(LOCAL_PATH)/agnostic/gen9/cm \
     $(LOCAL_PATH)/agnostic/gen9/codec/hal \
     $(LOCAL_PATH)/agnostic/gen9/codec/kernel \
+    $(LOCAL_PATH)/agnostic/gen9/hw/vdbox \
+    $(LOCAL_PATH)/agnostic/gen9/hw \
     $(LOCAL_PATH)/agnostic/gen9/renderhal \
-    $(LOCAL_PATH)/agnostic/gen9/cm \
     $(LOCAL_PATH)/agnostic/gen9/vp/hal \
     $(LOCAL_PATH)/agnostic/gen9/vp/kernel \
-    $(LOCAL_PATH)/agnostic/gen9/hw \
-    $(LOCAL_PATH)/agnostic/gen9/hw/vdbox \
     $(LOCAL_PATH)/agnostic/gen9_bxt/codec/hal \
     $(LOCAL_PATH)/agnostic/gen9_bxt/codec/kernel \
-    $(LOCAL_PATH)/agnostic/gen9_bxt/vp/hal \
     $(LOCAL_PATH)/agnostic/gen9_bxt/hw/vdbox \
+    $(LOCAL_PATH)/agnostic/gen9_bxt/vp/hal \
     $(LOCAL_PATH)/agnostic/gen9_skl/codec/hal \
     $(LOCAL_PATH)/agnostic/gen9_skl/codec/cmrt_kernel \
     $(LOCAL_PATH)/agnostic/gen9_skl/hw/vdbox \
     $(LOCAL_PATH)/agnostic/gen9_glk/codec/hal \
-    $(LOCAL_PATH)/agnostic/gen9_glk/vp/hal \
     $(LOCAL_PATH)/agnostic/gen9_glk/hw/vdbox \
+    $(LOCAL_PATH)/agnostic/gen9_glk/vp/hal \
     $(LOCAL_PATH)/agnostic/gen9_kbl/codec/hal \
     $(LOCAL_PATH)/agnostic/gen9_kbl/codec/kernel \
     $(LOCAL_PATH)/agnostic/gen9_kbl/hw/vdbox \
+    $(LOCAL_PATH)/agnostic/gen11/cm \
     $(LOCAL_PATH)/agnostic/gen11/codec/hal \
     $(LOCAL_PATH)/agnostic/gen11/codec/kernel \
     $(LOCAL_PATH)/agnostic/gen11/codec/share \
-    $(LOCAL_PATH)/agnostic/gen11/renderhal \
-    $(LOCAL_PATH)/agnostic/gen11/cm \
-    $(LOCAL_PATH)/agnostic/gen11/vp/hal \
-    $(LOCAL_PATH)/agnostic/gen11/hw \
     $(LOCAL_PATH)/agnostic/gen11/hw/vdbox \
+    $(LOCAL_PATH)/agnostic/gen11/hw \
+    $(LOCAL_PATH)/agnostic/gen11/renderhal \
+    $(LOCAL_PATH)/agnostic/gen11/vp/hal \
     $(LOCAL_PATH)/agnostic/gen11_icllp/codec/hal \
     $(LOCAL_PATH)/agnostic/gen11_icllp/codec/kernel \
     $(LOCAL_PATH)/agnostic/gen11_icllp/vp/hal \
     $(LOCAL_PATH)/agnostic/gen11_icllp/vp/kernel \
     $(LOCAL_PATH)/agnostic/gen11_jsl_ehl/vp/hal \
     $(LOCAL_PATH)/agnostic/gen11_jsl_ehl/renderhal \
+    $(LOCAL_PATH)/agnostic/gen12/cm \
     $(LOCAL_PATH)/agnostic/gen12/codec/hal \
     $(LOCAL_PATH)/agnostic/gen12/codec/kernel \
     $(LOCAL_PATH)/agnostic/gen12/codec/kernelisa \
@@ -1565,33 +1564,9 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/agnostic/gen12/hw/vdbox \
     $(LOCAL_PATH)/agnostic/gen12/hw \
     $(LOCAL_PATH)/agnostic/gen12/vp/hal \
-    $(LOCAL_PATH)/agnostic/gen12/cm \
     $(LOCAL_PATH)/agnostic/gen12 \
-    $(LOCAL_PATH)/agnostic/gen12_tgllp \
-    $(LOCAL_PATH)/agnostic/gen12_tgllp/vp/hal \
-    $(LOCAL_PATH)/agnostic/gen12_tgllp/vp/kernel/cmfc \
-    $(LOCAL_PATH)/agnostic/gen12_tgllp/vp/kernel/cmfccmlpch \
-    $(LOCAL_PATH)/agnostic/gen12_tgllp/vp/kernel/cmfcpatch \
-    $(LOCAL_PATH)/agnostic/gen12_tgllp/vp/kernel \
-    $(LOCAL_PATH)/agnostic/gen12_tgllp/vp/kernel/swsb \
-    $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/hw/vdbox \
-    $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/codec/hal \
-    $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/codec/kernelisa \
-    $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/vp/hal \
-    $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/vp/kernel/cmfcpatch \
-    $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/vp/kernel \
-    $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/hw \
-    $(LOCAL_PATH)/agnostic/Xe_M/Xe_HPM/codec/hal \
-    $(LOCAL_PATH)/agnostic/Xe_M/Xe_HPM/codec/kernel \
-    $(LOCAL_PATH)/agnostic/Xe_M/Xe_HPM/vp/hal \
-    $(LOCAL_PATH)/agnostic/Xe_M/Xe_HPM \
-    $(LOCAL_PATH)/agnostic/Xe_M/Xe_HPM/hw \
-    $(LOCAL_PATH)/agnostic/Xe_M/Xe_HPM/hw/vdbox \
-    $(LOCAL_PATH)/agnostic/Xe_R/Xe_HP_base/hw/render \
-    $(LOCAL_PATH)/agnostic/Xe_R/Xe_HP_base/hw/blt \
-    $(LOCAL_PATH)/agnostic/Xe_R/Xe_HP/hw/render \
-    $(LOCAL_PATH)/agnostic/Xe_R/Xe_HPG/hw/render \
     $(LOCAL_PATH)/agnostic/g12/g12_base/hw/render \
+    $(LOCAL_PATH)/media_softlet/agnostic/gen12/vp/hal \
     $(LOCAL_PATH)/media_softlet/agnostic/gen12/codec/hal/dec/av1/pipeline \
     $(LOCAL_PATH)/media_softlet/agnostic/gen12/codec/hal/dec/av1/packet \
     $(LOCAL_PATH)/media_softlet/agnostic/gen12/codec/hal/dec/av1/features \
@@ -1600,24 +1575,34 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/media_softlet/agnostic/gen12/codec/hal/dec \
     $(LOCAL_PATH)/media_softlet/agnostic/gen12/codec/hal/shared \
     $(LOCAL_PATH)/media_softlet/agnostic/gen12/codec/hal \
-    $(LOCAL_PATH)/media_softlet/agnostic/gen12/codec/hal/dec/shared \
-    $(LOCAL_PATH)/media_softlet/agnostic/gen12/codec/hal/dec/av1/features \
-    $(LOCAL_PATH)/media_softlet/agnostic/gen12/codec/hal/dec/av1/pipeline \
-    $(LOCAL_PATH)/media_softlet/agnostic/gen12/codec/hal/dec/av1/packet \
-    $(LOCAL_PATH)/media_softlet/agnostic/gen12/codec/hal/shared \
-    $(LOCAL_PATH)/media_softlet/agnostic/gen12/vp/hal \
-    $(LOCAL_PATH)/media_softlet/agnostic/gen12_tgllp/vp/hal/platform_interface \
-    $(LOCAL_PATH)/media_softlet/agnostic/g12/g12_base/renderhal \
-    $(LOCAL_PATH)/media_softlet/agnostic/g12/g12_1/renderhal \
-    $(LOCAL_PATH)/media_softlet/agnostic/g12/g12_0/renderhal \
+    $(LOCAL_PATH)/agnostic/gen12_tgllp/vp/hal \
+    $(LOCAL_PATH)/agnostic/gen12_tgllp/vp/kernel/cmfc \
+    $(LOCAL_PATH)/agnostic/gen12_tgllp/vp/kernel/cmfcpatch \
+    $(LOCAL_PATH)/agnostic/gen12_tgllp/vp/kernel/cmfccmlpch \
+    $(LOCAL_PATH)/agnostic/gen12_tgllp/vp/kernel \
+    $(LOCAL_PATH)/agnostic/gen12_tgllp \
+    $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/hw/vdbox \
+    $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/hw \
+    $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/vp/hal \
+    $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/vp/kernel/cmfcpatch \
+    $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/vp/kernel \
     $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/codec/hal \
     $(LOCAL_PATH)/agnostic/Xe_M/Xe_XPM/codec/kernelisa \
+    $(LOCAL_PATH)/agnostic/Xe_M/Xe_HPM/hw/vdbox \
+    $(LOCAL_PATH)/agnostic/Xe_M/Xe_HPM/hw \
+    $(LOCAL_PATH)/agnostic/Xe_M/Xe_HPM/vp/hal \
     $(LOCAL_PATH)/agnostic/Xe_M/Xe_HPM/codec/hal \
     $(LOCAL_PATH)/agnostic/Xe_M/Xe_HPM/codec/kernel \
+    $(LOCAL_PATH)/agnostic/Xe_M/Xe_HPM \
+    $(LOCAL_PATH)/agnostic/Xe_R/Xe_HP_base/hw/render \
+    $(LOCAL_PATH)/agnostic/Xe_R/Xe_HP_base/hw/blt \
+    $(LOCAL_PATH)/agnostic/Xe_R/Xe_HP/hw/render \
+    $(LOCAL_PATH)/agnostic/Xe_R/Xe_HPG/hw/render \
     $(LOCAL_PATH)/linux/common/cm/ddi \
     $(LOCAL_PATH)/linux/common/cm/hal/osservice \
     $(LOCAL_PATH)/linux/common/cm/hal \
     $(LOCAL_PATH)/linux/common/ddi \
+    $(LOCAL_PATH)/linux/common/os \
     $(LOCAL_PATH)/linux/common/codec/ddi \
     $(LOCAL_PATH)/linux/common/cp/ddi \
     $(LOCAL_PATH)/linux/common/cp/os \
@@ -1625,7 +1610,6 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/linux/common/cp/shared \
     $(LOCAL_PATH)/linux/common/vp/ddi \
     $(LOCAL_PATH)/linux/common/hw \
-    $(LOCAL_PATH)/linux/common/os \
     $(LOCAL_PATH)/linux/gen8/ddi \
     $(LOCAL_PATH)/linux/gen9/ddi \
     $(LOCAL_PATH)/linux/gen9_bxt/ddi \
@@ -1637,44 +1621,54 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/linux/gen11/ddi \
     $(LOCAL_PATH)/linux/gen12/codec/ddi \
     $(LOCAL_PATH)/linux/gen12/ddi \
-    $(LOCAL_PATH)/linux/Xe_M/ddi \
-    $(LOCAL_PATH)/media_softlet/agnostic/common/codec/hal/dec/shared/scalability \
-    $(LOCAL_PATH)/media_softlet/agnostic/common/shared/scalability \
     $(LOCAL_PATH)/media_softlet/agnostic/common/shared/media_sfc_interface \
+    $(LOCAL_PATH)/media_softlet/agnostic/common/shared/scalability \
+    $(LOCAL_PATH)/media_softlet/agnostic/common/vp/hal/packet \
     $(LOCAL_PATH)/media_softlet/agnostic/common/vp/hal/shared/scalability \
     $(LOCAL_PATH)/media_softlet/agnostic/common/vp/hal/pipeline \
-    $(LOCAL_PATH)/media_softlet/agnostic/common/vp/hal/packet \
+    $(LOCAL_PATH)/media_softlet/agnostic/common/codec/hal/dec/shared/scalability \
     $(LOCAL_PATH)/media_softlet/agnostic/gen12_base/codec/hal/dec/av1/features \
     $(LOCAL_PATH)/media_softlet/agnostic/gen12_base/codec/hal/dec/av1/pipeline \
     $(LOCAL_PATH)/media_softlet/agnostic/gen12_base/codec/hal/dec/av1/packet \
     $(LOCAL_PATH)/media_softlet/agnostic/gen12_base/codec/hal/dec/shared/packet \
     $(LOCAL_PATH)/media_softlet/agnostic/gen12_base/codec/hal/dec/shared/hucitf \
     $(LOCAL_PATH)/media_softlet/agnostic/gen12_base/codec/hal \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM/vp/hal/platform_interface \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM/vp/hal/pipeline \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM/vp/hal/packet \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM/vp/hal/feature_manager \
+    $(LOCAL_PATH)/media_softlet/agnostic/gen12_tgllp/vp/hal/platform_interface \
+    $(LOCAL_PATH)/media_softlet/agnostic/m12/m12/vp/hal/packet \
+    $(LOCAL_PATH)/media_softlet/agnostic/m12/m12_0/vp/hal/feature_manager \
+    $(LOCAL_PATH)/media_softlet/agnostic/m12/m12_0/shared/mediacopy \
+    $(LOCAL_PATH)/media_softlet/agnostic/g12/g12_base/renderhal \
+    $(LOCAL_PATH)/media_softlet/agnostic/g12/g12_0/renderhal \
+    $(LOCAL_PATH)/media_softlet/agnostic/g12/g12_1/renderhal \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_R/Xe_HP_Base/renderhal \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_R/Xe_HP/renderhal \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_R/Xe_HPG/renderhal \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM_base/vp/hal/feature_manager \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM_base/vp/hal/packet \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM_base/shared/mediacopy \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM_base/hw \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM_base/codec/hal/enc/hevc/pipeline \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM_base/codec/hal/enc/hevc/features \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM_base/codec/hal/enc \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM_base/codec/hal \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM_base/shared/mediacopy \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM_base/vp/hal/packet \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM_base/vp/hal/feature_manager \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM_base/hw \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM/vp/hal/pipeline \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM/vp/hal/platform_interface \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM/vp/hal/packet \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_XPM/vp/hal/feature_manager \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/vp/hal/pipeline \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/vp/hal/platform_interface \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/vp/hal/packet \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/vp/hal/feature_manager \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/codec/hal/enc/av1/packet \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/codec/hal/enc/av1/pipeline \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/codec/hal/enc/av1/features \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/codec/hal/enc/hevc/features \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/codec/hal/enc/hevc/pipeline \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/codec/hal/enc \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/codec/hal/shared \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/hw \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/hw/vdbox \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/vp/hal/platform_interface \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/vp/hal/pipeline \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/vp/hal/packet \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/vp/hal/feature_manager \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/shared/mediacopy \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/hw/vdbox \
+    $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_HPM/hw \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_M_base/codec/hal/dec/hevc/pipeline \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_M_base/codec/hal/dec/hevc/packet \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_M_base/codec/hal/dec/hevc/mmc \
@@ -1703,254 +1697,225 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_M_base/codec/hal/enc/shared \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_M_base/codec/hal/enc \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_M/Xe_M_base/codec/hal \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_R/Xe_HPC/renderhal \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_R/Xe_HPG/renderhal \
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_R/Xe_HP_Base/renderhal\
-    $(LOCAL_PATH)/media_softlet/agnostic/Xe_R/Xe_HP/renderhal \
-    $(LOCAL_PATH)/media_softlet/agnostic/m12/m12/vp/hal/packet \
-    $(LOCAL_PATH)/media_softlet/agnostic/m12/m12_0/shared/mediacopy \
-    $(LOCAL_PATH)/media_softlet/agnostic/m12/m12_0/vp/hal/feature_manager \
-    $(LOCAL_PATH)/media_interface/media_interfaces_m12_adln \
-    $(LOCAL_PATH)/media_interface/media_interfaces_m12_dg1 \
-    $(LOCAL_PATH)/media_interface/media_interfaces_m12_rkl\
-    $(LOCAL_PATH)/media_interface/media_interfaces_m9_cfl \
-    $(LOCAL_PATH)/media_interface/media_interfaces_m12_adls \
-    $(LOCAL_PATH)/media_interface/media_interfaces_m9_skl \
-    $(LOCAL_PATH)/media_interface/media_interfaces_m12_adlp \
-    $(LOCAL_PATH)/media_interface/media_interfaces_m11_jsl_ehl \
     $(LOCAL_PATH)/media_interface/media_interfaces_m8_bdw \
-    $(LOCAL_PATH)/media_interface/media_interfaces_pvc \
-    $(LOCAL_PATH)/media_interface/media_interfaces_dg2 \
     $(LOCAL_PATH)/media_interface/media_interfaces_m9_bxt \
-    $(LOCAL_PATH)/media_interface/media_interfaces_xehp_sdv \
+    $(LOCAL_PATH)/media_interface/media_interfaces_m9_skl \
+    $(LOCAL_PATH)/media_interface/media_interfaces_m9_cfl \
     $(LOCAL_PATH)/media_interface/media_interfaces_m9_glk \
     $(LOCAL_PATH)/media_interface/media_interfaces_m9_kbl \
-    $(LOCAL_PATH)/media_interface/media_interfaces_m10_cnl \
     $(LOCAL_PATH)/media_interface/media_interfaces_m11_icllp \
+    $(LOCAL_PATH)/media_interface/media_interfaces_m11_jsl_ehl \
     $(LOCAL_PATH)/media_interface/media_interfaces_m12_tgllp \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/os \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/os/private \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/os/share \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/os/user_setting \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/classtrace \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/statusreport \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/mmc \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/mediacontext \
+    $(LOCAL_PATH)/media_interface/media_interfaces_m12_dg1 \
+    $(LOCAL_PATH)/media_interface/media_interfaces_m12_rkl \
+    $(LOCAL_PATH)/media_interface/media_interfaces_m12_adls \
+    $(LOCAL_PATH)/media_interface/media_interfaces_m12_adlp \
+    $(LOCAL_PATH)/media_interface/media_interfaces_xehp_sdv \
+    $(LOCAL_PATH)/media_interface/media_interfaces_dg2 \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/packet \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/features \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/task \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/classtrace \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/bufferMgr \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/profiler \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/scalability \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/mediacontext \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/statusreport \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/mmc \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/bufferMgr \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/mediacopy \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/media_sfc_interface \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/media_interfaces \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/statusreport \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/mmc \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/bufferMgr \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/scalability \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/hucItf \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/mpeg2/mmc \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/mpeg2/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/mpeg2/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/mpeg2/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/av1/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/av1/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/av1/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/jpeg/bitstream \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/jpeg/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/jpeg/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/jpeg/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp9/mmc \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp9/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp9/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp9/scalability \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp9/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/avc/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/avc/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/avc/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp8/mmc \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp8/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp8/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp8/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/hevc/mmc \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/hevc/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/hevc/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/hevc/scalability \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/hevc/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/shared \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/statusreport \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/mmc \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/bufferMgr \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/bitstreamWriter \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/scalability \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/av1/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/av1/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/av1/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/jpeg/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/jpeg/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/jpeg/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/vp9/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/vp9/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/vp9/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/avc/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/avc/features/roi \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/avc/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/avc/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/hevc/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/hevc/features/roi \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/hevc/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/hevc/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/renderhal \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/media_bin_mgr \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/statusreport \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/mmc \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/shared/scalability \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/platform_interface \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/classtrace \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared/profiler \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/shared \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/os/private \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/os/user_setting \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/os/share \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/os \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/bufferMgr \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/scalability \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/packet \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/feature_manager \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/utils \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/mmc \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/scalability \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/statusreport \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/utils/hal_ddi_share \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/utils \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/platform_interface \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/shared/scalability \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/cm_fc_ld \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/cp \
-    $(LOCAL_PATH)/../media_softlet/agnostic/common/hw \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/av1/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/av1/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/av1/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/avc/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/avc/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/avc/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/hevc/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/hevc/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/hevc/scalability \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/hevc/mmc \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/hevc/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp9/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp9/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp9/scalability \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp9/mmc \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp9/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/mpeg2/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/mpeg2/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/mpeg2/mmc \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/mpeg2/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/jpeg/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/jpeg/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/jpeg/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/jpeg/bitstream \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/bufferMgr \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/scalability \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/statusreport \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/mmc \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared/hucItf \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/shared \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp8/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp8/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp8/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/dec/vp8/mmc \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/av1/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/av1/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/av1/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/avc/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/avc/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/avc/features/roi \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/avc/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/hevc/features/roi \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/hevc/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/hevc/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/hevc/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/bitstreamWriter \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/bufferMgr \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/scalability \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/statusreport \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared/mmc \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/shared \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/jpeg/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/jpeg/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/jpeg/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/vp9/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/vp9/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/enc/vp9/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal/shared \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/hw/vdbox \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/hw \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_R/Xe_HPG/renderhal \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/renderhal \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/media_interfaces \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/media_bin_mgr \
     $(LOCAL_PATH)/../media_softlet/agnostic/Xe_R/Xe_HPG_Base/renderhal \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_R/Xe_HPG_Base/vp/kernel \
     $(LOCAL_PATH)/../media_softlet/agnostic/Xe_R/Xe_HPG_Base/vp/kernel/cmfcpatch \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_R/Xe_HPG_Base/vp/kernel \
     $(LOCAL_PATH)/../media_softlet/agnostic/Xe_R/Xe_HPG_Base/hw \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/mpeg2 \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/av1/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/jpeg \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/vp9/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/avc/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/vp8/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/hevc/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/av1/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/av1/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/vp9/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/vp9/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/vp9/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/hevc/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/hevc/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/hevc/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/vp/hal/platform_interface \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/vp/hal/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/vp/hal/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/vp/hal/feature_manager \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/hw/vdbox \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/hw \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/shared/mediacopy \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/shared/mediaDecompress \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/shared \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/mpeg2/mmc \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/mpeg2/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/mpeg2/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/av1/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/av1/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/av1/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/jpeg/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/jpeg/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/vp9/mmc \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/vp9/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/vp9/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/avc/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/avc/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/vp8/mmc \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/vp8/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/vp8/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/hevc/mmc \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/hevc/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/hevc/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/shared \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/shared/common \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/av1/features/preenc \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/av1/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/av1/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/av1/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/jpeg/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/vp9/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/vp9/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/avc/features \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/avc/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_R/Xe_HPG/renderhal \
     $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/hevc/features/preenc \
     $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/hevc/features \
     $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/hevc/pipeline \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/vp/hal/packet \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/vp/hal/feature_manager \
-    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/hw \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/av1/features/preenc \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/av1/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/av1/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/av1/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/avc/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/avc/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/vp9/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/vp9/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/jpeg/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/shared/common \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/av1/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/av1/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/av1/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/avc/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/avc/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/shared \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/hevc/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/hevc/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/hevc/mmc \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/mpeg2/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/mpeg2/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/mpeg2/mmc \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/vp9/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/vp9/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/vp9/mmc \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/vp8/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/vp8/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/vp8/mmc \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/jpeg/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/dec/jpeg/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/shared \
     $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/hw/vdbox \
-    $(LOCAL_PATH)/../media_softlet/linux/Xe_M_plus/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/common/os \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/hw \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/shared/mediacopy \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/shared/mediaDecompress \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/vp/hal/feature_manager \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/vp/hal/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/av1/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/av1/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/vp9/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/vp9/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/vp9/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/hevc/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/hevc/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/enc/hevc/features \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/av1/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/hevc/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/avc/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/mpeg2 \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/vp9/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/vp8/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/jpeg \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/hw/vdbox \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/hw \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/vp/hal/pipeline \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/vp/hal/platform_interface \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/vp/hal/packet \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/vp/hal/feature_manager \
     $(LOCAL_PATH)/../media_softlet/linux/common/os/osservice \
-    $(LOCAL_PATH)/../media_softlet/linux/common/os/i915_production \
-    $(LOCAL_PATH)/../media_softlet/linux/common/os/i915_production/include \
     $(LOCAL_PATH)/../media_softlet/linux/common/os/i915/include/uapi \
     $(LOCAL_PATH)/../media_softlet/linux/common/os/i915/include \
+    $(LOCAL_PATH)/../media_softlet/linux/common/os/i915_production/include \
+    $(LOCAL_PATH)/../media_softlet/linux/common/os/i915_production \
     $(LOCAL_PATH)/../media_softlet/linux/common/os \
-    $(LOCAL_PATH)/../media_softlet/linux/common/codec/ddi/dec \
-    $(LOCAL_PATH)/../media_softlet/linux/common/codec/ddi/shared \
-    $(LOCAL_PATH)/../media_softlet/linux/common/codec/ddi/enc \
-    $(LOCAL_PATH)/../media_softlet/linux/common/vp/ddi \
     $(LOCAL_PATH)/../media_softlet/linux/common/cp/ddi \
     $(LOCAL_PATH)/../media_softlet/linux/common/cp \
+    $(LOCAL_PATH)/../media_softlet/linux/common/vp/ddi \
     $(LOCAL_PATH)/../media_softlet/linux/common/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/mpeg2/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/av1/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/jpeg/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/vp9/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/avc/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/vp8/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/hevc/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/encode/av1/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/encode/jpeg/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/encode/vp9/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/encode/avc/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/encode/hevc/ddi \
-    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/vp/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/common/codec/ddi/shared \
+    $(LOCAL_PATH)/../media_softlet/linux/common/codec/ddi/dec \
+    $(LOCAL_PATH)/../media_softlet/linux/common/codec/ddi/enc \
     $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/ddi \
-    $(LOCAL_PATH)/../media_common/agnostic/common/os \
-    $(LOCAL_PATH)/../media_common/agnostic/common/os/user_setting \
-    $(LOCAL_PATH)/../media_common/agnostic/common/codec/shared \
-    $(LOCAL_PATH)/../media_common/agnostic/common/cp \
-    $(LOCAL_PATH)/../media_common/agnostic/common/heap_manager \
-    $(LOCAL_PATH)/../media_common/agnostic/common/hw \
-    $(LOCAL_PATH)/../media_common/agnostic/common/hw/vdbox \
-    $(LOCAL_PATH)/../media_common/agnostic/common/media_interfaces \
-    $(LOCAL_PATH)/../media_common/agnostic/common/renderhal \
-    $(LOCAL_PATH)/../media_common/agnostic/common/shared \
-    $(LOCAL_PATH)/../media_common/agnostic/common/vp/hal \
-    $(LOCAL_PATH)/../media_common/agnostic/common/vp/kdll \
-    $(LOCAL_PATH)/../media_common/agnostic/common/vp/kernel \
-    $(LOCAL_PATH)/../media_common/agnostic/common/hw \
-    $(LOCAL_PATH)/../media_common/linux/common/os \
-    $(LOCAL_PATH)/../media_common/linux/common/codec \
-    $(LOCAL_PATH)/../media_common/linux/common/cp/os \
-    $(LOCAL_PATH)/../media_common/linux/common/cp/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/encode/hevc/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/encode/avc/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/encode/jpeg/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/encode/av1/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/encode/vp9/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/vp/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/av1/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/avc/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/jpeg/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/hevc/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/mpeg2/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/vp8/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/vp9/ddi \
+    $(LOCAL_PATH)/../media_softlet/linux/Xe_M_plus/ddi \
+    $(LOCAL_PATH)/../../gmmlib/Source/inc \
+    $(LOCAL_PATH)/../../gmmlib/Source/inc/common \
+    $(LOCAL_PATH)/../../gmmlib/Source/inc/platform/iAlm \
+    $(LOCAL_PATH)/../../gmmlib/Source/inc/umKmInc \
+    $(LOCAL_PATH)/../../gmmlib/Source/GmmLib/inc \
+    $(LOCAL_PATH)/../../huc/inc \
+    $(LOCAL_PATH)/agnostic/gen12_tgllp/vp/kernel/swsb \
     $(LOCAL_PATH)/../cmrtlib/linux/hardware \
-    $(LOCAL_PATH)/../Tools/MediaDriverTools/Android/build/media_driver \
-
 
 #LOCAL_CPP_FEATURES := rtti exceptions
 

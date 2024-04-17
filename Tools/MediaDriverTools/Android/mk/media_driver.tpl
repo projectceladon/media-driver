@@ -33,9 +33,6 @@ LOCAL_SHARED_LIBRARIES := \
     libdrm \
     libva \
     liblog \
-
-
-LOCAL_STATIC_LIBRARIES = \
     libgmm_umd \
 
 LOCAL_CPPFLAGS = \
@@ -45,6 +42,27 @@ LOCAL_CPPFLAGS = \
     -fexceptions \
     -frtti \
     -std=c++14 \
+    -Wno-error \
+    -Wno-ignored-qualifiers \
+    -Wno-unused-parameter \
+    -Wno-missing-braces \
+    -Wno-overloaded-virtual \
+    -Wno-unused-variable \
+    -Wno-missing-field-initializers \
+    -Wno-unused-function \
+    -Wno-logical-op-parentheses \
+    -Wno-implicit-fallthrough \
+    -Wno-comment \
+    -Wno-unused-private-field \
+    -Wno-unused-value \
+    -Wno-parentheses-equality \
+    -Wno-unused-label \
+    -Wno-parentheses \
+    -Wno-c++11-narrowing \
+    -Wno-unused-lambda-capture \
+    -Wno-unreachable-code-loop-increment \
+    -Wno-delete-incomplete \
+    -DGMM_LIB_DLL \
 @LOCAL_CFLAGS
 
 LOCAL_CONLYFLAGS = -x c++
@@ -52,7 +70,8 @@ LOCAL_CFLAGS = $(LOCAL_CPPFLAGS)
 
 LOCAL_C_INCLUDES  = \
 @LOCAL_C_INCLUDES
-
+    $(LOCAL_PATH)/agnostic/gen12_tgllp/vp/kernel/swsb \
+    $(LOCAL_PATH)/../cmrtlib/linux/hardware \
 
 #LOCAL_CPP_FEATURES := rtti exceptions
 
