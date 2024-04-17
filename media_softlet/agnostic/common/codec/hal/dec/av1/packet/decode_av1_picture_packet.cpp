@@ -671,18 +671,12 @@ namespace decode{
         return MOS_STATUS_SUCCESS;
     }
 
-    static bool MmcEnabled(MOS_MEMCOMP_STATE state)
-    {
-        return state == MOS_MEMCOMP_RC || state == MOS_MEMCOMP_MC;
-    }
-
     MOS_STATUS Av1DecodePicPkt::AddAllCmds_AVP_SURFACE_STATE(MOS_COMMAND_BUFFER& cmdBuffer)
     {
         DECODE_FUNC_CALL();
 
         m_curAvpSurfStateId = reconPic;
         SETPAR_AND_ADDCMD(AVP_SURFACE_STATE, m_avpItf, &cmdBuffer);
-        uint32_t compressionFormat = 0;
         if (!AV1_KEY_OR_INRA_FRAME(m_av1PicParams->m_picInfoFlags.m_fields.m_frameType))
         {
             for (uint8_t i = 0; i < av1TotalRefsPerFrame; i++)
@@ -691,9 +685,7 @@ namespace decode{
 
                 //set for intra frame
                 m_refSurface[0] = m_av1BasicFeature->m_destSurface;
-                GetSurfaceMmcInfo(const_cast<PMOS_SURFACE>(&m_refSurface[0]), m_refMmcState[0], compressionFormat);
-                m_refCompressionFormat = MmcEnabled(m_refMmcState[0])? compressionFormat : m_refCompressionFormat;
-
+                GetSurfaceMmcInfo(const_cast<PMOS_SURFACE>(&m_refSurface[0]), m_refMmcState[0], m_refCompressionFormat);
                 Av1ReferenceFrames &refFrames = m_av1BasicFeature->m_refFrames;
                 const std::vector<uint8_t> &activeRefList = refFrames.GetActiveReferenceList(*m_av1PicParams,
                     m_av1BasicFeature->m_av1TileParams[m_av1BasicFeature->m_tileCoding.m_curTile]);
@@ -706,8 +698,7 @@ namespace decode{
                     if (refSuf != nullptr)
                     {
                         m_refSurface[i + 1].OsResource = *refSuf;
-                        GetSurfaceMmcInfo(const_cast<PMOS_SURFACE>(&m_refSurface[i + 1]), m_refMmcState[i + 1], compressionFormat);
-                        m_refCompressionFormat = MmcEnabled(m_refMmcState[0])? compressionFormat : m_refCompressionFormat;
+                        GetSurfaceMmcInfo(const_cast<PMOS_SURFACE>(&m_refSurface[i + 1]), m_refMmcState[i + 1], m_refCompressionFormat);
                     }
                 }
 
@@ -1056,7 +1047,7 @@ namespace decode{
 
         par.refFrameRes[intraFrame]    = CAT2SHORTS(m_av1PicParams->m_frameWidthMinus1, m_av1PicParams->m_frameHeightMinus1);
         par.refScaleFactor[intraFrame] = CAT2SHORTS(m_av1ScalingFactor, m_av1ScalingFactor);
-        par.refOrderHints[intraFrame]  = curRefList->m_orderHint;
+        par.refOrderHints[intraFrame]  = m_av1PicParams->m_seqInfoFlags.m_fields.m_enableOrderHint ? curRefList->m_orderHint : 0;
         par.refFrameIdx[0]             = intraFrame;
         par.refFrameSide               = 0;
         uint32_t horizontalScaleFactor, verticalScaleFactor;
@@ -1079,7 +1070,7 @@ namespace decode{
 
                 par.refFrameRes[i + lastFrame]    = CAT2SHORTS(m_refList[refPicIndex]->m_frameWidth - 1, m_refList[refPicIndex]->m_frameHeight - 1);
                 par.refScaleFactor[i + lastFrame] = CAT2SHORTS(verticalScaleFactor, horizontalScaleFactor);
-                par.refOrderHints[i + lastFrame]  = curRefList->m_refOrderHint[i];
+                par.refOrderHints[i + lastFrame]  = m_av1PicParams->m_seqInfoFlags.m_fields.m_enableOrderHint ? curRefList->m_refOrderHint[i] : 0;
             }
             else
             {
@@ -1149,7 +1140,7 @@ namespace decode{
                 MOS_ZeroMemory(&refSurface, sizeof(MOS_SURFACE));
                 refSurface.OsResource = *(par.refs[n + lastFrame]);
                 DECODE_CHK_STATUS(m_allocator->GetSurfaceInfo(&refSurface));
-                std::string refSurfName = "RefSurf[" + std::to_string(static_cast<uint32_t>(n + lastFrame)) + "]";
+                std::string refSurfName = "RefSurf[" + std::to_string(static_cast<uint32_t>(n)) + "]";
                 DECODE_CHK_STATUS(debugInterface->DumpYUVSurface(
                     &refSurface,
                     CodechalDbgAttr::attrDecodeReferenceSurfaces,

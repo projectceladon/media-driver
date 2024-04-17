@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2011-2021, Intel Corporation
+* Copyright (c) 2011-2023, Intel Corporation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -904,7 +904,7 @@ CodechalDecode::~CodechalDecode()
         }
     }
 
-    if (m_statusQueryReportingEnabled)
+    if (m_statusQueryReportingEnabled && m_osInterface)
     {
         m_osInterface->pfnUnlockResource(
             m_osInterface,
@@ -930,17 +930,20 @@ CodechalDecode::~CodechalDecode()
         MOS_Delete(m_gpuCtxCreatOpt);
     }
 
-    m_osInterface->pfnFreeResource(
-        m_osInterface,
-        &m_predicationBuffer);
+    if (m_osInterface)
+    {
+        m_osInterface->pfnFreeResource(
+            m_osInterface,
+            &m_predicationBuffer);
 
-    m_osInterface->pfnFreeResource(
-        m_osInterface,
-        &m_frameCountTypeBuf);
+        m_osInterface->pfnFreeResource(
+            m_osInterface,
+            &m_frameCountTypeBuf);
 
-    m_osInterface->pfnFreeResource(
-        m_osInterface,
-        &m_crcBuf);
+        m_osInterface->pfnFreeResource(
+            m_osInterface,
+            &m_crcBuf);
+    }
 
     if (m_pCodechalOcaDumper)
     {
@@ -972,7 +975,8 @@ CodechalDecode::~CodechalDecode()
     }
 
     if (m_dummyReferenceStatus == CODECHAL_DUMMY_REFERENCE_ALLOCATED &&
-        !Mos_ResourceIsNull(&m_dummyReference.OsResource))
+        !Mos_ResourceIsNull(&m_dummyReference.OsResource) &&
+        m_osInterface)
     {
         m_osInterface->pfnFreeResource(m_osInterface, &m_dummyReference.OsResource);
     }
@@ -1264,6 +1268,9 @@ MOS_STATUS CodechalDecode::EndFrame ()
             "Primitive level decoding failed.");
     }
 
+    DecodeFrameIndex++;
+    m_frameNum = DecodeFrameIndex;
+
     m_decodePhantomMbs = false;
 
     return eStatus;
@@ -1550,7 +1557,6 @@ MOS_STATUS CodechalDecode::Execute(void *params)
             }
         }
 #endif
-        m_frameNum++;
     }
 
     CODECHAL_DECODE_CHK_STATUS_RETURN(Mos_Solo_PostProcessDecode(m_osInterface, m_decodeParams.m_destSurface));
@@ -1628,6 +1634,8 @@ MOS_STATUS CodechalDecode::EndStatusReport(
         sizeof(uint32_t) * 2;
 
     MHW_MI_STORE_REGISTER_MEM_PARAMS regParams;
+    MOS_ZeroMemory(&regParams, sizeof(regParams));
+
     regParams.presStoreBuffer   = &m_decodeStatusBuf.m_statusBuffer;
     regParams.dwOffset          = errStatusOffset;
     regParams.dwRegister        = ((m_standard == CODECHAL_HEVC || m_standard == CODECHAL_VP9) && mmioRegistersHcp) ?
@@ -1909,7 +1917,7 @@ MOS_STATUS CodechalDecode::GetStatusReport(
                 {
                     // BB_END data not written. Media reset might have occurred.
                     CODECHAL_DECODE_NORMALMESSAGE("Media reset may have occured.");
-                    codecStatus[j].m_codecStatus = CODECHAL_STATUS_ERROR;
+                    codecStatus[j].m_codecStatus = CODECHAL_STATUS_RESET;
                 }
 
                 if (m_standard == CODECHAL_HEVC)

@@ -5632,7 +5632,7 @@ MOS_STATUS HalCm_FinishStatesForKernel(
                 pipeControlParam.bTlbInvalidate          = false;
                 pipeControlParam.bFlushRenderTargetCache = true;
                 pipeControlParam.bInvalidateTextureCache = true;
-                renderHal->pMhwMiInterface->AddPipeControl(nullptr, batchBuffer, &pipeControlParam);
+                CM_CHK_MOSSTATUS_RETURN(renderHal->pMhwMiInterface->AddPipeControl(nullptr, batchBuffer, &pipeControlParam));
             }
 
             uint8_t *bBuffer = batchBuffer->pData + batchBuffer->iCurrent;
@@ -10533,7 +10533,6 @@ MOS_STATUS HalCm_Create(
         mhwInterfaces = MhwInterfaces::CreateFactory(params, state->osInterface);
         if (mhwInterfaces)
         {
-            CM_CHK_NULL_GOTOFINISH_MOSERROR(mhwInterfaces->m_veboxInterface);
             state->veboxInterface = mhwInterfaces->m_veboxInterface;
 
             // MhwInterfaces always create CP and MI interfaces, so we have to delete those we don't need.
@@ -10541,10 +10540,13 @@ MOS_STATUS HalCm_Create(
             state->osInterface->pfnDeleteMhwCpInterface(mhwInterfaces->m_cpInterface);
             mhwInterfaces->m_cpInterface = nullptr;
             MOS_Delete(mhwInterfaces);
+            CM_CHK_NULL_GOTOFINISH_MOSERROR(state->veboxInterface);
         }
         else
         {
             CM_ASSERTMESSAGE("Allocate MhwInterfaces failed");
+            HalCm_Destroy(state);
+            *cmState = nullptr;
             return MOS_STATUS_NO_SPACE;
         }
     }

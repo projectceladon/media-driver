@@ -87,6 +87,7 @@
 #define __MEDIA_USER_FEATURE_MCPY_MODE                                  "MediaCopy Mode"
 #define __MEDIA_USER_FEATURE_VALUE_VEBOX_SPLIT_RATIO                    "Vebox Split Ratio"
 #define __MEDIA_USER_FEATURE_SET_MCPY_FORCE_MODE                        "MCPY Force Mode"
+#define __MEDIA_USER_FEATURE_ENABLE_VECOPY_SMALL_RESOLUTION             "Enable VE copy small resolution"  // resolution smaller than 64x32
 
 //!
 //! \brief Keys for mmc
@@ -105,7 +106,6 @@
 #define __MEDIA_USER_FEATURE_VALUE_MEDIASOLO_ENABLE                             "MediaSolo Enable"
 #define __MEDIA_USER_FEATURE_VALUE_MEDIASOLO_PLATFORM                           "MediaSolo Platform"
 #define __MEDIA_USER_FEATURE_VALUE_MEDIASOLO_STEPPING                           "MediaSolo Stepping"
-#define __MEDIA_USER_FEATURE_VALUE_MEDIASOLO_TILE_Y_2_TILE_4_ADAPTER            "MediaSolo Tile Y 2 Tile 4 Adapter"
 #define __MEDIA_USER_FEATURE_VALUE_MEDIASOLO_ENABLE_MEM_TRACE                   "MediaSolo Enable Mem Trace"
 #define __MEDIA_USER_FEATURE_VALUE_MEDIASOLO_ENABLE_LOCAL_MEM                   "MediaSolo Enable Local Mem"
 #define __MEDIA_USER_FEATURE_VALUE_MEDIASOLO_AUBLOAD_DIRECTORY                  "MediaSolo AubLoad Directory"
@@ -177,6 +177,7 @@
 #define __MOS_USER_FEATURE_KEY_MESSAGE_HLT_OUTPUT_DIRECTORY         "Message HLT Output Directory"
 #define __MOS_USER_FEATURE_KEY_MESSAGE_PRINT_ENABLED                "Message Print Enabled"
 #define __MOS_USER_FEATURE_KEY_FLUSH_LOG_FILE_BEFORE_SUBMISSION     "Flush Log File Before Submission"
+#define __MOS_USER_FEATURE_KEY_ENABLE_MEMORY_FOOT_PRINT             "Enable Memory Foot Print"
 
 //!
 //! \brief Message level and assert flag for each component is set through the user feature keys
@@ -427,6 +428,7 @@
 //User feature key for media perf profile
 #define __MEDIA_USER_FEATURE_VALUE_PERF_PROFILER_ENABLE              "Perf Profiler Enable"
 #define __MEDIA_USER_FEATURE_VALUE_PERF_PROFILER_ENABLE_MUL_PROC     "Perf Profiler Multi Process Support"
+#define __MEDIA_USER_FEATURE_VALUE_PERF_PROFILER_ENABLE_MER_HEADER   "Perf Profiler Merge by Header Support"
 #define __MEDIA_USER_FEATURE_VALUE_PERF_PROFILER_OUTPUT_FILE_NAME    "Perf Profiler Output File Name"
 #define __MEDIA_USER_FEATURE_VALUE_PERF_PROFILER_BUFFER_SIZE_KEY     "Perf Profiler Buffer Size"
 #define __MEDIA_USER_FEATURE_VALUE_PERF_PROFILER_MUL_PROC_SINGLE_BIN "Perf Profiler Multi Process Single Binary"
@@ -454,6 +456,13 @@
 #define __MEDIA_USER_FEATURE_VALUE_ENGINE_INSTANCE_VECS              "VECS Instance"
 #define __MEDIA_USER_FEATURE_VALUE_ENGINE_INSTANCE_CCS               "CCS Instance"
 
+// IP alignment support
+#define __MEDIA_USER_FEATURE_VALUE_IP_ALIGNMENT_DECODE_ENABLE        "EnableSyncSubmissionDecode"
+#define __MEDIA_USER_FEATURE_VALUE_IP_ALIGNMENT_ENCODE_ENABLE        "EnableSyncSubmissionEncode"
+#define __MEDIA_USER_FEATURE_VALUE_IP_ALIGNMENT_VPP_ENABLE           "EnableSyncSubmissionVPP"
+#define __MEDIA_USER_FEATURE_VALUE_IP_ALIGNMENT_DECODE_TIMEOUT       "SyncSubmissionTimeOutDecode"
+#define __MEDIA_USER_FEATURE_VALUE_IP_ALIGNMENT_ENCODE_TIMEOUT       "SyncSubmissionTimeOutEncode"
+#define __MEDIA_USER_FEATURE_VALUE_IP_ALIGNMENT_VPP_TIMEOUT          "SyncSubmissionTimeOutVPP"
 
 
 #endif  // __MOS_UTIL_USER_FEATURE_KEYS_H__

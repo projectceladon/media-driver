@@ -28,7 +28,6 @@
 #define __MEDIA_LIBVA_UTIL_NEXT_H__
 
 #include "media_libva_common_next.h"
-#include "mos_bufmgr.h"
 #include "vp_common.h"
 
 #ifdef ANDROID
@@ -251,8 +250,9 @@ private:
     //!     VA_STATUS_SUCCESS if success, else fail reason
     //!
     static VAStatus GenerateGmmParamsForCompressionExternalSurface(
-        GMM_RESCREATE_PARAMS         &gmmParams,
+        GMM_RESCREATE_CUSTOM_PARAMS_2 &gmmParams,
         MEDIA_SURFACE_ALLOCATE_PARAM &params,
+        PDDI_MEDIA_SURFACE           mediaSurface,
         PDDI_MEDIA_CONTEXT           mediaDrvCtx);
 
     //!
@@ -450,7 +450,8 @@ private:
         DDI_MEDIA_FORMAT      format,
         int32_t               size,
         PDDI_MEDIA_BUFFER     mediaBuffer,
-        MOS_BUFMGR            *bufmgr);
+        MOS_BUFMGR            *bufmgr,
+        bool                  isShadowBuffer = false);
 
 public:
     //!

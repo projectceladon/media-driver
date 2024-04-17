@@ -57,6 +57,22 @@ public:
     ~GpuContextSpecificNext();
 
     //!
+    //! \brief    Static entrypoint, get the gpu context object
+    //! \param    [in] gpuNode
+    //!           Gpu node
+    //! \param    [in] cmdBufMgr
+    //!           Command buffer manager
+    //! \param    [in] reusedContext
+    //!           Reused gpu context
+    //! \return   GpuContextNext*
+    //!           the os specific object for gpu context
+    //!
+    static GpuContextNext* Create(
+        const MOS_GPU_NODE gpuNode,
+        CmdBufMgrNext      *cmdBufMgr,
+        GpuContextNext     *reusedContext);
+
+    //!
     //! \brief    Initialize gpu context
     //! \details  Linux specific initialize for gpu context
     //! \param    [in] osContext
@@ -330,7 +346,7 @@ protected:
 
     //! \brief    Flag to indicate current command buffer flused or not, if not
     //!           re-use it
-    volatile bool m_cmdBufFlushed;
+    volatile bool m_cmdBufFlushed = false;
 
     //! \brief    internal back up for in-use command buffer
     PMOS_COMMAND_BUFFER m_commandBuffer = nullptr;
@@ -368,7 +384,7 @@ protected:
                                                                         //!< false if using MOS_GPUCTX_CREATOPTIONS
     bool                             m_bProtectedContext    = false;    //!< false if clear GEM context is created as protected or not
 
-    MOS_LINUX_CONTEXT*  m_i915Context[MAX_ENGINE_INSTANCE_NUM+1];
+    MOS_LINUX_CONTEXT*  m_i915Context[MAX_ENGINE_INSTANCE_NUM+1] = {};
     uint32_t     m_i915ExecFlag = 0;
     int32_t      m_currCtxPriority = 0;
     bool m_ocaLogSectionSupported = true;

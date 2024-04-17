@@ -311,13 +311,14 @@ bool VphalSfcState::IsSFCUncompressedWriteNeeded(
     }
 
     byteInpixel = pRenderTarget->OsResource.pGmmResInfo->GetBitsPerPixel() >> 3;
-#endif // !EMUL
 
     if (byteInpixel == 0)
     {
         VPHAL_RENDER_NORMALMESSAGE("surface format is not a valid format for sfc");
         return false;
     }
+#endif  // !EMUL
+
     uint32_t writeAlignInWidth  = 32 / byteInpixel;
     uint32_t writeAlignInHeight = 8;
 
@@ -326,6 +327,13 @@ bool VphalSfcState::IsSFCUncompressedWriteNeeded(
         (pRenderTarget->rcSrc.left % writeAlignInWidth) ||
         ((pRenderTarget->rcSrc.right - pRenderTarget->rcSrc.left) % writeAlignInWidth))
     {
+        // full Frame Write don't need decompression as it will not hit the compressed write limitation
+        if ((pRenderTarget->rcSrc.bottom - pRenderTarget->rcSrc.top) == pRenderTarget->dwHeight &&
+            (pRenderTarget->rcSrc.right - pRenderTarget->rcSrc.left) == pRenderTarget->dwWidth)
+        {
+            return false;
+        }
+
         VPHAL_RENDER_NORMALMESSAGE(
             "SFC Render Target Uncompressed write needed, \
             pRenderTarget->rcSrc.top % d, \

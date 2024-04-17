@@ -56,3 +56,17 @@ MOS_STATUS MosMediaCopyBase::MediaCopy(
 
     return MOS_STATUS_SUCCESS;
 }
+
+bool MosMediaCopyBase::IsAILForceOption()
+{
+    return false;
+}
+
+PMOS_INTERFACE MosMediaCopyBase::GetMediaCopyMosInterface()
+{
+     if (!m_mediaCopyState)
+     {
+        return nullptr;
+     }
+     return m_mediaCopyState->GetMosInterface();
+}

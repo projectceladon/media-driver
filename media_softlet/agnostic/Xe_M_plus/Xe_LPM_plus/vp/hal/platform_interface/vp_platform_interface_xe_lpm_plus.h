@@ -59,7 +59,6 @@ public:
     virtual MOS_STATUS VeboxQueryStatLayout(
         VEBOX_STAT_QUERY_TYPE queryType,
         uint32_t* pQuery);
-    virtual VpKernelConfig &GetKernelConfig();
     virtual uint32_t        VeboxQueryStaticSurfaceSize()
     {
         return VP_VEBOX_STATISTICS_SIZE_XE_LPM_PLUS;
@@ -80,6 +79,16 @@ public:
     }
 
     virtual bool IsRenderMMCLimitationCheckNeeded()
+    {
+        return true;
+    }
+
+    virtual bool IsDecompForInterlacedSurfWaEnabled()
+    {
+        return true;
+    }
+
+    virtual bool IsLegacyEuCountInUse()
     {
         return true;
     }

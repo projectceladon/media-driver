@@ -704,6 +704,18 @@ void CodechalDecodeVc1::PackMotionVectors(
         vc1PicParams->picture_fields.is_first_field,
         vc1PicParams->picture_fields.picture_type) ? true : false;
 
+    if (packedLumaMvs == nullptr)
+    {
+        CODECHAL_DECODE_ASSERTMESSAGE("ERROR: packedLumaMvs is nullptr");
+        return;
+    }
+
+    if (packedChromaMv == nullptr)
+    {
+        CODECHAL_DECODE_ASSERTMESSAGE("ERROR: packedChromaMv is nullptr");
+        return;
+    }
+
     packedLumaMvs[0] = packedLumaMvs[2] = packedLumaMvs[4] = packedLumaMvs[6] = 0;
     packedLumaMvs[1] = packedLumaMvs[3] = packedLumaMvs[5] = packedLumaMvs[7] = 0;
 
@@ -738,7 +750,7 @@ void CodechalDecodeVc1::PackMotionVectors(
     }
     else
     {
-        // default settings for frame pictures, relevant MVs will be reset if needed
+        // default settings for frame pictures, relevant Motion Vectors will be reset if needed
         packedLumaMvs[0] = packedLumaMvs[2] = packedLumaMvs[4] = packedLumaMvs[6] = (int16_t)mv[CodechalDecodeRstFirstForwHorz];
         packedLumaMvs[1] = packedLumaMvs[3] = packedLumaMvs[5] = packedLumaMvs[7] = (int16_t)mv[CodechalDecodeRstFirstForwVert];
 
@@ -2906,9 +2918,6 @@ MOS_STATUS CodechalDecodeVc1::AllocateResources()
         m_vc1RefList,
         CODECHAL_NUM_UNCOMPRESSED_SURFACE_VC1));
 
-    m_vldSliceRecord =
-        (PCODECHAL_VC1_VLD_SLICE_RECORD)MOS_AllocAndZeroMemory(m_picHeightInMb * sizeof(CODECHAL_VC1_VLD_SLICE_RECORD));
-
     // Second level batch buffer for IT mode
     if (m_mode == CODECHAL_DECODE_MODE_VC1IT)
     {
@@ -3029,6 +3038,7 @@ CodechalDecodeVc1::~CodechalDecodeVc1()
     CodecHalFreeDataList(m_vc1RefList, CODECHAL_NUM_UNCOMPRESSED_SURFACE_VC1);
 
     MOS_FreeMemory(m_vldSliceRecord);
+    m_vldSliceRecord = nullptr;
 
     Mhw_FreeBb(m_osInterface, &m_itObjectBatchBuffer, nullptr);
 
@@ -3110,6 +3120,28 @@ MOS_STATUS CodechalDecodeVc1::SetFrameStates()
     if (CodecHalIsDecodeModeVLD(m_mode))
     {
         CODECHAL_DECODE_CHK_NULL_RETURN(m_vc1SliceParams);
+        uint32_t numSliceRecord  = 0;
+        bool     invalidSliceNum = false;
+
+        numSliceRecord = m_numMacroblocks;
+        if (m_numSlices > m_numMacroblocks)
+        {
+            numSliceRecord  = m_numSlices;
+            invalidSliceNum = true;
+        }
+
+        if (numSliceRecord > m_numVldSliceRecord || m_vldSliceRecord == nullptr)
+        {
+            MOS_SafeFreeMemory(m_vldSliceRecord);
+            m_vldSliceRecord =
+                (PCODECHAL_VC1_VLD_SLICE_RECORD)MOS_AllocAndZeroMemory(numSliceRecord * sizeof(CODECHAL_VC1_VLD_SLICE_RECORD));
+            CODECHAL_DECODE_CHK_NULL_RETURN(m_vldSliceRecord);
+            m_numVldSliceRecord = numSliceRecord;
+        }
+        else
+        {
+            MOS_ZeroMemory(m_vldSliceRecord, m_numVldSliceRecord * sizeof(CODECHAL_VC1_VLD_SLICE_RECORD));
+        }
     }
     else if (CodecHalIsDecodeModeIT(m_mode))
     {
@@ -3465,7 +3497,7 @@ MOS_STATUS CodechalDecodeVc1::DecodeStateLevel()
                     &dstSurface));
 
                 m_debugInterface->m_refIndex = (uint16_t)i;
-                std::string refSurfName      = "RefSurf" + std::to_string(static_cast<uint32_t>(m_debugInterface->m_refIndex));
+                std::string refSurfName      = "RefSurf[" + std::to_string(static_cast<uint32_t>(m_debugInterface->m_refIndex)) + "]";
                 CODECHAL_DECODE_CHK_STATUS_RETURN(m_debugInterface->DumpYUVSurface(
                     &dstSurface,
                     CodechalDbgAttr::attrDecodeReferenceSurfaces,
@@ -4612,6 +4644,7 @@ MOS_STATUS CodechalDecodeVc1::UpdateVc1KernelState()
     PMHW_KERNEL_STATE                      kernelState = &m_olpKernelState;
 
     decodeKernel = (PCODECHAL_DECODE_VC1_KERNEL_HEADER_CM)kernelState->KernelParams.pBinary;
+    CODECHAL_DECODE_CHK_NULL_RETURN(decodeKernel);
     kernelState->dwKernelBinaryOffset =
         decodeKernel->OLP.KernelStartPointer << MHW_KERNEL_OFFSET_SHIFT;
     m_olpDshSize =
@@ -4840,6 +4873,8 @@ CodechalDecodeVc1::CodechalDecodeVc1(
     MOS_ZeroMemory(&m_resBitplaneBuffer, sizeof(m_resBitplaneBuffer));
     MOS_ZeroMemory(&m_resSyncObjectWaContextInUse, sizeof(m_resSyncObjectWaContextInUse));
     MOS_ZeroMemory(&m_resSyncObjectVideoContextInUse, sizeof(m_resSyncObjectVideoContextInUse));
+    MOS_ZeroMemory(m_presReferences, (sizeof(PMOS_RESOURCE) * CODEC_MAX_NUM_REF_FRAME_NON_AVC));
+    MOS_ZeroMemory(m_vc1RefList, (sizeof(PCODEC_REF_LIST) * CODECHAL_NUM_UNCOMPRESSED_SURFACE_VC1));
 #if (_DEBUG || _RELEASE_INTERNAL)
     m_reportFrameCrc = true;
 #endif

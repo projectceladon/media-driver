@@ -29,6 +29,7 @@ media_include_subdirectory(statusreport)
 media_include_subdirectory(utils)
 media_include_subdirectory(platform_interface)
 media_include_subdirectory(shared)
+media_include_subdirectory(cacheSettings)
 
 set(TMP_SOURCES_
     ${CMAKE_CURRENT_LIST_DIR}/vp_common.c

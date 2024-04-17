@@ -26,6 +26,8 @@ include $(CLEAR_VARS)
 LOCAL_SRC_FILES := \
 @LOCAL_SRC_FILES
 
+LOCAL_HEADER_LIBRARIES := libva_headers
+
 LOCAL_SHARED_LIBRARIES := \
     libsync \
     libcutils \
@@ -38,7 +40,6 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_CPPFLAGS = \
     -DDRV_I915 \
     -DOTC_GRALLOC \
-    -DANDROID_VERSION=800 \
     -fexceptions \
     -frtti \
     -std=c++14 \

@@ -108,9 +108,9 @@ MOS_STATUS Av1BasicFeature::Update(void *params)
     ENCODE_FUNC_CALL();
     ENCODE_CHK_NULL_RETURN(params);
 
-    EncodeBasicFeature::Update(params);
+    ENCODE_CHK_STATUS_RETURN(EncodeBasicFeature::Update(params));
 
-    EncoderParams* encodeParams = (EncoderParams*)params;
+    EncoderParamsAV1 *encodeParams = (EncoderParamsAV1 *)params;
 
     m_av1SeqParams = static_cast<PCODEC_AV1_ENCODE_SEQUENCE_PARAMS>(encodeParams->pSeqParams);
     ENCODE_CHK_NULL_RETURN(m_av1SeqParams);
@@ -125,6 +125,7 @@ MOS_STATUS Av1BasicFeature::Update(void *params)
         ENCODE_ASSERTMESSAGE("The num of OBU header exceeds the max value.");
         return MOS_STATUS_USER_CONTROL_MAX_DATA_SIZE;
     }
+    m_AV1metaDataOffset = encodeParams->AV1metaDataOffset;
 
     m_appHdrSize = m_appHdrSizeExcludeFrameHdr = 0;
     m_targetUsage = m_av1SeqParams->TargetUsage;
@@ -186,9 +187,10 @@ MOS_STATUS Av1BasicFeature::Update(void *params)
     m_picWidthInSb = m_miCols >> mibSizeLog2;
     m_picHeightInSb = m_miRows >> mibSizeLog2;
 
+    // EnableFrameOBU thread safety
     if (m_av1PicParams->PicFlags.fields.EnableFrameOBU)
     {
-        m_frameHdrOBUSizeByteOffset[m_av1PicParams->CurrOriginalPic.FrameIdx % ASYNC_NUM] = m_av1PicParams->FrameHdrOBUSizeByteOffset;
+        m_frameHdrOBUSizeByteOffset = m_av1PicParams->FrameHdrOBUSizeByteOffset;
     }
 
     // Only for first frame
@@ -349,6 +351,7 @@ MOS_STATUS Av1BasicFeature::UpdateFormat(void *params)
     switch(m_rawSurface.Format)
     {
     case Format_P010:
+    case Format_R10G10B10A2:
         m_is10Bit  = true;
         m_bitDepth = 10;
         break;
@@ -649,7 +652,10 @@ MHW_SETPAR_DECL_SRC(VDENC_PIPE_MODE_SELECT, Av1BasicFeature)
     params.streamIn          = false;
     params.randomAccess      = !m_ref.IsLowDelay();
 
-    params.rgbEncodingMode = m_rgbEncodingEnable;
+    params.rgbEncodingMode                       = m_rgbEncodingEnable;
+    params.bt2020RGB2YUV                         = m_av1SeqParams->InputColorSpace == ECOLORSPACE_P2020;
+    params.rgbInputStudioRange                   = params.bt2020RGB2YUV ? m_av1SeqParams->SeqFlags.fields.RGBInputStudioRange : 0;
+    params.convertedYUVStudioRange               = params.bt2020RGB2YUV ? m_av1SeqParams->SeqFlags.fields.ConvertedYUVStudioRange : 0;
     if (m_captureModeEnable)
     {
         params.captureMode = 1;
@@ -722,7 +728,7 @@ MHW_SETPAR_DECL_SRC(VDENC_REF_SURFACE_STATE, Av1BasicFeature)
         params.uOffset = m_rawSurfaceToPak->dwHeight;
         params.vOffset = m_rawSurfaceToPak->dwHeight << 1;
     }
-    else if (m_reconSurface.Format == Format_Y216 || m_reconSurface.Format == Format_YUY2 || m_reconSurface.Format == Format_YUYV)
+    else if (m_reconSurface.Format == Format_Y216 || m_reconSurface.Format == Format_Y210 || m_reconSurface.Format == Format_YUY2)
     {
         params.uOffset = m_rawSurfaceToPak->dwHeight;
         params.vOffset = m_rawSurfaceToPak->dwHeight;
@@ -944,6 +950,12 @@ MHW_SETPAR_DECL_SRC(AVP_PIC_STATE, Av1BasicFeature)
     params.minFramSizeUnits = 3;
     params.minFramSize      = MOS_ALIGN_CEIL(minFrameBytes, 16) / 16;
 
+    auto waTable = m_osInterface->pfnGetWaTable(m_osInterface);
+    if (MEDIA_IS_WA(waTable, Wa_15013355402))
+    {
+        params.minFramSize = MOS_ALIGN_CEIL(13 * 64, 16) / 16;
+    }
+
     params.bitOffsetForFirstPartitionSize = 0;
 
     params.class0_SSE_Threshold0 = 0;
@@ -961,8 +973,6 @@ MHW_SETPAR_DECL_SRC(AVP_PIC_STATE, Av1BasicFeature)
         params.minFramSizeUnits                = 0;
         params.autoBistreamStitchingInHardware = false;
     }
-
-    params.postCdefReconPixelStreamoutEn = true;  // Always needed, since this is recon for VDENC
 
     MHW_CHK_STATUS_RETURN(m_ref.MHW_SETPAR_F(AVP_PIC_STATE)(params));
 
@@ -1006,7 +1016,8 @@ MHW_SETPAR_DECL_SRC(AVP_INLOOP_FILTER_STATE, Av1BasicFeature)
         params.LoopRestorationType[1] == 0 &&
         params.LoopRestorationType[2] == 0)
     {
-        params.LoopRestorationSizeLuma = 0;
+        params.LoopRestorationSizeLuma             = 0;
+        params.UseSameLoopRestorationSizeForChroma = false;
     }
     else
     {

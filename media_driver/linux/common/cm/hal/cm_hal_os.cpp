@@ -26,11 +26,10 @@
 #include "mos_os.h"
 #include "cm_hal.h"
 #include "cm_def_os.h"
-#include "i915_drm.h"
 #include "cm_execution_adv.h"
 #include "mos_graphicsresource.h"
 #include "mos_utilities.h"
-#include "mos_bufmgr.h"
+#include "mos_bufmgr_api.h"
 
 #define Y_TILE_WIDTH  128
 #define Y_TILE_HEIGHT 32
@@ -444,7 +443,7 @@ MOS_STATUS HalCm_AllocateBuffer_Linux(
     MOS_LINUX_BO             *bo = nullptr;
 
     size  = param->size;
-    tileformat = I915_TILING_NONE;
+    tileformat = TILING_NONE;
 
     //-----------------------------------------------
     CM_ASSERT(param->size > 0);
@@ -533,33 +532,14 @@ MOS_STATUS HalCm_AllocateBuffer_Linux(
 
             MosUtilities::MosAtomicIncrement(MosUtilities::m_mosMemAllocCounterGfx);
 
-#if defined(DRM_IOCTL_I915_GEM_USERPTR)
-           bo =  mos_bo_alloc_userptr(osInterface->pOsContext->bufmgr,
-                                 "CM Buffer UP",
-                                 (void *)(param->data),
-                                 tileformat,
-                                 ROUND_UP_TO(size,MOS_PAGE_SIZE),
-                                 ROUND_UP_TO(size,MOS_PAGE_SIZE),
-#if defined(ANDROID)
-                                 I915_USERPTR_UNSYNCHRONIZED
-#else
-                 0
-#endif
-                 );
-#else
-           bo =  mos_bo_alloc_vmap(osInterface->pOsContext->bufmgr,
-                                "CM Buffer UP",
-                                (void *)(param->data),
-                                tileformat,
-                                ROUND_UP_TO(size,MOS_PAGE_SIZE),
-                                ROUND_UP_TO(size,MOS_PAGE_SIZE),
-#if defined(ANDROID)
-                                 I915_USERPTR_UNSYNCHRONIZED
-#else
-                 0
-#endif
-                 );
-#endif
+            struct mos_drm_bo_alloc_userptr alloc_uptr;
+            alloc_uptr.name = "CM Buffer UP";
+            alloc_uptr.addr = (void *)(param->data);
+            alloc_uptr.tiling_mode = tileformat;
+            alloc_uptr.stride = ROUND_UP_TO(size,MOS_PAGE_SIZE);
+            alloc_uptr.size = ROUND_UP_TO(size,MOS_PAGE_SIZE);
+
+            bo =  mos_bo_alloc_userptr(osInterface->pOsContext->bufmgr, &alloc_uptr);
 
             osResource->bMapped = false;
             if (bo)

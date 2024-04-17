@@ -69,6 +69,9 @@ enum AV1_BRC_FRAME_TYPE
         uint16_t vdencCmd2Offset = 0;
         uint16_t avpPicStateOffset = 0;
         uint16_t secondAvpPicStateOffset = 0;
+        uint16_t pakInsertSlbSize = 0;
+        uint16_t vdencTileSliceStateOffset = 0;
+        uint16_t tileNum = 1;
     };
     //!
     //! \struct Av1BrcPakMmio

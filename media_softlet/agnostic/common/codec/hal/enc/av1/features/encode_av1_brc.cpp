@@ -289,6 +289,8 @@ namespace encode
         dmem->UPD_VDEncCmd1Offset = m_slbData.vdencCmd1Offset;
         dmem->UPD_VDEncCmd2Offset = m_slbData.vdencCmd2Offset;
         dmem->UPD_AVPPicStateOffset = m_slbData.avpPicStateOffset;
+        dmem->UPD_VDEncTileSliceStateOffset = m_slbData.vdencTileSliceStateOffset;
+        dmem->UPD_TileNum = m_slbData.tileNum;
 
         // BA start
         dmem->UPD_LoopFilterParamsBitOffset      = (uint16_t)m_basicFeature->m_av1PicParams->LoopFilterParamsBitOffset;
@@ -313,9 +315,16 @@ namespace encode
         dmem->UPD_DisableCdfUpdate               = (m_basicFeature->m_av1PicParams->primary_ref_frame != av1PrimaryRefNone);
         dmem->UPD_EnableDMAForCdf                = 1;
         dmem->UPD_AdditionalHrdSizeByteCount     = 0 - m_basicFeature->m_av1PicParams->FrameSizeReducedInBytes;
+        dmem->UPD_PaletteOn                      = m_basicFeature->m_av1PicParams->PicFlags.fields.PaletteModeEnable;
 
         if (dmem->UPD_PAKPassNum == 1)
             m_curTargetFullness += m_inputbitsperframe;
+
+        if (picParams->PicFlags.fields.allow_intrabc && AV1_KEY_OR_INRA_FRAME(picParams->PicFlags.fields.frame_type))
+        {
+            dmem->UPD_EnableCDEFUpdate = 0;
+            dmem->UPD_EnableLFUpdate   = 0;
+        }
 
         return MOS_STATUS_SUCCESS;
     }
@@ -522,6 +531,10 @@ namespace encode
         MEMCPY_CONST(INIT_InstRateThreshP0, instRateThresholdP);
 #undef MEMCPY_CONST
 
+        if (dmem->INIT_FrameRateM == 0)
+        {
+            return MOS_STATUS_INVALID_PARAMETER;
+        }
         double inputBitsPerFrame = ((double)dmem->INIT_MaxRate * (double)dmem->INIT_FrameRateD) / (double)dmem->INIT_FrameRateM;
         double bpsRatio = inputBitsPerFrame / ((double)dmem->INIT_BufSize / brcSettings.devStdFPS);
         bpsRatio = MOS_CLAMP_MIN_MAX(bpsRatio, brcSettings.bpsRatioLow, brcSettings.bpsRatioHigh);
@@ -570,7 +583,25 @@ namespace encode
         MOS_STATUS eStatus = MOS_STATUS_SUCCESS;
 
         ENCODE_FUNC_CALL();
-
+        
+        if (m_basicFeature->m_av1SeqParams->RateControlMethod == RATECONTROL_CQL)
+        {
+            const uint8_t ICQFactorLookup[52] = { 
+                0,  1,  1,  1,  1,  2,  3,  4,  6,  7,  9,  11, 13, 16, 18, 23,
+                26, 30, 34, 39, 46, 52, 59, 68, 77, 87, 98, 104,112,120,127,134,
+                142,149,157,164,171,178,186,193,200,207,213,219,225,230,235,240,
+                245,249,252,255 
+            };
+            
+            uint32_t TargetBitRate                                     = m_basicFeature->m_frameWidth * m_basicFeature->m_frameHeight * 8 / 1000;
+            m_basicFeature->m_av1SeqParams->ICQQualityFactor           = ICQFactorLookup[m_basicFeature->m_av1SeqParams->ICQQualityFactor];
+            m_basicFeature->m_av1SeqParams->TargetBitRate[0]           = TargetBitRate;
+            m_basicFeature->m_av1SeqParams->MaxBitRate                 = (TargetBitRate << 4) / 10;
+            m_basicFeature->m_av1SeqParams->MinBitRate                 = 0;
+            m_basicFeature->m_av1SeqParams->InitVBVBufferFullnessInBit = 8000 * (TargetBitRate << 3) / 10;
+            m_basicFeature->m_av1SeqParams->VBVBufferSizeInBit         = 8000 * (TargetBitRate << 1);
+        }
+        
         m_brcEnabled = IsRateControlBrc(m_basicFeature->m_av1SeqParams->RateControlMethod);
 
         m_brcInit = m_brcEnabled && m_basicFeature->m_resolutionChanged;
@@ -579,8 +610,7 @@ namespace encode
 
         if (m_rcMode == RATECONTROL_CQL || m_rcMode == RATECONTROL_QVBR)
         {
-            if (m_basicFeature->m_av1SeqParams->ICQQualityFactor < ENCODE_AV1_MIN_ICQ_QUALITYFACTOR ||
-                m_basicFeature->m_av1SeqParams->ICQQualityFactor > ENCODE_AV1_MAX_ICQ_QUALITYFACTOR)
+            if (m_basicFeature->m_av1SeqParams->ICQQualityFactor > ENCODE_AV1_MAX_ICQ_QUALITYFACTOR)
             {
                 ENCODE_ASSERTMESSAGE("Invalid ICQ Quality Factor input (%d)\n", m_basicFeature->m_av1SeqParams->ICQQualityFactor);
                 eStatus = MOS_STATUS_INVALID_PARAMETER;

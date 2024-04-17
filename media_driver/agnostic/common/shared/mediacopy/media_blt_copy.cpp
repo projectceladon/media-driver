@@ -35,6 +35,10 @@
 #include "media_perf_profiler.h"
 #define BIT( n )                            ( 1 << (n) )
 
+#ifdef min
+#undef min
+#endif
+
 //!
 //! \brief    BltState constructor
 //! \details  Initialize the BltState members.
@@ -361,7 +365,7 @@ MOS_STATUS BltState::SubmitCMD(
         }
 
         RegisterDwParams.dwData = swctrl.DW0.Value;
-        m_miInterface->AddMiLoadRegisterImmCmd(&cmdBuffer, &RegisterDwParams);
+        BLT_CHK_STATUS_RETURN(m_miInterface->AddMiLoadRegisterImmCmd(&cmdBuffer, &RegisterDwParams));
 
         BLT_CHK_STATUS_RETURN(m_bltInterface->AddBlockCopyBlt(
             &cmdBuffer,

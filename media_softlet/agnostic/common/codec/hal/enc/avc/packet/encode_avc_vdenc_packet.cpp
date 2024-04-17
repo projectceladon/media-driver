@@ -35,6 +35,7 @@
 #include "encode_avc_header_packer.h"
 #include "media_perf_profiler.h"
 #include "mos_os_cp_interface_specific.h"
+#include "hal_oca_interface_next.h"
 
 namespace encode {
 
@@ -124,6 +125,7 @@ namespace encode {
 
     MOS_STATUS AvcVdencPkt::SetRowstoreCachingOffsets()
     {
+        ENCODE_CHK_NULL_RETURN(m_mfxItf);
         // Get row store cache offset as all the needed information is got here
         if (m_mfxItf->IsRowStoreCachingSupported())
         {
@@ -337,7 +339,7 @@ namespace encode {
                 && brcFeature->IsVdencBrcEnabled())
             {
                 // increment dwStoreData conditionaly
-                MediaPacket::UpdateStatusReportNext(statusReportGlobalCount, &cmdBuffer);
+                ENCODE_CHK_STATUS_RETURN(MediaPacket::UpdateStatusReportNext(statusReportGlobalCount, &cmdBuffer));
             }
 
             // Insert conditional batch buffer end
@@ -399,6 +401,13 @@ namespace encode {
         }
 
         ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_BATCH_BUFFER_START)(&cmdBuffer, secondLevelBatchBufferUsed));
+        HalOcaInterfaceNext::OnSubLevelBBStart(
+            cmdBuffer,
+            m_osInterface->pOsContext,
+            &secondLevelBatchBufferUsed->OsResource,
+            secondLevelBatchBufferUsed->dwOffset,
+            false,
+            MOS_ALIGN_CEIL(m_hwInterface->m_vdencBrcImgStateBufferSize, CODECHAL_CACHELINE_SIZE));
 
         CODECHAL_DEBUG_TOOL
         (
@@ -1154,8 +1163,8 @@ namespace encode {
         
         uint32_t hucCommandsSize = 0;
         uint32_t hucPatchListSize = 0;
-        m_hwInterface->GetHucStateCommandSize(
-            CODECHAL_ENCODE_MODE_AVC, (uint32_t *)&hucCommandsSize, (uint32_t *)&hucPatchListSize, &stateCmdSizeParams);
+        ENCODE_CHK_STATUS_RETURN(m_hwInterface->GetHucStateCommandSize(
+            CODECHAL_ENCODE_MODE_AVC, (uint32_t *)&hucCommandsSize, (uint32_t *)&hucPatchListSize, &stateCmdSizeParams));
         m_pictureStatesSize += hucCommandsSize;
         m_picturePatchListSize += hucPatchListSize;
 
@@ -1558,6 +1567,13 @@ namespace encode {
             secondLevelBatchBuffer->dwOffset = MOS_ALIGN_CEIL(m_hwInterface->m_vdencBrcImgStateBufferSize, CODECHAL_CACHELINE_SIZE) +
                                                m_basicFeature->m_curNumSlices * brcFeature->GetVdencOneSliceStateSize();
             ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_BATCH_BUFFER_START)(cmdBuffer, secondLevelBatchBuffer));
+            HalOcaInterfaceNext::OnSubLevelBBStart(
+                *cmdBuffer,
+                m_osInterface->pOsContext,
+                &secondLevelBatchBuffer->OsResource,
+                secondLevelBatchBuffer->dwOffset,
+                false,
+                brcFeature->GetVdencOneSliceStateSize());
         }
 
         ENCODE_CHK_STATUS_RETURN(AddAllCmds_MFX_PAK_INSERT_OBJECT(cmdBuffer));

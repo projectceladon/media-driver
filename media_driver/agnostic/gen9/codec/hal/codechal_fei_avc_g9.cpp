@@ -4422,6 +4422,7 @@ MOS_STATUS CodechalEncodeAvcEncFeiG9::SetCurbeAvcMbEnc(PCODECHAL_ENCODE_AVC_MBEN
         refWidth = 64;
         refHeight = 32;
         lenSP = 32;
+        break;
     case 8:
         // Exhaustive - 48 SUs 64x32 window
         refWidth = 64;
@@ -5119,6 +5120,7 @@ MOS_STATUS CodechalEncodeAvcEncFeiG9::SetCurbeAvcPreProc(PCODECHAL_ENCODE_AVC_PR
         refWidth = 64;
         refHeight = 32;
         lenSP = 32;
+        break;
     case 8:
         // Exhaustive 48 SUs 64x32 window
         refWidth = 64;
@@ -6196,7 +6198,6 @@ MOS_STATUS CodechalEncodeAvcEncFeiG9::SendAvcMbEncSurfaces(PMOS_COMMAND_BUFFER c
     // FEI distortion surface
     if (feiPicParams->DistortionEnable)
     {
-        size = params->dwFrameWidthInMb * params->dwFrameFieldHeightInMb * 48;
         MOS_ZeroMemory(&surfaceCodecParams, sizeof(CODECHAL_SURFACE_CODEC_PARAMS));
         surfaceCodecParams.presBuffer = &(feiPicParams->resDistortion);
         surfaceCodecParams.dwOffset = 0;
@@ -6225,7 +6226,6 @@ MOS_STATUS CodechalEncodeAvcEncFeiG9::SendAvcMbEncSurfaces(PMOS_COMMAND_BUFFER c
             &surfaceCodecParams,
             kernelState));
 
-        size = params->dwFrameWidthInMb * params->dwFrameFieldHeightInMb + 3;
         MOS_ZeroMemory(&surfaceCodecParams, sizeof(CODECHAL_SURFACE_CODEC_PARAMS));
         surfaceCodecParams.presBuffer = &(feiPicParams->resMBQp);
         surfaceCodecParams.dwOffset = 0;
@@ -6709,10 +6709,10 @@ MOS_STATUS CodechalEncodeAvcEncFeiG9::SendAvcMfeMbEncSurfaces(PMOS_COMMAND_BUFFE
         }
     }
 
-    m_cmDev->CreateVmeSurfaceG7_5(cmSurfForVME, &surfArrayL0[0], &surfArrayL1[0], refNum0, refNum1, cmVmeSurfIdx[0 + vmeIdx]);
+    CODECHAL_ENCODE_CHK_STATUS_RETURN(m_cmDev->CreateVmeSurfaceG7_5(cmSurfForVME, &surfArrayL0[0], &surfArrayL1[0], refNum0, refNum1, cmVmeSurfIdx[0 + vmeIdx]));
     cmSurfaces->MBVMEInterPredictionSurfIndex = cmVmeSurfIdx[0 + vmeIdx];
 
-    m_cmDev->CreateVmeSurfaceG7_5(cmSurfForVME, &surfArrayL1[0], &surfArrayL1[0], refNum1, refNum1, cmVmeSurfIdx[1 + vmeIdx]);
+    CODECHAL_ENCODE_CHK_STATUS_RETURN(m_cmDev->CreateVmeSurfaceG7_5(cmSurfForVME, &surfArrayL1[0], &surfArrayL1[0], refNum1, refNum1, cmVmeSurfIdx[1 + vmeIdx]));
     cmSurfaces->MBVMEInterPredictionMRSurfIndex = cmVmeSurfIdx[1 + vmeIdx];
 
     CM_VME_SURFACE_STATE_PARAM vmeDimensionParam;

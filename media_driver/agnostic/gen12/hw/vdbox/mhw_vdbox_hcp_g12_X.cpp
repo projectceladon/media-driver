@@ -3391,7 +3391,7 @@ MOS_STATUS MhwVdboxHcpInterfaceG12::AddHcpEncodeSliceStateCmd(
     }
     cmd.DW3.Sliceqp                     = abs(hevcSliceParams->slice_qp_delta + hevcPicParams->QpY);
     cmd.DW3.SliceCbQpOffset             = hevcSliceParams->slice_cb_qp_offset;
-    cmd.DW3.SliceCbQpOffset             = hevcSliceParams->slice_cr_qp_offset;
+    cmd.DW3.SliceCrQpOffset             = hevcSliceParams->slice_cr_qp_offset;
 
     cmd.DW3.Intrareffetchdisable        = hevcSliceState->bIntraRefFetchDisable;
 
@@ -4259,7 +4259,7 @@ MOS_STATUS  MhwVdboxHcpInterfaceG12::AddHcpEncodeTileCodingCmd(
     // By default enable bit stream offset when tile replay is enabled with multiple pipes;
     // for single pipe case, by default set to 1, simulation currently can not support 0 for single pipe;
     // To be followed and clarified
-    cmd.DW4.BitstreamByteOffsetEnable  = params->bTileReplayEnable && ((params->NumberOfActiveBePipes > 1) ? 1 : 1);
+    cmd.DW4.BitstreamByteOffsetEnable  = params->bTileReplayEnable;
     if (params->presHcpSyncBuffer) // this buffer is not used in HEVC/VP9 decode or encode
     {
         PMOS_INTERFACE osInterface;

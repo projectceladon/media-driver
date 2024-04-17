@@ -45,7 +45,7 @@ namespace encode
         ENCODE_CHK_STATUS_RETURN(CmdPacket::Init());
         m_basicFeature = dynamic_cast<PreEncBasicFeature *>(m_featureManager->GetFeature(FeatureIDs::preEncFeature));
         ENCODE_CHK_NULL_RETURN(m_basicFeature);
-        m_basicFeature->GetEncodeMode(m_encodeMode);
+        ENCODE_CHK_STATUS_RETURN(m_basicFeature->GetEncodeMode(m_encodeMode));
 
 #ifdef _MMC_SUPPORTED
         m_mmcState = m_pipeline->GetMmcState();
@@ -760,7 +760,7 @@ namespace encode
 
         if (m_encodeMode == MediaEncodeMode::MANUAL_RES_PRE_ENC || m_encodeMode == MediaEncodeMode::AUTO_RES_PRE_ENC)
         {
-            MediaPacket::UpdateStatusReportNext(statusReportGlobalCount, &cmdBuffer);
+            ENCODE_CHK_STATUS_RETURN(MediaPacket::UpdateStatusReportNext(statusReportGlobalCount, &cmdBuffer));
         }
 
         return MOS_STATUS_SUCCESS;
@@ -926,8 +926,8 @@ namespace encode
         auto cpInterface = m_hwInterface->GetCpInterface();
         cpInterface->GetCpStateLevelCmdSize(cpCmdsize, cpPatchListSize);
 
-        m_hwInterface->GetHucStateCommandSize(
-                m_basicFeature->m_mode, (uint32_t *)&hucCommandsSize, (uint32_t *)&hucPatchListSize, &stateCmdSizeParams);
+        ENCODE_CHK_STATUS_RETURN(m_hwInterface->GetHucStateCommandSize(
+                m_basicFeature->m_mode, (uint32_t *)&hucCommandsSize, (uint32_t *)&hucPatchListSize, &stateCmdSizeParams));
 
         m_defaultPictureStatesSize    = hcpCommandsSize + hucCommandsSize + (uint32_t)cpCmdsize;
         m_defaultPicturePatchListSize = hcpPatchListSize + hucPatchListSize + (uint32_t)cpPatchListSize;
@@ -1189,12 +1189,6 @@ namespace encode
         PBSBuffer pBsBuffer = &(m_basicFeature->m_bsBuffer);
         uint32_t  bitSize   = 0;
         uint32_t  offSet    = 0;
-
-        if (cmdBuffer == nullptr)
-        {
-            ENCODE_ASSERTMESSAGE("There was no valid buffer to add the HW command to.");
-            return MOS_STATUS_NULL_POINTER;
-        }
 
         //insert AU, SPS, PSP headers before first slice header
         uint32_t maxBytesInPakInsertObjCmd = ((2 << 11) - 1) * 4;  // 12 bits for Length field in PAK_INSERT_OBJ cmd

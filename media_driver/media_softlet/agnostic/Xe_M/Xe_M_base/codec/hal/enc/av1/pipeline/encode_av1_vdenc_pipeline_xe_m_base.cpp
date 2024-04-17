@@ -51,19 +51,19 @@ MOS_STATUS Av1VdencPipelineXe_M_Base::Init(void *settings)
     ENCODE_CHK_NULL_RETURN(task);
 
     Av1BrcInitPkt* brcInitpkt = MOS_New(Av1BrcInitPkt, this, task, m_hwInterface);
-    RegisterPacket(Av1HucBrcInit, brcInitpkt);
+    ENCODE_CHK_STATUS_RETURN(RegisterPacket(Av1HucBrcInit, brcInitpkt));
     ENCODE_CHK_STATUS_RETURN(brcInitpkt->Init());
 
     Av1BrcUpdatePkt* brcUpdatepkt = MOS_New(Av1BrcUpdatePkt, this, task, m_hwInterface);
-    RegisterPacket(Av1HucBrcUpdate, brcUpdatepkt);
+    ENCODE_CHK_STATUS_RETURN(RegisterPacket(Av1HucBrcUpdate, brcUpdatepkt));
     ENCODE_CHK_STATUS_RETURN(brcUpdatepkt->Init());
 
     Av1VdencPktXe_M_Base *av1Vdencpkt = MOS_New(Av1VdencPktXe_M_Base, this, task, m_hwInterface);
-    RegisterPacket(Av1VdencPacket, av1Vdencpkt);
+    ENCODE_CHK_STATUS_RETURN(RegisterPacket(Av1VdencPacket, av1Vdencpkt));
     ENCODE_CHK_STATUS_RETURN(av1Vdencpkt->Init());
 
     Av1BackAnnotationPkt *av1BackAnnotationpkt = MOS_New(Av1BackAnnotationPkt, this, task, m_hwInterface);
-    RegisterPacket(Av1BackAnnotation, av1BackAnnotationpkt);
+    ENCODE_CHK_STATUS_RETURN(RegisterPacket(Av1BackAnnotation, av1BackAnnotationpkt));
     ENCODE_CHK_STATUS_RETURN(av1BackAnnotationpkt->Init());
 
     return MOS_STATUS_SUCCESS;
@@ -86,9 +86,6 @@ MOS_STATUS Av1VdencPipelineXe_M_Base::Prepare(void *params)
 
     ENCODE_CHK_STATUS_RETURN(Av1VdencPipeline::Prepare(params));
 
-    PCODEC_AV1_ENCODE_PICTURE_PARAMS picParams = static_cast<PCODEC_AV1_ENCODE_PICTURE_PARAMS>(encodeParams->pPicParams);
-    ENCODE_CHK_NULL_RETURN(picParams);
-
     uint16_t numTileRows = 0;
     uint16_t numTileColumns = 0;
     RUN_FEATURE_INTERFACE_RETURN(Av1EncodeTile, Av1FeatureIDs::encodeTile, GetTileRowColumns,
@@ -97,20 +94,8 @@ MOS_STATUS Av1VdencPipelineXe_M_Base::Prepare(void *params)
     ENCODE_CHK_STATUS_RETURN(SwitchContext(feature->m_outputChromaFormat, numTileRows, numTileColumns));
 
     EncoderStatusParameters inputParameters = {};
-    MOS_ZeroMemory(&inputParameters, sizeof(EncoderStatusParameters));
 
-    inputParameters.statusReportFeedbackNumber = picParams->StatusReportFeedbackNumber;
-    inputParameters.codecFunction              = encodeParams->ExecCodecFunction;
-    inputParameters.currRefList                = feature->m_ref.GetCurrRefList();
-    inputParameters.picWidthInMb               = feature->m_picWidthInMb;
-    inputParameters.frameFieldHeightInMb       = feature->m_frameFieldHeightInMb;
-    inputParameters.currOriginalPic            = feature->m_currOriginalPic;
-    inputParameters.pictureCodingType          = feature->m_pictureCodingType;
-    inputParameters.numUsedVdbox               = m_numVdbox;
-    inputParameters.hwWalker                   = false;
-    inputParameters.maxNumSlicesAllowed        = 0;
-
-    inputParameters.numberTilesInFrame         = numTileRows * numTileColumns;
+    ENCODE_CHK_STATUS_RETURN(FillStatusReportParameters(&inputParameters, encodeParams));
 
     ENCODE_CHK_STATUS_RETURN(m_statusReport->Init(&inputParameters));
 

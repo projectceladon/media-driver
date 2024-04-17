@@ -62,9 +62,6 @@ namespace encode
 
         virtual ~Av1VdencPktXe_M_Base() {}
 
-        MOS_STATUS Prepare() override;
-
-
         //!
         //! \brief  Add the command sequence into the commandBuffer and
         //!         and return to the caller task
@@ -107,8 +104,6 @@ namespace encode
         MHW_SETPAR_DECL_HDR(AVP_TILE_CODING);
 
         MOS_STATUS AddAllCmds_AVP_SEGMENT_STATE(PMOS_COMMAND_BUFFER cmdBuffer) const;
-
-        MOS_STATUS AddAllCmds_AVP_PAK_INSERT_OBJECT(PMOS_COMMAND_BUFFER cmdBuffer) const;
 
         MOS_STATUS AddAllCmds_AVP_PIPE_MODE_SELECT(PMOS_COMMAND_BUFFER cmdBuffer) const;
 

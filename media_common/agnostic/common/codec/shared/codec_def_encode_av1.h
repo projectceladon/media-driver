@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2019-2021, Intel Corporation
+* Copyright (c) 2019-2023, Intel Corporation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -96,6 +96,72 @@ typedef enum
     AV1_ENCODED_BIT_DEPTH_10 = 1
 } AV1_ENCODED_BIT_DEPTH;
 
+typedef enum  //VDEnc Frame Types
+{
+    AV1_I_FRAME   = 0,  // I (Intra)
+    AV1_P_FRAME   = 1,  // P (Inter/Pred)
+    AV1_B_FRAME   = 2,  // B (BiPred/Random Access)
+    AV1_GPB_FRAME = 3,  // B (GPB/LowDelay)
+} VDEncFrameType;
+
+enum TABLE_A1_COLS_INDEX
+{
+    MAX_PIC_SIZE_INDEX = 0,
+    MAX_H_SIZE_INDEX,
+    MAX_V_SIZE_INDEX,
+    MAX_DISPLAY_RATE_INDEX,
+    MAX_DECODE_RATE_INDEX,
+    TABLE_A1_COLS_NUM,
+};
+
+enum TABLE_A2_COLS_INDEX
+{
+    MAX_HEADER_RATE_INDEX = 0,
+    MAIN_BPS_INDEX,
+    HIGH_BPS_INDEX,
+    MAIN_CR_INDEX,
+    HIGH_CR_INDEX,
+    MAX_TILES_INDEX,
+    MAX_TILE_COLS_INDEX,
+    TABLE_A2_COLS_NUM,
+};
+const uint64_t TableA1[][TABLE_A1_COLS_NUM] =
+    {
+        //  Level   |MaxPicSize | MaxHSize | MaxVSize | MaxDiaplayRate | MaxDecodeRate
+        /*  2.0 */ {147456, 2048, 1152, 4423680, 5529600},
+        /*  2.1 */ {278784, 2816, 1584, 8363520, 10454400},
+        /*  3.0 */ {665856, 4352, 2448, 19975680, 24969600},
+        /*  3.1 */ {1065024, 5504, 3096, 31950720, 39938400},
+        /*  4.0 */ {2359296, 6144, 3456, 70778880, 77856768},
+        /*  4.1 */ {2359296, 6144, 3456, 141557760, 155713536},
+        /*  5.0 */ {8912896, 8192, 4352, 267386880, 273705200},
+        /*  5.1 */ {8912896, 8192, 4352, 534773760, 547430400},
+        /*  5.2 */ {8912896, 8192, 4352, 1069547520, 1094860800},
+        /*  5.3 */ {8912896, 8192, 4352, 1069547520, 1176502272},
+        /*  6.0 */ {35651584, 16384, 8704, 1069547520, 1176502272},
+        /*  6.1 */ {35651584, 16384, 8704, 2139095040, 2189721600},
+        /*  6.2 */ {35651584, 16384, 8704, 4278190080, 4379443200},
+        /*  6.3 */ {35651584, 16384, 8704, 4278190080, 4706009088},
+};
+const uint32_t TableA2[][TABLE_A2_COLS_NUM] =
+    {
+        //  Level   | MaxHeaderRate |    Mainbps    |    Highbps    | MainCR | HighCR | MaxTiles | MaxTileCols
+        /*  2.0  */ {150, 1500000, 0, 2, 0, 8, 4},
+        /*  2.1  */ {150, 3000000, 0, 2, 0, 8, 4},
+        /*  3.0  */ {150, 6000000, 0, 2, 0, 16, 6},
+        /*  3.1  */ {150, 10000000, 0, 2, 0, 16, 6},
+        /*  4.0  */ {300, 12000000, 30000000, 4, 4, 32, 8},
+        /*  4.1  */ {300, 20000000, 50000000, 4, 4, 32, 8},
+        /*  5.0  */ {300, 30000000, 100000000, 6, 4, 64, 8},
+        /*  5.1  */ {300, 40000000, 160000000, 8, 4, 64, 8},
+        /*  5.2  */ {300, 60000000, 240000000, 8, 4, 64, 8},
+        /*  5.3  */ {300, 60000000, 240000000, 8, 4, 64, 8},
+        /*  6.0  */ {300, 60000000, 240000000, 8, 4, 128, 16},
+        /*  6.1  */ {300, 100000000, 480000000, 8, 4, 128, 16},
+        /*  6.2  */ {300, 160000000, 800000000, 8, 4, 128, 16},
+        /*  6.3  */ {300, 160000000, 800000000, 8, 4, 128, 16},
+};
+
 //DDI version 0.20
 typedef struct _CODEC_AV1_ENCODE_SEQUENCE_PARAMS
 {
@@ -126,7 +192,9 @@ typedef struct _CODEC_AV1_ENCODE_SEQUENCE_PARAMS
             uint32_t    DisplayFormatSwizzle    : 1;    //[0]
             uint32_t    bLookAheadPhase         : 1; 
             uint32_t    HierarchicalFlag        : 1; 
-            uint32_t    Reserved0               : 26;
+            uint32_t    RGBInputStudioRange     : 1;    // [0, 1]
+            uint32_t    ConvertedYUVStudioRange : 1;    // [0, 1]
+            uint32_t    Reserved0               : 24;
         } fields;
         uint32_t    value;
     } SeqFlags;
@@ -149,12 +217,19 @@ typedef struct _CODEC_AV1_ENCODE_SEQUENCE_PARAMS
     {
         struct
         {
-            uint32_t    enable_order_hint       : 1;
-            uint32_t    enable_superres         : 1;
-            uint32_t    enable_cdef             : 1;
-            uint32_t    enable_restoration      : 1;
-            uint32_t    enable_warped_motion    : 1;    //[0]
-            uint32_t    Reserved3               : 27;
+            uint32_t    enable_order_hint           : 1;
+            uint32_t    enable_superres             : 1;
+            uint32_t    enable_cdef                 : 1;
+            uint32_t    enable_restoration          : 1;
+            uint32_t    enable_warped_motion        : 1;    //[0]
+            uint32_t    enable_filter_intra         : 1;
+            uint32_t    enable_intra_edge_filter    : 1;
+            uint32_t    enable_interintra_compound  : 1;
+            uint32_t    enable_masked_compound      : 1;
+            uint32_t    enable_dual_filter          : 1;
+            uint32_t    enable_jnt_comp             : 1;
+            uint32_t    enable_ref_frame_mvs        : 1;
+            uint32_t    Reserved3                   : 20;
         } fields;
         uint32_t    value;
     } CodingToolFlags;
@@ -577,10 +652,152 @@ struct EncodeAv1Par
 
 };
 
+struct MetadataAV1PostFeature
+{
+    struct
+    {
+        uint64_t RowCount;
+        uint64_t ColCount;
+        uint64_t RowHeights[64];
+        uint64_t ColWidths[64];
+        uint64_t ContextUpdateTileId;
+    } tilePartition;
+
+    struct
+    {
+        uint64_t CompoundPredictionType;
+        struct
+        {
+            uint64_t LoopFilterLevel[2];
+            uint64_t LoopFilterLevelU;
+            uint64_t LoopFilterLevelV;
+            uint64_t LoopFilterSharpnessLevel;
+            uint64_t LoopFilterDeltaEnabled;
+            uint64_t UpdateRefDelta;
+            int64_t  RefDeltas[8];
+            uint64_t UpdateModeDelta;
+            int64_t  ModeDeltas[2];
+        } LoopFilter;
+        struct
+        {
+            uint64_t DeltaLFPresent;
+            uint64_t DeltaLFMulti;
+            uint64_t DeltaLFRes;
+        } LoopFilterDelta;
+        struct
+        {
+            uint64_t BaseQIndex;
+            int64_t  YDCDeltaQ;
+            int64_t  UDCDeltaQ;
+            int64_t  UACDeltaQ;
+            int64_t  VDCDeltaQ;
+            int64_t  VACDeltaQ;
+            uint64_t UsingQMatrix;
+            uint64_t QMY;
+            uint64_t QMU;
+            uint64_t QMV;
+        } Quantization;
+        struct
+        {
+            uint64_t DeltaQPresent;
+            uint64_t DeltaQRes;
+        } QuantizationDelta;
+        struct
+        {
+            uint64_t CdefBits;
+            uint64_t CdefDampingMinus3;
+            uint64_t CdefYPriStrength[8];
+            uint64_t CdefUVPriStrength[8];
+            uint64_t CdefYSecStrength[8];
+            uint64_t CdefUVSecStrength[8];
+        } CDEF;
+        struct
+        {
+            uint64_t UpdateMap;
+            uint64_t TemporalUpdate;
+            uint64_t UpdateData;
+            uint64_t NumSegments;
+            struct
+            {
+                uint64_t EnabledFeatures;
+                int64_t  FeatureValue[8];
+            } SegmentsData[8];
+        } SegmentationConfig;
+        uint64_t PrimaryRefFrame;
+        uint64_t ReferenceIndices[7];
+    } postFeature;
+};
+
+struct AV1MetaDataOffset
+{
+    //tile partition
+    uint32_t dwRowCount            = 0;
+    uint32_t dwColCount            = 0;
+    uint32_t dwRowHeights          = 0;
+    uint32_t dwColWidths           = 0;
+    uint32_t dwContextUpdateTileId = 0;
+    //post feature
+    uint32_t dwCompoundPredictionType = 0;
+    uint32_t dwLoopFilter             = 0;
+    uint32_t dwLoopFilterDelta        = 0;
+    uint32_t dwQuantization           = 0;
+    uint32_t dwQuantizationDelta      = 0;
+    uint32_t dwCDEF                   = 0;
+    uint32_t dwSegmentationConfig     = 0;
+    uint32_t dwPrimaryRefFrame        = 0;
+    uint32_t dwReferenceIndices       = 0;
+    //loop filter
+    uint32_t dwLoopFilterLevel          = 0;
+    uint32_t dwLoopFilterLevelU         = 0;
+    uint32_t dwLoopFilterLevelV         = 0;
+    uint32_t dwLoopFilterSharpnessLevel = 0;
+    uint32_t dwLoopFilterDeltaEnabled   = 0;
+    uint32_t dwUpdateRefDelta           = 0;
+    uint32_t dwRefDeltas                = 0;
+    uint32_t dwUpdateModeDelta          = 0;
+    uint32_t dwModeDeltas               = 0;
+    //loop filter delta
+    uint32_t dwDeltaLFPresent = 0;
+    uint32_t dwDeltaLFMulti   = 0;
+    uint32_t dwDeltaLFRes     = 0;
+    //Quantization
+    uint32_t dwBaseQIndex   = 0;
+    uint32_t dwYDCDeltaQ    = 0;
+    uint32_t dwUDCDeltaQ    = 0;
+    uint32_t dwUACDeltaQ    = 0;
+    uint32_t dwVDCDeltaQ    = 0;
+    uint32_t dwVACDeltaQ    = 0;
+    uint32_t dwUsingQMatrix = 0;
+    uint32_t dwQMY          = 0;
+    uint32_t dwQMU          = 0;
+    uint32_t dwQMV          = 0;
+    //QuantizationDelta
+    uint32_t dwDeltaQPresent = 0;
+    uint32_t dwDeltaQRes     = 0;
+    //CDEF
+    uint32_t dwCdefBits          = 0;
+    uint32_t dwCdefDampingMinus3 = 0;
+    uint32_t dwCdefYPriStrength  = 0;
+    uint32_t dwCdefUVPriStrength = 0;
+    uint32_t dwCdefYSecStrength  = 0;
+    uint32_t dwCdefUVSecStrength = 0;
+    //SegmentationConfig
+    uint32_t dwUpdateMap      = 0;
+    uint32_t dwTemporalUpdate = 0;
+    uint32_t dwUpdateData     = 0;
+    uint32_t dwNumSegments    = 0;
+    uint32_t dwSegmentsData   = 0;
+    //dwSegmentsData
+    uint32_t dwEnabledFeatures  = 0;
+    uint32_t dwFeatureValue     = 0;
+    uint32_t dwSegmentsDataSize = 0;
+};
+
 struct EncoderParamsAV1 : EncoderParams
 {
     uint32_t segmentMapDataSize = 0;     //!< [AV1] size of data in segment map buffer
     uint8_t  *pSegmentMap = nullptr;     //!< [AV1] pointer to segment map buffer from DDI
+    AV1MetaDataOffset AV1metaDataOffset  = {};       //!< [AV1] AV1 Specific metadata offset
 };
 
 #endif  // __CODEC_DEF_ENCODE_AV1_H__

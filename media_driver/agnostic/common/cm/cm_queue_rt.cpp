@@ -121,6 +121,13 @@ int32_t CmQueueRT::Destroy(CmQueueRT* &queue )
 
     queue->DestroyComputeGpuContext();
 
+    PCM_HAL_STATE cmHalState = ((PCM_CONTEXT_DATA)queue->m_device->GetAccelData())->cmHalState;
+    CM_CHK_NULL_RETURN_CMERROR(cmHalState);
+    if (cmHalState->pfnUnRegisterStream != nullptr && queue->m_streamIndex != cmHalState->osInterface->streamIndex)
+    {
+        cmHalState->pfnUnRegisterStream(queue->m_streamIndex, cmHalState);
+    }
+
     CmSafeDelete( queue );
 
     return result;
@@ -904,11 +911,6 @@ CM_RT_API int32_t CmQueueRT::EnqueueWithGroup( CmTask* task, CmEvent* & event, c
     }
 
     CmTaskRT *taskRT = static_cast<CmTaskRT *>(task);
-    if(taskRT == nullptr)
-    {
-        CM_ASSERTMESSAGE("Error: Kernel array is NULL.");
-        return CM_NULL_POINTER;
-    }
     uint32_t count = 0;
     count = taskRT->GetKernelCount();
 
@@ -2306,6 +2308,7 @@ void BufferCopyThread(void* threadData)
     CmEvent* wait_event = (CmEvent*)(data->wait_event);
     CmEvent* notify_event = (CmEvent*)(data->event);
     CmEventRT* eventRT = dynamic_cast<CmEventRT*>(notify_event);
+    CM_CHK_NULL_RETURN_VOID(eventRT);
     CmEventEx* eex = dynamic_cast<CmEventEx*>(notify_event);
 
     uint32_t offset = data->offset;
@@ -2467,15 +2470,6 @@ int32_t CmQueueRT::EnqueueBufferCopy(CmBuffer* buffer, size_t offset, const unsi
         CM_CHK_CMSTATUS_GOTOFINISH(m_device->CreateTask(task));
         CM_CHK_NULL_GOTOFINISH_CMERROR(task);
         CM_CHK_CMSTATUS_GOTOFINISH(task->AddKernel(kernel));
-
-        if (option & CM_FASTCOPY_OPTION_DISABLE_TURBO_BOOST)
-        {
-            // disable turbo
-            CM_TASK_CONFIG taskConfig;
-            CmSafeMemSet(&taskConfig, 0, sizeof(CM_TASK_CONFIG));
-            taskConfig.turboBoostFlag = CM_TURBO_BOOST_DISABLE;
-            task->SetProperty(taskConfig);
-        }
 
         CM_CHK_CMSTATUS_GOTOFINISH(EnqueueFast(task, event, threadSpace));
     }

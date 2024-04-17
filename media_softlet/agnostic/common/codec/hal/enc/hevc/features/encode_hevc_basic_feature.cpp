@@ -675,7 +675,7 @@ MOS_STATUS HevcBasicFeature::GetRecycleBuffers()
         }
     }
 
-    if (recycleBufferIdx == -1 || recycleBufferIdx >= m_maxSyncDepth)
+    if (recycleBufferIdx == -1)
     {
         return MOS_STATUS_SUCCESS;
     }
@@ -800,6 +800,9 @@ MHW_SETPAR_DECL_SRC(VDENC_PIPE_MODE_SELECT, HevcBasicFeature)
     params.chromaType                            = m_hevcSeqParams->chroma_format_idc;
     params.wirelessSessionId                     = 0;
     params.randomAccess                          = !m_ref.IsLowDelay();
+    params.bt2020RGB2YUV                         = m_hevcSeqParams->InputColorSpace == ECOLORSPACE_P2020;
+    params.rgbInputStudioRange                   = params.bt2020RGB2YUV ? m_hevcSeqParams->RGBInputStudioRange : 0;
+    params.convertedYUVStudioRange               = params.bt2020RGB2YUV ? m_hevcSeqParams->ConvertedYUVStudioRange : 0;
 
     if (m_captureModeEnable)
     {
@@ -1142,7 +1145,7 @@ MHW_SETPAR_DECL_SRC(VDENC_CMD2, HevcBasicFeature)
         params.frameIdxL1Ref0 = 0;
     }
 
-    ENCODE_CHK_COND_RETURN(m_SubPelMode < 0 || m_SubPelMode > 3, "Invalid subPelMode");
+    ENCODE_CHK_COND_RETURN(m_SubPelMode > 3, "Invalid subPelMode");
     params.subPelMode = m_bEnableSubPelMode ? m_SubPelMode : 3;
     auto settings = static_cast<HevcVdencFeatureSettings *>(m_constSettings);
     ENCODE_CHK_NULL_RETURN(settings);
@@ -1321,7 +1324,6 @@ MHW_SETPAR_DECL_SRC(HEVC_VP9_RDOQ_STATE, HevcBasicFeature)
             lambdaDouble *= MOS_MAX(1.00, MOS_MIN(1.6, 1.0 + 0.6 / 12.0 * (qpTemp - 10.0)));
             lambdaDouble        = lambdaDouble * 16 + 0.5;
             lambda              = (uint32_t)floor(lambdaDouble);
-            lambdaDouble        = (lambdaDouble > 65535) ? 65535 : lambdaDouble;
             lambda              = CodecHal_Clip3(0, 0xffff, lambda);
             params.lambdaTab[1][0][qp] = (uint16_t)lambda;
         }
@@ -1332,7 +1334,6 @@ MHW_SETPAR_DECL_SRC(HEVC_VP9_RDOQ_STATE, HevcBasicFeature)
             lambdaDouble *= MOS_MAX(0.95, MOS_MIN(1.20, 0.25 / 12.0 * (qpTemp - 10.0) + 0.95));
             lambdaDouble        = lambdaDouble * 16 + 0.5;
             lambda              = (uint32_t)floor(lambdaDouble);
-            lambdaDouble        = (lambdaDouble > 65535) ? 65535 : lambdaDouble;
             lambda              = CodecHal_Clip3(0, 0xffff, lambda);
             params.lambdaTab[1][1][qp] = (uint16_t)lambda;
         }

@@ -236,6 +236,10 @@
 #define VP_VEBOX_HDR_3DLUT65                                        LUT65_SEG_SIZE *\
                                                                     LUT65_SEG_SIZE *\
                                                                     LUT65_MUL_SIZE * sizeof(int64_t)
+#define VP_VEBOX_HDR_3DLUT33                                        LUT33_SEG_SIZE *             \
+                                                                    LUT33_SEG_SIZE *     \
+                                                                    LUT33_MUL_SIZE * \
+                                                                    sizeof(int64_t)
 #define SHAPE_1K_LOOKUP_SIZE                                        2048 * sizeof(uint32_t)
 //!
 //! \brief Vebox Statistics Surface definition
@@ -929,6 +933,14 @@ public:
 
     mhw::vebox::MHW_VEBOX_CHROMA_PARAMS veboxChromaParams = {};
 
+#if (_DEBUG || _RELEASE_INTERNAL)
+    virtual MOS_STATUS StallBatchBuffer(
+        PMOS_COMMAND_BUFFER cmdBuffer)
+    {
+        return MOS_STATUS_SUCCESS;
+    }
+#endif
+
 protected:
 
     //!
@@ -1110,7 +1122,7 @@ protected:
         mhw::vebox::VEBOX_STATE_PAR &veboxStateCmdParams);
     virtual MOS_STATUS Init3DLutTable(PVP_SURFACE surf3DLut);
     void    UpdateCpPrepareResources();
-    MOS_STATUS SetupVebox3DLutForHDR(
+    virtual MOS_STATUS SetupVebox3DLutForHDR(
         mhw::vebox::VEBOX_STATE_PAR &veboxStateCmdParams);
 
 private:

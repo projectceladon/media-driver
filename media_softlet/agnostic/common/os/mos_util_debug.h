@@ -62,6 +62,7 @@ typedef enum
     MOS_SUBCOMP_CODEC              = 2,
     MOS_SUBCOMP_VP                 = 3,
     MOS_SUBCOMP_CP                 = 4,
+    MOS_SUBCOMP_EXT                = 5,
     MOS_SUBCOMP_COUNT
 } MOS_SELF_SUBCOMP_ID;
 
@@ -251,6 +252,7 @@ typedef struct _MOS_MESSAGE_PARAMS
     uint32_t                    bEnableMaps;                                    //!< Dump mapped memory regions to trace file
     uint32_t                    bDisableAssert;                                 //!< Disable assert
     uint32_t                    bEnableFlush;                                   //!< Enable flush
+    uint32_t                    bEnableMemoryFootPrint;                        //!< Disable Memory Foot Print
     MOS_COMPONENT_DEBUG_PARAMS  components[MOS_COMPONENT_COUNT];
     char                        g_MosMsgBuffer[MOS_MAX_MSG_BUF_SIZE];           //!< Array for debug message
 } MOS_MESSAGE_PARAMS;
@@ -301,6 +303,13 @@ public:
     //! \return   void
     //!
     static void MosHLTFlush();
+
+    //!
+    //! \brief    Disable Memory Foot Print
+    //! \details  Disable Memory Foot Print
+    //! \return   bool
+    //!
+    static bool EnableMemoryFootPrint();
 
     //!
     //! \brief    Form a string that will prefix MOS's log file name
@@ -593,6 +602,8 @@ MEDIA_CLASS_DEFINE_END(MosUtilDebug)
 // flush hlt message before workload submission
 #define MOS_FLUSH_HLT_MESSAGE MosUtilDebug::MosHLTFlush();
 
+#define MOS_IS_MEMORY_FOOT_PRINT_ENABLED() MosUtilDebug::EnableMemoryFootPrint()
+
 
 //!
 //! \def MOS_DEBUGMESSAGE(_compID, _subCompID, _message, ...)
@@ -836,6 +847,7 @@ MEDIA_CLASS_DEFINE_END(MosUtilDebug)
 #else // !MOS_MESSAGES_ENABLED
 
 #define MOS_FLUSH_HLT_MESSAGE
+#define MOS_IS_MEMORY_FOOT_PRINT_ENABLED() 0
 
 //!
 //! \brief   The two methods below are used only for debug or release internal drivers
@@ -995,11 +1007,11 @@ MEDIA_CLASS_DEFINE_END(MosUtilDebug)
 //!
 #define MOS_CHK_STATUS_NO_STATUS_RETURN(_compID, _subCompID, _stmt)                         \
 {                                                                                           \
-    eStatus = (MOS_STATUS)(_stmt);                                                          \
-    if (eStatus != MOS_STATUS_SUCCESS)                                                      \
+    MOS_STATUS stmtStatus = (MOS_STATUS)(_stmt);                                                          \
+    if (stmtStatus != MOS_STATUS_SUCCESS)                                                      \
     {                                                                                       \
-        MT_ERR3(MT_ERR_MOS_STATUS_CHECK, MT_COMPONENT, _compID, MT_SUB_COMPONENT, _subCompID, MT_ERROR_CODE, eStatus); \
-        MOS_ASSERTMESSAGE(_compID, _subCompID, "MOS returned error, eStatus = 0x%x", eStatus);\
+        MT_ERR3(MT_ERR_MOS_STATUS_CHECK, MT_COMPONENT, _compID, MT_SUB_COMPONENT, _subCompID, MT_ERROR_CODE, stmtStatus); \
+        MOS_ASSERTMESSAGE(_compID, _subCompID, "MOS returned error, eStatus = 0x%x", stmtStatus);\
         return;                                                                             \
     }                                                                                       \
 }
@@ -1362,12 +1374,12 @@ public:
         m_subCompID(subCompID),
         m_name(name)
     {
-        MOS_VERBOSEMESSAGE(m_compID, m_subCompID, "Enter Function: %s\r\n", m_name);
+        MOS_VERBOSEMESSAGE(m_compID, m_subCompID, "Enter Function:%s\r\n", m_name);
     }
 
     virtual ~FunctionTrace()
     {
-        MOS_VERBOSEMESSAGE(m_compID, m_subCompID, "Exit Function: %s\r\n", m_name);
+        MOS_VERBOSEMESSAGE(m_compID, m_subCompID, "Exit Function:%s\r\n", m_name);
     }
 
 protected:

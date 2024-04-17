@@ -160,25 +160,9 @@ void MediaLibvaInterfaceNext::MediaMemoryDecompressInternal(
 
     MediaMemDecompBaseState *mediaMemDecompState = static_cast<MediaMemDecompBaseState*>(*mosCtx->ppMediaMemDecompState);
 
-    if (!mediaMemDecompState)
-    {
-        DDI_CHK_NULL(mediaMemDecompState, "nullptr mediaMemDecompState", );
-    }
+    DDI_CHK_NULL(mediaMemDecompState, "nullptr mediaMemDecompState", );
 
-    if (!mediaMemDecompState)
-    {
-        mediaMemDecompState = static_cast<MediaMemDecompBaseState *>(MmdDeviceNext::CreateFactory(mosCtx));
-        *mosCtx->ppMediaMemDecompState = mediaMemDecompState;
-    }
-
-    if (mediaMemDecompState)
-    {
-        mediaMemDecompState->MemoryDecompress(osResource);
-    }
-    else
-    {
-        DDI_ASSERTMESSAGE("Invalid memory decompression state.");
-    }
+    mediaMemDecompState->MemoryDecompress(osResource);
 }
 
 void MediaLibvaInterfaceNext::MediaMemoryCopyInternal(
@@ -195,25 +179,9 @@ void MediaLibvaInterfaceNext::MediaMemoryCopyInternal(
 
     MediaMemDecompBaseState *mediaMemDecompState = static_cast<MediaMemDecompBaseState*>(*mosCtx->ppMediaMemDecompState);
 
-    if (!mediaMemDecompState)
-    {
-        DDI_CHK_NULL(mediaMemDecompState, "nullptr mediaMemDecompState", );
-    }
+    DDI_CHK_NULL(mediaMemDecompState, "nullptr mediaMemDecompState", );
 
-    if (!mediaMemDecompState)
-    {
-        mediaMemDecompState = static_cast<MediaMemDecompBaseState *>(MmdDeviceNext::CreateFactory(mosCtx));
-        *mosCtx->ppMediaMemDecompState = mediaMemDecompState;
-    }
-
-    if (mediaMemDecompState)
-    {
-        mediaMemDecompState->MediaMemoryCopy(inputOsResource, outputOsResource, boutputcompressed);
-    }
-    else
-    {
-        DDI_ASSERTMESSAGE("Invalid memory decompression state.");
-    }
+    mediaMemDecompState->MediaMemoryCopy(inputOsResource, outputOsResource, boutputcompressed);
 }
 
 void MediaLibvaInterfaceNext::MediaMemoryCopy2DInternal(
@@ -235,20 +203,9 @@ void MediaLibvaInterfaceNext::MediaMemoryCopy2DInternal(
 
     MediaMemDecompBaseState *mediaMemDecompState = static_cast<MediaMemDecompBaseState*>(*mosCtx->ppMediaMemDecompState);
 
-    if (!mediaMemDecompState)
-    {
-        DDI_CHK_NULL(mediaMemDecompState, "nullptr mediaMemDecompState", );
-    }
+    DDI_CHK_NULL(mediaMemDecompState, "nullptr mediaMemDecompState", );
 
-    if (!mediaMemDecompState)
-    {
-        mediaMemDecompState = static_cast<MediaMemDecompBaseState *>(MmdDeviceNext::CreateFactory(mosCtx));
-        *mosCtx->ppMediaMemDecompState = mediaMemDecompState;
-    }
-
-    if (mediaMemDecompState)
-    {
-        mediaMemDecompState->MediaMemoryCopy2D(
+    mediaMemDecompState->MediaMemoryCopy2D(
             inputOsResource,
             outputOsResource,
             copyWidth,
@@ -257,11 +214,6 @@ void MediaLibvaInterfaceNext::MediaMemoryCopy2DInternal(
             copyOutputOffset,
             bpp,
             boutputcompressed);
-    }
-    else
-    {
-        DDI_ASSERTMESSAGE("Invalid memory decompression state.");
-    }
 }
 
 VAStatus MediaLibvaInterfaceNext::MediaMemoryTileConvertInternal(
@@ -285,18 +237,7 @@ VAStatus MediaLibvaInterfaceNext::MediaMemoryTileConvertInternal(
 
     MediaMemDecompBaseState *mediaMemDecompState = static_cast<MediaMemDecompBaseState*>(*mosCtx->ppMediaMemDecompState);
 
-    if (!mediaMemDecompState)
-    {
-        DDI_CHK_NULL(mediaMemDecompState, "nullptr mediaMemDecompState", VA_STATUS_ERROR_INVALID_PARAMETER);
-    }
-
-    if (!mediaMemDecompState)
-    {
-        mediaMemDecompState = static_cast<MediaMemDecompBaseState *>(MmdDeviceNext::CreateFactory(mosCtx));
-        *mosCtx->ppMediaMemDecompState = mediaMemDecompState;
-    }
-
-    DDI_CHK_NULL(mediaMemDecompState, "Invalid memory decompression state", VA_STATUS_ERROR_INVALID_PARAMETER);
+    DDI_CHK_NULL(mediaMemDecompState, "nullptr mediaMemDecompState", VA_STATUS_ERROR_INVALID_PARAMETER);
 
     MOS_STATUS mosStatus = mediaMemDecompState->MediaMemoryTileConvert(
             inputOsResource,
@@ -1953,7 +1894,9 @@ VAStatus MediaLibvaInterfaceNext::PutImage(
         if (srcWidth == destWidth && srcHeight == destHeight &&
             srcWidth == vaimg->width && srcHeight == vaimg->height &&
             srcWidth == mediaSurface->iWidth && srcHeight == mediaSurface->iHeight &&
-            mediaSurface->data_size == vaimg->data_size)
+            mediaSurface->data_size == vaimg->data_size &&
+            (vaimg->num_planes == 1 ||
+            (vaimg->num_planes > 1 && vaimg->offsets[1] == mediaSurface->iPitch * mediaSurface->iHeight)))
         {
             //Copy data from image to surface
             MOS_STATUS eStatus = MOS_SecureMemcpy(surfData, vaimg->data_size, imageData, vaimg->data_size);
@@ -2700,7 +2643,7 @@ VAStatus MediaLibvaInterfaceNext::CreateImage (
         MOS_Delete(buf);
         return status;
     }
-    buf->TileType     = I915_TILING_NONE;
+    buf->TileType     = TILING_NONE;
 
     MosUtilities::MosLockMutex(&mediaCtx->BufferMutex);
     PDDI_MEDIA_BUFFER_HEAP_ELEMENT bufferHeapElement  = MediaLibvaUtilNext::AllocPMediaBufferFromHeap(mediaCtx->pBufferHeap);
@@ -3160,32 +3103,7 @@ VAStatus MediaLibvaInterfaceNext::CreateSurfaces (
     PDDI_MEDIA_CONTEXT mediaDrvCtx = GetMediaContext(ctx);
     DDI_CHK_NULL(mediaDrvCtx,       "nullptr mediaDrvCtx", VA_STATUS_ERROR_INVALID_CONTEXT);
 
-    if( format != VA_RT_FORMAT_YUV420 ||
-        format != VA_RT_FORMAT_YUV422 ||
-        format != VA_RT_FORMAT_YUV444 ||
-        format != VA_RT_FORMAT_YUV400 ||
-        format != VA_RT_FORMAT_YUV411)
-    {
-        return VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
-    }
-
-    DDI_MEDIA_FORMAT mediaFmt = OsFormatToMediaFormat(VA_FOURCC_NV12,format);
-
-    for(int32_t i = 0; i < surfacesNum; i++)
-    {
-        VASurfaceID vaSurfaceID = (VASurfaceID)CreateRenderTarget(mediaDrvCtx, mediaFmt, width, height, nullptr, VA_SURFACE_ATTRIB_USAGE_HINT_GENERIC, MOS_MEMPOOL_VIDEOMEMORY);
-        if (VA_INVALID_ID != vaSurfaceID)
-        {
-            surfaces[i] = vaSurfaceID;
-        }
-        else
-        {
-            return VA_STATUS_ERROR_ALLOCATION_FAILED;
-        }
-    }
-
-    MOS_TraceEventExt(EVENT_VA_SURFACE, EVENT_TYPE_END, &surfacesNum, sizeof(int32_t), surfaces, surfacesNum*sizeof(VAGenericID));
-    return VA_STATUS_SUCCESS;
+    return VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT;
 }
 
 VAStatus MediaLibvaInterfaceNext::DestroySurfaces (
@@ -3297,7 +3215,11 @@ VAStatus MediaLibvaInterfaceNext::CreateSurfaces2 (
     VASurfaceAttribExternalBuffers externalBufDescripor;
     VADRMPRIMESurfaceDescriptor drmPrimeSurfaceDescriptor;
     MosUtilities::MosZeroMemory(&externalBufDescripor, sizeof(VASurfaceAttribExternalBuffers));
-    MosUtilities::MosZeroMemory(&drmPrimeSurfaceDescriptor, sizeof(VADRMPRIMESurfaceDescriptor));
+    MosUtilities::MosZeroMemory(&drmPrimeSurfaceDescriptor, sizeof(VADRMPRIMESurfaceDescriptor)); 
+#if VA_CHECK_VERSION(1, 21, 0)
+    VADRMPRIME3SurfaceDescriptor drmPrime3SurfaceDescriptor;
+    MosUtilities::MosZeroMemory(&drmPrime3SurfaceDescriptor, sizeof(VADRMPRIME3SurfaceDescriptor));
+#endif
 
     int32_t  memTypeFlag      = VA_SURFACE_ATTRIB_MEM_TYPE_VA;
     int32_t  descFlag         = 0;
@@ -3325,6 +3247,9 @@ VAStatus MediaLibvaInterfaceNext::CreateSurfaces2 (
                     (attribList[i].value.value.i == VA_SURFACE_ATTRIB_MEM_TYPE_KERNEL_DRM)  ||
                     (attribList[i].value.value.i == VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME)   ||
                     (attribList[i].value.value.i == VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2) ||
+#if VA_CHECK_VERSION(1, 21, 0)
+                    (attribList[i].value.value.i == VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_3) ||
+#endif
                     (attribList[i].value.value.i == VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR))
                 {
                     memTypeFlag = attribList[i].value.value.i;
@@ -3353,6 +3278,17 @@ VAStatus MediaLibvaInterfaceNext::CreateSurfaces2 (
                     width            = drmPrimeSurfaceDescriptor.width;
                     height           = drmPrimeSurfaceDescriptor.height;
                 }
+#if VA_CHECK_VERSION(1, 21, 0)
+                else if (memTypeFlag == VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_3)
+                {
+                    MosUtilities::MosSecureMemcpy(&drmPrime3SurfaceDescriptor, sizeof(VADRMPRIME3SurfaceDescriptor), attribList[i].value.value.p, sizeof(VADRMPRIME3SurfaceDescriptor));
+                    expectedFourcc            = drmPrime3SurfaceDescriptor.fourcc;
+                    width                     = drmPrime3SurfaceDescriptor.width;
+                    height                    = drmPrime3SurfaceDescriptor.height;
+                    drmPrimeSurfaceDescriptor = *((VADRMPRIMESurfaceDescriptor*)&drmPrime3SurfaceDescriptor);
+                    descFlag                  = drmPrime3SurfaceDescriptor.flags;
+                }
+#endif
                 else
                 {
                     MosUtilities::MosSecureMemcpy(&externalBufDescripor, sizeof(VASurfaceAttribExternalBuffers),  attribList[i].value.value.p, sizeof(VASurfaceAttribExternalBuffers));
@@ -3411,7 +3347,11 @@ VAStatus MediaLibvaInterfaceNext::CreateSurfaces2 (
             surfDesc->uiFlags        = descFlag;
             surfDesc->uiVaMemType    = memTypeFlag;
 
-            if (memTypeFlag == VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2)
+            if (
+#if VA_CHECK_VERSION(1, 21, 0)
+                memTypeFlag == VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_3 || 
+#endif
+                memTypeFlag == VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2)
             {
                 surfDesc->ulBuffer       = drmPrimeSurfaceDescriptor.objects[0].fd;
                 surfDesc->modifier       = drmPrimeSurfaceDescriptor.objects[0].drm_format_modifier;
@@ -3446,19 +3386,21 @@ VAStatus MediaLibvaInterfaceNext::CreateSurfaces2 (
                 eStatus = MosUtilities::MosSecureMemcpy(surfDesc->uiPitches, sizeof(surfDesc->uiPitches), externalBufDescripor.pitches, sizeof(externalBufDescripor.pitches));
                 if (eStatus != MOS_STATUS_SUCCESS)
                 {
+                    MOS_FreeMemory(surfDesc);
                     DDI_VERBOSEMESSAGE("DDI:Failed to copy surface buffer data!");
                     return VA_STATUS_ERROR_OPERATION_FAILED;
                 }
                 eStatus = MosUtilities::MosSecureMemcpy(surfDesc->uiOffsets, sizeof(surfDesc->uiOffsets), externalBufDescripor.offsets, sizeof(externalBufDescripor.offsets));
                 if (eStatus != MOS_STATUS_SUCCESS)
                 {
+                    MOS_FreeMemory(surfDesc);
                     DDI_VERBOSEMESSAGE("DDI:Failed to copy surface buffer data!");
                     return VA_STATUS_ERROR_OPERATION_FAILED;
                 }
 
                 if( surfIsUserPtr )
                 {
-                    surfDesc->uiTile = I915_TILING_NONE;
+                    surfDesc->uiTile = TILING_NONE;
                     if (surfDesc->ulBuffer % 4096 != 0)
                     {
                         MOS_FreeMemory(surfDesc);
@@ -3680,6 +3622,10 @@ VAStatus MediaLibvaInterfaceNext::InitSurfaceDescriptorWithoutAuxTableMgr(
 
     if(compositeObject)
     {
+        desc->num_layers = 1;
+        desc->layers[0].drm_format = formats[0];
+        desc->layers[0].num_planes = planesNum;
+
         for (int i = 0; i < planesNum; i++)
         {
             desc->layers[0].object_index[i] = 0;
@@ -3864,7 +3810,12 @@ VAStatus MediaLibvaInterfaceNext::ExportSurfaceHandle(
     DDI_CHK_NULL(mediaSurface->bo,               "nullptr mediaSurface->bo",               VA_STATUS_ERROR_INVALID_SURFACE);
     DDI_CHK_NULL(mediaSurface->pGmmResourceInfo, "nullptr mediaSurface->pGmmResourceInfo", VA_STATUS_ERROR_INVALID_SURFACE);
 
-    if (memType != VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2) {
+    if (
+#if VA_CHECK_VERSION(1, 21, 0)
+        memType != VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_3 && 
+#endif
+        memType != VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2)
+    {
         DDI_ASSERTMESSAGE("vaExportSurfaceHandle: memory type %08x is not supported.\n", memType);
         return VA_STATUS_ERROR_UNSUPPORTED_MEMORY_TYPE;
     }
@@ -3876,6 +3827,17 @@ VAStatus MediaLibvaInterfaceNext::ExportSurfaceHandle(
     }
 
     VADRMPRIMESurfaceDescriptor *desc = (VADRMPRIMESurfaceDescriptor *)descriptor;
+#if VA_CHECK_VERSION(1, 21, 0)
+    if(memType == VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_3)
+    {
+        VADRMPRIME3SurfaceDescriptor *desc = (VADRMPRIME3SurfaceDescriptor *)descriptor;
+        if(mediaSurface->pGmmResourceInfo->GetSetCpSurfTag(false, 0))
+        {
+            desc->flags |= VA_SURFACE_EXTBUF_DESC_PROTECTED;
+        }
+    }
+#endif
+
     desc->fourcc = MediaFormatToOsFormat(mediaSurface->format);
     if(desc->fourcc == VA_STATUS_ERROR_UNSUPPORTED_RT_FORMAT)
     {
@@ -4672,8 +4634,12 @@ uint32_t MediaLibvaInterfaceNext::GetDrmFormatOfSeparatePlane(uint32_t fourcc, i
         {
         case VA_FOURCC_NV12:
         case VA_FOURCC_I420:
+        case VA_FOURCC_IMC3:
         case VA_FOURCC_YV12:
         case VA_FOURCC_YV16:
+        case VA_FOURCC_422H:
+        case VA_FOURCC_422V:
+        case VA_FOURCC_444P:
         case VA_FOURCC_Y800:
         case VA_FOURCC_RGBP:
         case VA_FOURCC_BGRP:
@@ -4746,8 +4712,12 @@ uint32_t MediaLibvaInterfaceNext::GetDrmFormatOfSeparatePlane(uint32_t fourcc, i
         case VA_FOURCC_NV12:
             return DRM_FORMAT_GR88;
         case VA_FOURCC_I420:
+        case VA_FOURCC_IMC3:
         case VA_FOURCC_YV12:
         case VA_FOURCC_YV16:
+        case VA_FOURCC_422H:
+        case VA_FOURCC_422V:
+        case VA_FOURCC_444P:
         case VA_FOURCC_RGBP:
         case VA_FOURCC_BGRP:
             return DRM_FORMAT_R8;
@@ -4770,10 +4740,18 @@ uint32_t MediaLibvaInterfaceNext::GetDrmFormatOfCompositeObject(uint32_t fourcc)
         return DRM_FORMAT_NV12;
     case VA_FOURCC_I420:
         return DRM_FORMAT_YUV420;
+    case VA_FOURCC_IMC3:
+        return DRM_FORMAT_YUV420;
     case VA_FOURCC_YV12:
         return DRM_FORMAT_YVU420;
     case VA_FOURCC_YV16:
         return DRM_FORMAT_YVU422;
+    case VA_FOURCC_422H:
+        return DRM_FORMAT_YUV422;
+    case VA_FOURCC_422V:
+        return DRM_FORMAT_YUV422;
+    case VA_FOURCC_444P:
+        return DRM_FORMAT_YUV444;
     case VA_FOURCC_YUY2:
         return DRM_FORMAT_YUYV;
     case VA_FOURCC_YVYU:
@@ -4782,6 +4760,12 @@ uint32_t MediaLibvaInterfaceNext::GetDrmFormatOfCompositeObject(uint32_t fourcc)
         return DRM_FORMAT_VYUY;
     case VA_FOURCC_UYVY:
         return DRM_FORMAT_UYVY;
+    case VA_FOURCC_AYUV:
+        return DRM_FORMAT_AYUV;
+#if VA_CHECK_VERSION(1, 13, 0)
+    case VA_FOURCC_XYUV:
+        return DRM_FORMAT_XYUV8888;
+#endif
     case VA_FOURCC_Y210:
         return DRM_FORMAT_Y210;
 #if VA_CHECK_VERSION(1, 9, 0)
@@ -5057,6 +5041,11 @@ VAStatus MediaLibvaInterfaceNext::CopyInternal(
     }
 
     DDI_CHK_NULL(mediaCopyState, "Invalid mediaCopy State", VA_STATUS_ERROR_INVALID_PARAMETER);
+    
+#if (_DEBUG || _RELEASE_INTERNAL)
+    // enable reg key report to avoid conflict with media copy cases.
+    mediaCopyState->SetRegkeyReport(true);
+#endif
 
     mosStatus = mediaCopyState->SurfaceCopy(src, dst, (MCPY_METHOD)copy_mode);
     if (mosStatus != MOS_STATUS_SUCCESS)

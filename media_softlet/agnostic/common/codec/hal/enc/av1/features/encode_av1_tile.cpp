@@ -841,7 +841,7 @@ namespace encode
             {
                 av1TileInfo->firstTileOfTileGroup = (tmpTileGroupParams->TileGroupStart == m_tileIdx);
                 av1TileInfo->lastTileOfTileGroup  = (tmpTileGroupParams->TileGroupEnd == m_tileIdx);
-                av1TileInfo->tileNum              = m_tileIdx - tmpTileGroupParams->TileGroupStart;
+                av1TileInfo->tgTileNum            = m_tileIdx - tmpTileGroupParams->TileGroupStart;
                 av1TileInfo->tileGroupId          = tileGrupCnt;
                 break;
             }
@@ -932,7 +932,7 @@ namespace encode
         params.lastTileOfFrame      = av1TileInfo.lastTileOfFrame;
         params.firstTileOfTileGroup = av1TileInfo.firstTileOfTileGroup;
         params.lastTileOfTileGroup  = av1TileInfo.lastTileOfTileGroup;
-        params.tileNum              = av1TileInfo.tileNum;
+        params.tgTileNum            = av1TileInfo.tgTileNum;
         params.tileGroupId          = av1TileInfo.tileGroupId;
 
         return eStatus;
@@ -999,7 +999,7 @@ namespace encode
             {
                 MOS_RESOURCE* buf = nullptr;
 
-                GetTileBasedStatisticsBuffer(m_prevStatisticsBufIndex, buf);
+                ENCODE_CHK_STATUS_RETURN(GetTileBasedStatisticsBuffer(m_prevStatisticsBufIndex, buf));
                 ENCODE_CHK_NULL_RETURN(buf);
 
                 //will be optimized to avoid perf degradation when async > 1

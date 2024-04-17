@@ -34,6 +34,9 @@
 #include "mos_os_virtualengine_next.h"
 #include "mos_interface.h"
 #include "mos_os_cp_interface_specific.h"
+#ifdef ENABLE_XE_KMD
+#include "mos_gpucontext_specific_next_xe.h"
+#endif
 
 #define MI_BATCHBUFFER_END 0x05000000
 static pthread_mutex_t command_dump_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -94,6 +97,35 @@ GpuContextSpecificNext::~GpuContextSpecificNext()
     MOS_OS_FUNCTION_ENTER;
 
     Clear();
+}
+
+GpuContextNext *GpuContextSpecificNext::Create(
+    const MOS_GPU_NODE    gpuNode,
+    CmdBufMgrNext         *cmdBufMgr,
+    GpuContextNext        *reusedContext)
+{
+    MOS_OS_FUNCTION_ENTER;
+    if (nullptr == cmdBufMgr)
+    {
+        return nullptr;
+    }
+    OsContextSpecificNext *osDeviceContext = dynamic_cast<OsContextSpecificNext*>(cmdBufMgr->m_osContext);
+    if (nullptr == osDeviceContext)
+    {
+        return nullptr;
+    }
+    int type = osDeviceContext->GetDeviceType();
+    if (DEVICE_TYPE_I915 == type)
+    {
+        return MOS_New(GpuContextSpecificNext, gpuNode, cmdBufMgr, reusedContext);
+    }
+#ifdef ENABLE_XE_KMD
+    else if (DEVICE_TYPE_XE == type)
+    {
+        return MOS_New(GpuContextSpecificNextXe, gpuNode, cmdBufMgr, reusedContext);
+    }
+#endif
+    return nullptr;
 }
 
 MOS_STATUS GpuContextSpecificNext::RecreateContext(bool bIsProtected, MOS_STREAM_HANDLE streamState)
@@ -1146,7 +1178,12 @@ MOS_LINUX_BO* GpuContextSpecificNext::GetNopCommandBuffer(
     }
 
     auto perStreamParameters = (PMOS_CONTEXT)streamState->perStreamParameters;
-    bo = mos_bo_alloc(perStreamParameters->bufmgr, "NOP_CMD_BO", 4096, 4096, MOS_MEMPOOL_VIDEOMEMORY);
+    struct mos_drm_bo_alloc alloc;
+    alloc.name = "NOP_CMD_BO";
+    alloc.size = 4096;
+    alloc.alignment = 4096;
+    alloc.ext.mem_type = MOS_MEMPOOL_VIDEOMEMORY;
+    bo = mos_bo_alloc(perStreamParameters->bufmgr, &alloc);
     if(bo == nullptr)
     {
         return nullptr;
@@ -1412,6 +1449,8 @@ MOS_STATUS GpuContextSpecificNext::SubmitCommandBuffer(
             return MOS_STATUS_UNKNOWN;
         }
     }
+    // dump before cmd buffer unmap
+    MOS_TraceDumpExt("CmdBuffer", m_gpuContext, cmdBuffer->pCmdBase, cmdBuffer->iOffset);
 
     // Now, we can unmap the video command buffer, since we don't need CPU access anymore.
     MOS_OS_CHK_NULL_RETURN(cmdBuffer->OsResource.pGfxResourceNext);
@@ -1458,14 +1497,6 @@ MOS_STATUS GpuContextSpecificNext::SubmitCommandBuffer(
             else if (gpuNode == MOS_GPU_NODE_VIDEO2)
             {
                 execFlag = I915_EXEC_BSD | I915_EXEC_BSD_RING2;
-            }
-            else if ((gpuNode == MOS_GPU_NODE_BLT))
-            {
-                execFlag = I915_EXEC_BLT;
-            }
-            else
-            {
-                MOS_OS_ASSERTMESSAGE("Invalid gpuNode.");
             }
         }
         else
@@ -1956,53 +1987,32 @@ bool GpuContextSpecificNext::SelectEngineInstanceByUser(void *engine_map,
         uint32_t *engineNum, uint32_t userEngineInstance, MOS_GPU_NODE gpuNode)
 {
     uint32_t engineInstance     = 0x0;
-    struct i915_engine_class_instance *engineMap = (struct i915_engine_class_instance *)engine_map;
 
-    if(gpuNode == MOS_GPU_NODE_COMPUTE)
+    if (userEngineInstance && m_osParameters)
     {
-        engineInstance  = (userEngineInstance >> ENGINE_INSTANCE_SELECT_COMPUTE_INSTANCE_SHIFT)
-            & (ENGINE_INSTANCE_SELECT_ENABLE_MASK >> (MAX_ENGINE_INSTANCE_NUM - *engineNum));
-    }
-    else if(gpuNode == MOS_GPU_NODE_VE)
-    {
-        engineInstance  = (userEngineInstance >> ENGINE_INSTANCE_SELECT_VEBOX_INSTANCE_SHIFT)
-            & (ENGINE_INSTANCE_SELECT_ENABLE_MASK >> (MAX_ENGINE_INSTANCE_NUM - *engineNum));
-    }
-    else if(gpuNode == MOS_GPU_NODE_VIDEO || gpuNode == MOS_GPU_NODE_VIDEO2)
-    {
-        engineInstance  = (userEngineInstance >> ENGINE_INSTANCE_SELECT_VDBOX_INSTANCE_SHIFT)
-            & (ENGINE_INSTANCE_SELECT_ENABLE_MASK >> (MAX_ENGINE_INSTANCE_NUM - *engineNum));
-    }
-    else
-    {
-        MOS_OS_NORMALMESSAGE("Invalid gpu node in use.");
-    }
-
-    if(engineInstance)
-    {
-        auto unSelectIndex = 0;
-        for(auto bit = 0; bit < *engineNum; bit++)
+        if(gpuNode == MOS_GPU_NODE_COMPUTE)
         {
-            if(((engineInstance >> bit) & 0x1) && (bit > unSelectIndex))
-            {
-                engineMap[unSelectIndex].engine_class = engineMap[bit].engine_class;
-                engineMap[unSelectIndex].engine_instance = engineMap[bit].engine_instance;
-                engineMap[bit].engine_class = 0;
-                engineMap[bit].engine_instance = 0;
-                unSelectIndex++;
-            }
-            else if(((engineInstance >> bit) & 0x1) && (bit == unSelectIndex))
-            {
-                unSelectIndex++;
-            }
-            else if(!((engineInstance >> bit) & 0x1))
-            {
-                engineMap[bit].engine_class = 0;
-                engineMap[bit].engine_instance = 0;
-            }
+            engineInstance  = (userEngineInstance >> ENGINE_INSTANCE_SELECT_COMPUTE_INSTANCE_SHIFT)
+                & (ENGINE_INSTANCE_SELECT_ENABLE_MASK >> (MAX_ENGINE_INSTANCE_NUM - *engineNum));
         }
-        *engineNum = unSelectIndex;
+        else if(gpuNode == MOS_GPU_NODE_VE)
+        {
+            engineInstance  = (userEngineInstance >> ENGINE_INSTANCE_SELECT_VEBOX_INSTANCE_SHIFT)
+                & (ENGINE_INSTANCE_SELECT_ENABLE_MASK >> (MAX_ENGINE_INSTANCE_NUM - *engineNum));
+        }
+        else if(gpuNode == MOS_GPU_NODE_VIDEO || gpuNode == MOS_GPU_NODE_VIDEO2)
+        {
+            engineInstance  = (userEngineInstance >> ENGINE_INSTANCE_SELECT_VDBOX_INSTANCE_SHIFT)
+                & (ENGINE_INSTANCE_SELECT_ENABLE_MASK >> (MAX_ENGINE_INSTANCE_NUM - *engineNum));
+        }
+        else
+        {
+            MOS_OS_NORMALMESSAGE("Invalid gpu node in use.");
+        }
+
+        mos_select_fixed_engine(m_osParameters->bufmgr, engine_map, engineNum, engineInstance);
     }
+
     return engineInstance;
 }
 #endif

@@ -454,7 +454,16 @@ namespace encode
         m_hevcSliceParams = static_cast<PCODEC_HEVC_ENCODE_SLICE_PARAMS>(encodeParams->pSliceParams);
         ENCODE_CHK_STATUS_RETURN(SetupForceIntraStreamIn());
 
-        m_numValidLaRecords++;
+        if (!m_lastPicInStream)
+        {
+            m_numValidLaRecords++;
+        }
+
+        if (m_lastPicInStream && m_bLastPicFlagFirstIn)
+        {
+            m_currLaDataIdx -= 1;
+            m_bLastPicFlagFirstIn = false;
+        }
 
         return eStatus;
     }
@@ -781,7 +790,10 @@ namespace encode
         ENCODE_FUNC_CALL();
         MOS_STATUS eStatus = MOS_STATUS_SUCCESS;
 
-        m_currLaDataIdx  = (m_currLaDataIdx + 1) % m_numLaDataEntry;
+        if (!m_lastPicInStream)
+        {
+            m_currLaDataIdx = (m_currLaDataIdx + 1) % m_numLaDataEntry;
+        }
 
         return eStatus;
     }
@@ -794,7 +806,7 @@ namespace encode
         // Setup LAInit DMEM
         auto hucVdencLaInitDmem = (VdencHevcHucLaDmem *)m_allocator->LockResourceForWrite(m_vdencLaInitDmemBuffer);
         ENCODE_CHK_NULL_RETURN(hucVdencLaInitDmem);
-        MOS_ZeroMemory(hucVdencLaInitDmem, sizeof(hucVdencLaInitDmem));
+        MOS_ZeroMemory(hucVdencLaInitDmem, sizeof(VdencHevcHucLaDmem));
 
         uint32_t initVbvFullness = MOS_MIN(m_hevcSeqParams->InitVBVBufferFullnessInBit, m_hevcSeqParams->VBVBufferSizeInBit);
         uint8_t downscaleRatioIndicator = 2;  // 4x downscaling
@@ -851,7 +863,7 @@ namespace encode
         // Setup LAUpdate DMEM
         auto hucVdencLaUpdateDmem = (VdencHevcHucLaDmem *)m_allocator->LockResourceForWrite(m_vdencLaUpdateDmemBuffer[currRecycledBufIdx][curPass]);
         ENCODE_CHK_NULL_RETURN(hucVdencLaUpdateDmem);
-        MOS_ZeroMemory(hucVdencLaUpdateDmem, sizeof(hucVdencLaUpdateDmem));
+        MOS_ZeroMemory(hucVdencLaUpdateDmem, sizeof(VdencHevcHucLaDmem));
 
         hucVdencLaUpdateDmem->lookAheadFunc = 1;
         hucVdencLaUpdateDmem->validStatsRecords = numValidLaRecords;
@@ -901,7 +913,8 @@ namespace encode
     {
         ENCODE_FUNC_CALL();
 
-        if (blastPass && m_numValidLaRecords >= m_lookaheadDepth)
+        if ((blastPass && m_numValidLaRecords >= m_lookaheadDepth) ||
+            (m_lastPicInStream && m_numValidLaRecords))
         {
             m_numValidLaRecords--;
             m_lookaheadReport = true;

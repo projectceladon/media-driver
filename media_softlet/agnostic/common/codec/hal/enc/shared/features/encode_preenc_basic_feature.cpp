@@ -175,34 +175,18 @@ MOS_STATUS PreEncBasicFeature::Update(void *params)
 
     ENCODE_CHK_STATUS_RETURN(PreparePreEncConfig(params));
 
-    EncodeBasicFeature::Update(params);
+    ENCODE_CHK_STATUS_RETURN(EncodeBasicFeature::Update(params));
 
     ENCODE_CHK_STATUS_RETURN(SetPictureStructs());
     ENCODE_CHK_STATUS_RETURN(SetSliceStructs());
 
-    // Only for first frame
-    uint32_t oriFrameHeight = 0;
-    uint32_t oriFrameWidth  = 0;
     if (m_frameNum == 0)
     {
-        oriFrameHeight      = m_frameHeight;
-        oriFrameWidth       = m_frameWidth;
         m_resolutionChanged = true;
     }
     else
     {
-        // check if there is a dynamic resolution change
-        if ((oriFrameHeight && (oriFrameHeight != m_frameHeight)) ||
-            (oriFrameWidth && (oriFrameWidth != m_frameWidth)))
-        {
-            m_resolutionChanged = true;
-            oriFrameHeight      = m_frameHeight;
-            oriFrameWidth       = m_frameWidth;
-        }
-        else
-        {
-            m_resolutionChanged = false;
-        }
+        m_resolutionChanged = false;
     }
 
     if (m_resolutionChanged)
@@ -864,11 +848,6 @@ MOS_STATUS PreEncBasicFeature::ValidateLowDelayBFrame()
         // forward
         for (int refIdx = 0; (refIdx < 1) && m_lowDelay; refIdx++)
         {
-            if (refIdx >= CODEC_MAX_NUM_REF_FRAME_HEVC)
-            {
-                break;
-            }
-
             CODEC_PICTURE refPic = m_preEncConfig.RefPicList[0][refIdx];
             if (!CodecHal_PictureIsInvalid(refPic) && m_preEncConfig.RefFramePOCList[refPic.FrameIdx] > m_preEncConfig.CurrPicOrderCnt)
             {
@@ -879,11 +858,6 @@ MOS_STATUS PreEncBasicFeature::ValidateLowDelayBFrame()
         // backward
         for (int refIdx = 0; (refIdx < 1) && m_lowDelay; refIdx++)
         {
-            if (refIdx >= CODEC_MAX_NUM_REF_FRAME_HEVC)
-            {
-                break;
-            }
-
             CODEC_PICTURE refPic = m_preEncConfig.RefPicList[1][refIdx];
             if (!CodecHal_PictureIsInvalid(refPic) && m_preEncConfig.RefFramePOCList[refPic.FrameIdx] > m_preEncConfig.CurrPicOrderCnt)
             {
@@ -1069,7 +1043,6 @@ MHW_SETPAR_DECL_SRC(HEVC_VP9_RDOQ_STATE, PreEncBasicFeature)
             lambdaDouble *= MOS_MAX(1.00, MOS_MIN(1.6, 1.0 + 0.6 / 12.0 * (qpTemp - 10.0)));
             lambdaDouble               = lambdaDouble * 16 + 0.5;
             lambda                     = (uint32_t)floor(lambdaDouble);
-            lambdaDouble               = (lambdaDouble > 65535) ? 65535 : lambdaDouble;
             lambda                     = CodecHal_Clip3(0, 0xffff, lambda);
             params.lambdaTab[1][0][qp] = (uint16_t)lambda;
         }
@@ -1080,7 +1053,6 @@ MHW_SETPAR_DECL_SRC(HEVC_VP9_RDOQ_STATE, PreEncBasicFeature)
             lambdaDouble *= MOS_MAX(0.95, MOS_MIN(1.20, 0.25 / 12.0 * (qpTemp - 10.0) + 0.95));
             lambdaDouble               = lambdaDouble * 16 + 0.5;
             lambda                     = (uint32_t)floor(lambdaDouble);
-            lambdaDouble               = (lambdaDouble > 65535) ? 65535 : lambdaDouble;
             lambda                     = CodecHal_Clip3(0, 0xffff, lambda);
             params.lambdaTab[1][1][qp] = (uint16_t)lambda;
         }

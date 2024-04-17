@@ -220,6 +220,14 @@ namespace encode
         MOS_STATUS PrepareHWMetaData(MOS_COMMAND_BUFFER *cmdBuffer);
 
     protected:
+#if USE_CODECHAL_DEBUG_TOOL
+        //!
+        //! \brief  Dump input resources or infomation before submit
+        //! \return MOS_STATUS
+        //!         MOS_STATUS_SUCCESS if success, else fail reason
+        //!
+        virtual MOS_STATUS DumpInput();
+#endif
         //!
         //! \brief    get  SliceStatesSize and SlicePatchListSize,
         //!
@@ -382,7 +390,7 @@ namespace encode
         //! \return MOS_STATUS
         //!         MOS_STATUS_SUCCESS if success, else fail reason
         //!
-        MOS_STATUS EnsureAllCommandsExecuted(MOS_COMMAND_BUFFER &cmdBuffer);
+        virtual MOS_STATUS EnsureAllCommandsExecuted(MOS_COMMAND_BUFFER &cmdBuffer);
 
         virtual MOS_STATUS AddHcpPipeModeSelect(
             MOS_COMMAND_BUFFER &cmdBuffer);
@@ -442,7 +450,7 @@ namespace encode
         // Inline functions
         MOS_STATUS ValidateVdboxIdx(const MHW_VDBOX_NODE_IND &vdboxIndex);
 
-        void SetPerfTag(uint16_t type, uint16_t mode, uint16_t picCodingType);
+        void SetPerfTag();
 
         MOS_STATUS SetSemaphoreMem(
             MOS_RESOURCE &      semaphoreMem,
@@ -526,6 +534,8 @@ namespace encode
         MHW_SETPAR_DECL_HDR(HCP_SURFACE_STATE);
 
         MOS_STATUS AddAllCmds_HCP_PAK_INSERT_OBJECT(PMOS_COMMAND_BUFFER cmdBuffer) const;
+
+        MOS_STATUS AddAllCmds_HCP_PAK_INSERT_OBJECT_BRC(PMOS_COMMAND_BUFFER cmdBuffer) const;
 
         MOS_STATUS AddAllCmds_HCP_SURFACE_STATE(PMOS_COMMAND_BUFFER cmdBuffer) const;
 

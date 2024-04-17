@@ -631,6 +631,7 @@ public:
                                             bTopField      = false;
                                             bBeCsc         = false;
                                             bFeCsc         = false;
+                                            bCcmCsc        = false;
                                             bVeboxBypass   = false;
                                             b60fpsDi       = false;
                                             bQueryVariance = false;
@@ -725,6 +726,7 @@ public:
     bool                                bTopField;
     bool                                bBeCsc;
     bool                                bFeCsc;
+    bool                                bCcmCsc;
     bool                                bVeboxBypass;
     bool                                b60fpsDi;
     bool                                bQueryVariance;
@@ -1248,7 +1250,12 @@ public:
 
     virtual bool IsIECPEnabled()
     {
-        return GetLastExecRenderData()->bIECP;
+        PVPHAL_VEBOX_RENDER_DATA pRenderData = GetLastExecRenderData();
+        VPHAL_RENDER_CHK_NULL_NO_STATUS(pRenderData);
+
+        return pRenderData->bIECP;
+    finish:
+        return false;
     }
     virtual bool IsQueryVarianceEnabled() {return false;}
 

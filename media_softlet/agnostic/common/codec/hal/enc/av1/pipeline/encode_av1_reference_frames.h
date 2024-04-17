@@ -37,6 +37,7 @@ namespace encode
 #define AV1_ENCODE_GET_REF_FALG(i) (0x1 << i)
 
 class Av1BasicFeature;
+class Av1VdencPipeline;
 
 class Av1ReferenceFrames : public mhw::vdbox::vdenc::Itf::ParSetting, public mhw::vdbox::avp::Itf::ParSetting
 {
@@ -160,6 +161,12 @@ public:
     //!
     void GetFwdBwdRefPicList(CODEC_PICTURE (&refsPicList)[2][15]);
 
+    //! \brief  Get  get current frame display order
+    //! \return int32_t
+    //!         frame display order
+    //!
+    int32_t GetFrameDisplayOrder();
+
     //!
     //! \brief  Get  get the Picture Order Count values of reference pictures 
     //!          corresponding to the entries of RefFrameList[]. 
@@ -172,6 +179,13 @@ public:
 
     bool CheckSegmentForPrimeFrame();
     uint8_t RefFrameL0L1(CODEC_Ref_Frame_Ctrl_AV1 const &ref_frame_ctrl) const;
+
+     //!
+    //! \brief  Dump input resources or infomation before submit
+    //! \return MOS_STATUS
+    //!         MOS_STATUS_SUCCESS if success, else fail reason
+    //!
+    MOS_STATUS DumpInput(Av1VdencPipeline *pipeline);
 
     MHW_SETPAR_DECL_HDR(VDENC_PIPE_BUF_ADDR_STATE);
 
@@ -255,6 +269,10 @@ protected:
     bool                    m_PFrame   = true;                       //!< P frame flag
     bool                    m_enable_order_hint = false;
     uint8_t                 m_orderHintBitsMinus1 = 0;
+    uint8_t                 m_orderHintCount[ENCODE_AV1_ORDER_HINT_SIZE];
+    int32_t                 m_frameOut = 0;                        //!<frame output number
+    int32_t                 m_prevFrameOffset = 0;
+    int32_t                 m_prevFrameDisplayerOrder = 0;
 
     bool       m_encUsePostCdefAsRef = false;
     BufferType m_encRefBufType       = BufferType::postCdefReconSurface;

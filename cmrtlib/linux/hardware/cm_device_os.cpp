@@ -390,9 +390,7 @@ int32_t CmDevice_RT::Create(CmDevice_RT* &device, uint32_t createOption)
     uint32_t count = 0;
 
     if (g_AdapterCount == 0 )
-    {
-        result = GetSupportedAdapters(count);
-    }
+        GetSupportedAdapters(count);
 
     if (g_supportedAdapterCount > 0)
     {
@@ -495,10 +493,8 @@ CmDevice_RT::CmDevice_RT(
     m_gtpinBufferUP1(nullptr),
     m_gtpinBufferUP2(nullptr),
     m_createOption(createOption),
-#if !defined(ANDROID)
-    m_driFileDescriptor(0),
-#endif
-    m_driverStoreEnabled(0)
+    m_driverStoreEnabled(0),
+    m_driFileDescriptor(0)
 {
 
     // New Surface Manager

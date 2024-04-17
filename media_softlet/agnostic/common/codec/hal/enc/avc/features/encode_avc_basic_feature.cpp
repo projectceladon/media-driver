@@ -69,6 +69,9 @@ MOS_STATUS AvcBasicFeature::Init(void *setting)
     m_adaptiveRoundingInterEnable = (outValue.Get<int32_t>()) ? true : false;
 
     m_targetUsageOverride = (uint8_t)0;
+
+    m_brcAdaptiveRegionBoostSupported = true;
+
 #if (_DEBUG || _RELEASE_INTERNAL)
 
     outValue = 0;
@@ -91,13 +94,16 @@ MOS_STATUS AvcBasicFeature::Init(void *setting)
 
     m_perMBStreamOutEnable = (outValue.Get<int32_t>()) ? true : false;
 
+    outValue = 0;
+
     ReadUserSettingForDebug(
         m_userSettingPtr,
         outValue,
         "AVC VDEnc TCBRC ARB Disable",
         MediaUserSetting::Group::Sequence);
 
-    m_brcAdaptiveRegionBoostSupported = (outValue.Get<int32_t>()) ? false : true;
+    m_brcAdaptiveRegionBoostSupported = (outValue.Get<int32_t>()) ? false : m_brcAdaptiveRegionBoostSupported;
+
 #endif  // _DEBUG || _RELEASE_INTERNAL
 
     return MOS_STATUS_SUCCESS;
@@ -434,7 +440,7 @@ MOS_STATUS AvcBasicFeature::SetPictureStructs()
     if ((m_lookaheadDepth > 0) && (m_prevTargetFrameSize > 0))
     {
         int64_t targetBufferFulness = (int64_t)m_targetBufferFulness;
-        targetBufferFulness += (int64_t)(m_prevTargetFrameSize << 3) - (int64_t)m_averageFrameSize;
+        targetBufferFulness += (((int64_t)m_prevTargetFrameSize) << 3) - (int64_t)m_averageFrameSize;
         m_targetBufferFulness = (uint32_t)MOS_CLAMP_MIN_MAX(targetBufferFulness, 0, 0xFFFFFFFF);
     }
     m_prevTargetFrameSize = picParams->TargetFrameSize;
@@ -517,12 +523,6 @@ MOS_STATUS AvcBasicFeature::SetSliceStructs()
         }
         else  // SLICE_STRUCT_ARBITRARYMBSLICE
         {
-            uint8_t ppsIdx          = m_sliceParams->pic_parameter_set_id;
-            uint8_t refPicListIdx   = m_sliceParams[ppsIdx].RefPicList[0][0].FrameIdx;
-            uint8_t refFrameListIdx = m_picParam[ppsIdx].RefFrameList[refPicListIdx].FrameIdx;
-
-            bool dirtyRoiEnabled = (m_pictureCodingType == P_TYPE && m_picParams[ppsIdx]->NumDirtyROI > 0 && m_prevReconFrameIdx == refFrameListIdx);
-
             if ((slcParams->NumMbsForSlice % m_picWidthInMb) ||                                          // If slice is partial MB row,
                 ((sliceCount < m_numSlices - 1) && (numMbsInPrevSlice != slcParams->NumMbsForSlice)) ||  // OR not the last slice and num mbs is not same as prev slice
                 ((sliceCount == m_numSlices - 1) && ((numMbsInPrevSlice < slcParams->NumMbsForSlice))))  // OR it is the last slice and num mbs is not less than prev slice
@@ -539,10 +539,6 @@ MOS_STATUS AvcBasicFeature::SetSliceStructs()
         if ((picParams->pic_init_qp_minus26 + 26 + slcParams->slice_qp_delta) > CODECHAL_ENCODE_AVC_MAX_SLICE_QP)
         {
             slcParams->slice_qp_delta = CODECHAL_ENCODE_AVC_MAX_SLICE_QP - (picParams->pic_init_qp_minus26 + 26);
-        }
-        else
-        {
-            slcParams->slice_qp_delta = slcParams->slice_qp_delta;
         }
         slcParams->redundant_pic_cnt                  = 0;
         slcParams->sp_for_switch_flag                 = 0;
@@ -617,13 +613,67 @@ MOS_STATUS AvcBasicFeature::PackPictureHeader()
     return MOS_STATUS_SUCCESS;
 }
 
+bool AvcBasicFeature::InputSurfaceNeedsExtraCopy(const MOS_SURFACE &input)
+{
+#if _DEBUG || _RELEASE_INTERNAL
+    static int8_t supported = -1;
+
+    if (supported == -1)
+    {
+        MediaUserSetting::Value outValue{};
+
+        ReadUserSettingForDebug(
+            m_userSettingPtr,
+            outValue,
+            "DisableInputSurfaceCopy",
+            MediaUserSetting::Group::Sequence);
+
+        supported = !outValue.Get<bool>();
+    }
+
+    if (!supported)
+    {
+        return false;
+    }
+#endif
+
+    if (m_osInterface->osCpInterface && m_osInterface->osCpInterface->IsCpEnabled())
+    {
+        return false;
+    }
+
+    uint32_t alignedSize = 0;
+    switch (input.Format)
+    {
+    case Format_NV12:
+        alignedSize = MOS_MAX((uint32_t)m_seqParam->FrameWidth, (uint32_t)input.dwPitch) * m_seqParam->FrameHeight * 3 / 2;
+        break;
+    case Format_A8R8G8B8:
+        alignedSize = MOS_MAX((uint32_t)m_seqParam->FrameWidth * 4, (uint32_t)input.dwPitch) * m_seqParam->FrameHeight;
+        break;
+    default:
+        alignedSize = 0;
+        break;
+    }
+
+    return input.dwSize < alignedSize;
+}
+
 MOS_STATUS AvcBasicFeature::UpdateTrackedBufferParameters()
 {
+    ENCODE_FUNC_CALL();
+    ENCODE_CHK_NULL_RETURN(m_trackedBuf);
+
+    ENCODE_CHK_STATUS_RETURN(m_trackedBuf->OnSizeChange());
+
     uint32_t fieldNumMBs = (uint32_t)m_picWidthInMb * ((m_picHeightInMb + 1) >> 1);
 
     m_mbCodeSize = MOS_ALIGN_CEIL(fieldNumMBs * 16 * 4, CODECHAL_PAGE_SIZE) + fieldNumMBs * 16 * 4;
     m_mvDataSize = 0;
-    m_colocatedMVBufferSize = (((uint32_t)m_picHeightInMb * m_picWidthInMb + 1) >> 1) * CODECHAL_CACHELINE_SIZE; // Cacheline per 2 MBs
+
+    uint32_t widthInMbRoundUp  = (m_frameWidth + 31) >> 4;
+    uint32_t heightInMbRoundUp = (m_frameHeight + 15) >> 4;
+    m_colocatedMVBufferSize    = widthInMbRoundUp * heightInMbRoundUp * CODECHAL_CACHELINE_SIZE / 2; // Cacheline per 2 MBs
 
     MOS_ALLOC_GFXRES_PARAMS allocParams;
     MOS_ZeroMemory(&allocParams, sizeof(MOS_ALLOC_GFXRES_PARAMS));
@@ -657,6 +707,19 @@ MOS_STATUS AvcBasicFeature::UpdateTrackedBufferParameters()
             }
         }
         m_allocator->UnLock(m_colocatedMVBufferForIFrames);
+    }
+
+    // Input surface copy is needed if height is not MB aligned
+    if (InputSurfaceNeedsExtraCopy(m_rawSurface))
+    {
+        MOS_ALLOC_GFXRES_PARAMS allocParamsForAlignedRawSurface{};
+        allocParamsForAlignedRawSurface.Type     = MOS_GFXRES_2D;
+        allocParamsForAlignedRawSurface.Format   = m_rawSurface.Format;
+        allocParamsForAlignedRawSurface.TileType = MOS_TILE_Y;
+        allocParamsForAlignedRawSurface.dwWidth  = m_picWidthInMb * CODECHAL_MACROBLOCK_WIDTH;
+        allocParamsForAlignedRawSurface.dwHeight = m_picHeightInMb * CODECHAL_MACROBLOCK_HEIGHT;
+        allocParamsForAlignedRawSurface.pBufName = "Aligned Raw Surface";
+        ENCODE_CHK_STATUS_RETURN(m_trackedBuf->RegisterParam(BufferType::AlignedRawSurface, allocParamsForAlignedRawSurface));
     }
 
     ENCODE_CHK_STATUS_RETURN(EncodeBasicFeature::UpdateTrackedBufferParameters());
@@ -889,6 +952,31 @@ MOS_STATUS AvcBasicFeature::GetTrackedBuffers()
     m_4xDSSurface = m_trackedBuf->GetSurface(BufferType::ds4xSurface, m_trackedBuf->GetCurrIndex());
     ENCODE_CHK_NULL_RETURN(m_4xDSSurface);
     ENCODE_CHK_STATUS_RETURN(m_allocator->GetSurfaceInfo(m_4xDSSurface));
+
+    // Input surface copy is needed if height is not MB aligned
+    if (InputSurfaceNeedsExtraCopy(m_rawSurface))
+    {
+        auto alignedRawSurf = m_trackedBuf->GetSurface(BufferType::AlignedRawSurface, m_trackedBuf->GetCurrIndex());
+        ENCODE_CHK_NULL_RETURN(alignedRawSurf);
+        m_allocator->GetSurfaceInfo(alignedRawSurf);
+        alignedRawSurf->OsResource.pGmmResInfo->GetSetCpSurfTag(true, m_rawSurface.OsResource.pGmmResInfo->GetSetCpSurfTag(false, 0));
+        ENCODE_CHK_STATUS_RETURN(m_allocator->UpdateResourceUsageType(&alignedRawSurf->OsResource, MOS_HW_RESOURCE_USAGE_ENCODE_INPUT_RAW));
+
+        if (m_mediaCopyWrapper)
+        {
+            ENCODE_CHK_STATUS_RETURN(m_mediaCopyWrapper->MediaCopy(
+                &m_rawSurface.OsResource,
+                &alignedRawSurf->OsResource,
+                MCPY_METHOD_DEFAULT));
+
+            m_rawSurface      = *alignedRawSurf;
+            m_rawSurfaceToEnc = m_rawSurfaceToPak = &m_rawSurface;
+        }
+        else
+        {
+            ENCODE_ASSERTMESSAGE("Input surface height %d is not 16-aligned, needs extra copy but MediaCopy is not avaliable.", m_rawSurface.dwHeight);
+        }
+    }
 
     return MOS_STATUS_SUCCESS;
 }

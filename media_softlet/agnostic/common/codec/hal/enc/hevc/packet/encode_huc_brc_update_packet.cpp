@@ -32,12 +32,29 @@
 #include "encode_hevc_vdenc_scc.h"
 #include "encode_vdenc_lpla_analysis.h"
 #include "encode_hevc_vdenc_lpla_enc.h"
+#include "encode_hevc_header_packer.h"
 
 namespace encode
 {
     MOS_STATUS HucBrcUpdatePkt::Init()
     {
         ENCODE_FUNC_CALL();
+        m_hwInterface->m_vdencBatchBuffer1stGroupSize = MOS_ALIGN_CEIL(m_hwInterface->m_vdencBatchBuffer1stGroupSize, CODECHAL_CACHELINE_SIZE);
+        m_hwInterface->m_vdencBatchBuffer2ndGroupSize = MOS_ALIGN_CEIL(m_hwInterface->m_vdencBatchBuffer2ndGroupSize, CODECHAL_CACHELINE_SIZE);
+        m_hwInterface->m_vdencReadBatchBufferSize =
+        m_hwInterface->m_vdenc2ndLevelBatchBufferSize = m_hwInterface->m_vdencBatchBuffer1stGroupSize
+                                         + m_hwInterface->m_vdencBatchBuffer2ndGroupSize
+                                         + ENCODE_HEVC_VDENC_NUM_MAX_SLICES * MOS_ALIGN_CEIL((2 * m_hcpItf->MHW_GETSIZE_F(HCP_WEIGHTOFFSET_STATE)()
+                                         + m_hcpItf->MHW_GETSIZE_F(HCP_SLICE_STATE)()
+                                         + 2 * m_hcpItf->MHW_GETSIZE_F(HCP_PAK_INSERT_OBJECT)()
+                                         + sizeof (HevcSlice)
+                                         + m_vdencItf->MHW_GETSIZE_F(VDENC_WEIGHTSOFFSETS_STATE)()
+                                         + 2 * m_miItf->MHW_GETSIZE_F(MI_BATCH_BUFFER_END)()), CODECHAL_CACHELINE_SIZE);
+        m_hwInterface->m_vdencBatchBufferPerSliceConstSize = m_hcpItf->MHW_GETSIZE_F(HCP_SLICE_STATE)()
+        + m_vdencItf->MHW_GETSIZE_F(VDENC_WEIGHTSOFFSETS_STATE)()
+        + m_hcpItf->MHW_GETSIZE_F(HCP_PAK_INSERT_OBJECT)()
+        + m_miItf->MHW_GETSIZE_F(MI_BATCH_BUFFER_END)() * 2;
+
         HUC_CHK_STATUS_RETURN(EncodeHucPkt::Init());
 
         ENCODE_CHK_NULL_RETURN(m_pipeline);
@@ -585,7 +602,9 @@ namespace encode
 
             // VDENC_WEIGHT_OFFSETS_STATE cmd
             hucConstData->Slice[slcCount].VdencWeightOffset_StartInBytes                      // VdencWeightOffset cmd is the last one expect BatchBufferEnd cmd
-                = (uint16_t)(baseLocation + hucConstData->Slice[slcCount].SizeOfCMDs - m_vdencWeightOffsetStateCmdSize - m_miBatchBufferEndCmdSize - ENCODE_VDENC_HEVC_PADDING_DW_SIZE * 4);
+                = (uint16_t)(baseLocation + hucConstData->Slice[slcCount].SizeOfCMDs - m_vdencWeightOffsetStateCmdSize - m_miBatchBufferEndCmdSize - m_alignSize[slcCount]);
+
+            currentLocation += m_miBatchBufferEndCmdSize;
 
             // logic from PakInsertObject cmd
             uint32_t bitSize         = (m_basicFeature->m_hevcSeqParams->SliceSizeControl) ? (hevcSlcParams->BitLengthSliceHeaderStartingPortion) : slcData[slcCount].BitSize;  // 40 for HEVC VDEnc Dynamic Slice
@@ -645,7 +664,12 @@ namespace encode
         ENCODE_CHK_NULL_RETURN(brcFeature);
 
         uint16_t perfTag = m_pipeline->IsFirstPass() ? CODECHAL_ENCODE_PERFTAG_CALL_BRC_UPDATE : CODECHAL_ENCODE_PERFTAG_CALL_BRC_UPDATE_SECOND_PASS;
-        SetPerfTag(perfTag, (uint16_t)m_basicFeature->m_mode, m_basicFeature->m_pictureCodingType);
+        uint16_t pictureType = m_basicFeature->m_pictureCodingType;
+        if (m_basicFeature->m_pictureCodingType == B_TYPE && m_basicFeature->m_ref.IsLowDelay())
+        {
+            pictureType = 0;
+        }
+        SetPerfTag(perfTag, (uint16_t)m_basicFeature->m_mode, pictureType);
 
         if (!m_pipeline->IsSingleTaskPhaseSupported() || firstTaskInPhase)
         {
@@ -744,6 +768,15 @@ namespace encode
         constructedCmdBuf.iRemaining   = TempBatchBuffer.iRemaining;
 
         m_miBatchBufferEndCmdSize = constructedCmdBuf.iOffset - cmdBufOffset;
+
+        uint32_t alignSize = m_hwInterface->m_vdencBatchBuffer1stGroupSize - constructedCmdBuf.iOffset;
+        if (alignSize)
+        {
+            for (uint32_t i = 0; i < (alignSize / 4); i++)
+            {
+                ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_NOOP)(&constructedCmdBuf));
+            }
+        }
         ENCODE_CHK_COND_RETURN(
             (m_hwInterface->m_vdencBatchBuffer1stGroupSize != constructedCmdBuf.iOffset), 
             "ERROR - constructed cmd size is mismatch with calculated");
@@ -792,6 +825,14 @@ namespace encode
         constructedCmdBuf.iOffset      = TempBatchBuffer.iCurrent;
         constructedCmdBuf.iRemaining   = TempBatchBuffer.iRemaining;
 
+        uint32_t alignSize = m_hwInterface->m_vdencBatchBuffer2ndGroupSize + m_hwInterface->m_vdencBatchBuffer1stGroupSize - constructedCmdBuf.iOffset;
+        if (alignSize)
+        {
+            for (uint32_t i = 0; i < (alignSize / 4); i++)
+            {
+                ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_NOOP)(&constructedCmdBuf));
+            }
+        }
         ENCODE_CHK_COND_RETURN(
             (m_hwInterface->m_vdencBatchBuffer2ndGroupSize + m_hwInterface->m_vdencBatchBuffer1stGroupSize != constructedCmdBuf.iOffset), 
             "ERROR - constructed cmd size is mismatch with calculated");
@@ -830,6 +871,7 @@ namespace encode
             RUN_FEATURE_INTERFACE_RETURN(HevcEncodeTile, HevcFeatureIDs::encodeTile, SetCurrentTileFromSliceIndex, slcCount, m_pipeline);
 
             m_basicFeature->m_vdencBatchBufferPerSliceVarSize[slcCount] = 0;
+            m_basicFeature->m_vdencBatchBufferPerSlicePart2Size[slcCount] = 0;
 
             // set HCP_WEIGHTOFFSET_STATE command
             // This slice level command is issued, if the weighted_pred_flag or weighted_bipred_flag equals one.
@@ -841,14 +883,28 @@ namespace encode
             SETPAR_AND_ADDCMD(HCP_SLICE_STATE, m_hcpItf, &constructedCmdBuf);
             m_hcpSliceStateCmdSize = constructedCmdBuf.iOffset - cmdBufOffset;
 
-            AddAllCmds_HCP_PAK_INSERT_OBJECT(&constructedCmdBuf);
+            // set MI_BATCH_BUFFER_END command
+            MHW_BATCH_BUFFER TempBatchBuffer = {};
+            TempBatchBuffer.iSize            = MOS_ALIGN_CEIL(m_hwInterface->m_vdencReadBatchBufferSize, CODECHAL_PAGE_SIZE);
+            TempBatchBuffer.pData            = m_batchbufferAddr;
+
+            TempBatchBuffer.iCurrent   = constructedCmdBuf.iOffset;
+            TempBatchBuffer.iRemaining = constructedCmdBuf.iRemaining;
+            ENCODE_CHK_STATUS_RETURN(m_miItf->AddMiBatchBufferEnd(nullptr, &TempBatchBuffer));
+            constructedCmdBuf.pCmdPtr += (TempBatchBuffer.iCurrent - constructedCmdBuf.iOffset) / 4;
+            constructedCmdBuf.iOffset    = TempBatchBuffer.iCurrent;
+            constructedCmdBuf.iRemaining = TempBatchBuffer.iRemaining;
+
+            m_basicFeature->m_vdencBatchBufferPerSlicePart2Start[slcCount] = constructedCmdBuf.iOffset;
+
+            AddAllCmds_HCP_PAK_INSERT_OBJECT_SLICE(&constructedCmdBuf);
 
             cmdBufOffset = constructedCmdBuf.iOffset;
             SETPAR_AND_ADDCMD(VDENC_WEIGHTSOFFSETS_STATE, m_vdencItf, &constructedCmdBuf);
             m_vdencWeightOffsetStateCmdSize = constructedCmdBuf.iOffset - cmdBufOffset;
 
             // set MI_BATCH_BUFFER_END command
-            MHW_BATCH_BUFFER TempBatchBuffer = {};
+            TempBatchBuffer = {};
             TempBatchBuffer.iSize       = MOS_ALIGN_CEIL(m_hwInterface->m_vdencReadBatchBufferSize, CODECHAL_PAGE_SIZE);
             TempBatchBuffer.pData       = m_batchbufferAddr;
 
@@ -859,11 +915,16 @@ namespace encode
             constructedCmdBuf.iOffset      = TempBatchBuffer.iCurrent;
             constructedCmdBuf.iRemaining   = TempBatchBuffer.iRemaining;
 
-            m_basicFeature->m_vdencBatchBufferPerSliceVarSize[slcCount] += ENCODE_VDENC_HEVC_PADDING_DW_SIZE * 4;
-            for (auto i = 0; i < ENCODE_VDENC_HEVC_PADDING_DW_SIZE ; i++)
+            m_alignSize[slcCount] = MOS_ALIGN_CEIL(constructedCmdBuf.iOffset, 64) - constructedCmdBuf.iOffset;
+            if (m_alignSize[slcCount] > 0)
             {
-                ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_NOOP)(&constructedCmdBuf));
+                for (uint32_t i = 0; i < (m_alignSize[slcCount] / 4); i++)
+                {
+                    ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_NOOP)(&constructedCmdBuf));
+                }
             }
+            m_basicFeature->m_vdencBatchBufferPerSliceVarSize[slcCount] += m_alignSize[slcCount];
+            m_basicFeature->m_vdencBatchBufferPerSlicePart2Size[slcCount] = constructedCmdBuf.iOffset - m_basicFeature->m_vdencBatchBufferPerSlicePart2Start[slcCount];
             startLCU += m_basicFeature->m_hevcSliceParams[slcCount].NumLCUsInSlice;
         }
 
@@ -981,7 +1042,7 @@ namespace encode
         }
 
         // Region 0 - History Buffer dump (Input/Output)
-        ENCODE_CHK_STATUS_RETURN(DumpRegion(0, "_History", isInput, hucRegionDumpUpdate, CODECHAL_VDENC_HEVC_BRC_HISTORY_BUF_SIZE));
+        ENCODE_CHK_STATUS_RETURN(DumpRegion(0, "_History", isInput, hucRegionDumpUpdate));
 
         // Region 6 - Data from Pictures for Weighted Prediction (Input/Output)
         ENCODE_CHK_STATUS_RETURN(DumpRegion(6, "_PicsData", isInput, hucRegionDumpUpdate, CODECHAL_PAGE_SIZE * 4));
@@ -1030,7 +1091,7 @@ namespace encode
         return MOS_STATUS_SUCCESS;
     }
 
-    MOS_STATUS HucBrcUpdatePkt::AddAllCmds_HCP_PAK_INSERT_OBJECT(PMOS_COMMAND_BUFFER cmdBuffer) const
+    MOS_STATUS HucBrcUpdatePkt::AddAllCmds_HCP_PAK_INSERT_OBJECT_SLICE(PMOS_COMMAND_BUFFER cmdBuffer) const
     {
         ENCODE_FUNC_CALL();
 
@@ -1043,60 +1104,6 @@ namespace encode
         uint32_t                   offSet          = 0;
         PCODECHAL_NAL_UNIT_PARAMS *ppNalUnitParams = (CODECHAL_NAL_UNIT_PARAMS **)m_basicFeature->m_nalUnitParams;
         PBSBuffer                  pBsBuffer       = &(m_basicFeature->m_bsBuffer);
-
-        if (m_basicFeature->m_curNumSlices == 0)
-        {
-            uint32_t maxBytesInPakInsertObjCmd = ((2 << 11) - 1) * 4;  // 12 bits for DwordLength field in PAK_INSERT_OBJ cmd
-            m_1stPakInsertObjectCmdSize        = 0;
-
-            for (auto i = 0; i < HEVC_MAX_NAL_UNIT_TYPE; i++)
-            {
-                uint32_t nalUnitPosiSize   = ppNalUnitParams[i]->uiSize;
-                uint32_t nalUnitPosiOffset = ppNalUnitParams[i]->uiOffset;
-
-                while (nalUnitPosiSize > 0)
-                {
-                    bitSize = MOS_MIN(maxBytesInPakInsertObjCmd * 8, nalUnitPosiSize * 8);
-                    offSet  = nalUnitPosiOffset;
-
-                    params = {};
-
-                    params.dwPadding                 = (MOS_ALIGN_CEIL((bitSize + 7) >> 3, sizeof(uint32_t))) / sizeof(uint32_t);
-                    params.bEmulationByteBitsInsert  = ppNalUnitParams[i]->bInsertEmulationBytes;
-                    params.uiSkipEmulationCheckCount = ppNalUnitParams[i]->uiSkipEmulationCheckCount;
-                    params.dataBitsInLastDw          = bitSize % 32;
-                    if (params.dataBitsInLastDw == 0)
-                    {
-                        params.dataBitsInLastDw = 32;
-                    }
-
-                    if (nalUnitPosiSize > maxBytesInPakInsertObjCmd)
-                    {
-                        nalUnitPosiSize -= maxBytesInPakInsertObjCmd;
-                        nalUnitPosiOffset += maxBytesInPakInsertObjCmd;
-                    }
-                    else
-                    {
-                        nalUnitPosiSize = 0;
-                    }
-
-                    cmdBufOffset = cmdBuffer->iOffset;
-                    m_hcpItf->MHW_ADDCMD_F(HCP_PAK_INSERT_OBJECT)(cmdBuffer);
-
-                    uint32_t byteSize = (bitSize + 7) >> 3;
-                    if (byteSize)
-                    {
-                        MHW_MI_CHK_NULL(pBsBuffer);
-                        MHW_MI_CHK_NULL(pBsBuffer->pBase);
-                        uint8_t *data = (uint8_t *)(pBsBuffer->pBase + offSet);
-                        MHW_MI_CHK_STATUS(Mhw_AddCommandCmdOrBB(m_osInterface, cmdBuffer, nullptr, data, byteSize));
-                    }
-                    m_1stPakInsertObjectCmdSize += (cmdBuffer->iOffset - cmdBufOffset);
-                }
-            }
-            // 1st PakInsertObject cmd is not always inserted for each slice
-            m_basicFeature->m_vdencBatchBufferPerSliceVarSize[m_basicFeature->m_curNumSlices] += m_1stPakInsertObjectCmdSize;
-        }
 
         params = {};
         // Insert slice header
@@ -1246,18 +1253,16 @@ namespace encode
                 tcbrcQualityBoostFromScenario = 0;
             }
 
+#if (_DEBUG || _RELEASE_INTERNAL)
             //tcbrc mode override by reg key
             uint8_t tcbrcQualityBoostFromRegkey = 3;
-            auto osInterface = m_hwInterface->GetOsInterface();
-            ENCODE_CHK_NULL_RETURN(osInterface);
-#if (_DEBUG || _RELEASE_INTERNAL)
+
             MediaUserSetting::Value outValue;
             ReadUserSetting(m_userSettingPtr,
                 outValue,
                 "TCBRC Quality Boost Mode",
                 MediaUserSetting::Group::Sequence);
             tcbrcQualityBoostFromRegkey = static_cast<uint8_t>(outValue.Get<int32_t>());
-#endif
             //if FrameSizeBoostForSceneChange is set by regkey, then override it
             if (tcbrcQualityBoostFromRegkey == 0 || tcbrcQualityBoostFromRegkey == 1 || tcbrcQualityBoostFromRegkey == 2)
             {
@@ -1265,6 +1270,7 @@ namespace encode
                 ENCODE_VERBOSEMESSAGE("TCBRC FrameSizeBoostForSceneChange is override by regkey!");
             }
             else
+#endif
             {
                 m_tcbrcQualityBoost = tcbrcQualityBoostFromScenario;
             }

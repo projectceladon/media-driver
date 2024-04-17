@@ -337,17 +337,7 @@ protected:
             CODECHAL_MEDIA_STATE_TYPE mediaState,
             uint32_t                  width_in,
             uint32_t                  height_in)>
-        m_dumpYUVSurface_fast_dump;
-
-    std::function<
-        MOS_STATUS(
-            PMOS_SURFACE              surface,
-            const char               *attrName,
-            const char               *surfName,
-            CODECHAL_MEDIA_STATE_TYPE mediaState,
-            uint32_t                  width_in,
-            uint32_t                  height_in)>
-        m_dumpYUVSurface_legacy_dump;
+        m_dumpYUVSurfaceLegacy;
 
     std::function<
         MOS_STATUS(
@@ -367,17 +357,22 @@ protected:
             uint32_t                  size,
             uint32_t                  offset,
             CODECHAL_MEDIA_STATE_TYPE mediaState)>
-        m_dumpBuffer_fast_dump;
+        m_dumpBufferLegacy;
 
-    std::function<
-        MOS_STATUS(
-            PMOS_RESOURCE             resource,
-            const char               *attrName,
-            const char               *bufferName,
-            uint32_t                  size,
-            uint32_t                  offset,
-            CODECHAL_MEDIA_STATE_TYPE mediaState)>
-        m_dumpBuffer_legacy_dump;
+private:
+    MOS_STATUS VDBypassCopyResource(PMOS_RESOURCE src, PMOS_RESOURCE dst);
+    MOS_STATUS AllocateLinearResource(
+        MOS_GFXRES_TYPE eType,
+        uint32_t        dwWidth,
+        uint32_t        dwHeight,
+        MOS_FORMAT      eFormat,
+        PMOS_RESOURCE   pResource,
+        bool            bSystemMem = false,
+        bool            bLockable = false) const;
+    MOS_STATUS FillResourceMemory(
+        MOS_RESOURCE &sResource,
+        uint32_t      uiSize,
+        uint8_t       ucValue);
 
 MEDIA_CLASS_DEFINE_END(CodechalDebugInterface)
 };

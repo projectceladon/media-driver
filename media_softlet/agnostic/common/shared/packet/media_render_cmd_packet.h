@@ -28,6 +28,7 @@
 #define __MEDIA_RENDER_CMD_PACKET_H__
 
 #include <stdint.h>
+#include <set>
 #include "hal_kerneldll_next.h"
 #include "media_cmd_packet.h"
 #include "renderhal.h"
@@ -57,6 +58,15 @@ class MhwCpInterface;
 #define RENDER_PACKET_ASSERT(_expr) \
     MOS_ASSERT(MOS_COMPONENT_HW, 0, _expr)
 
+#define RENDER_PACKET_CHK_NULL_WITH_DESTROY_RETURN_VALUE(_ptr, destroyFunction) \
+    MOS_CHK_COND_WITH_DESTROY_RETURN_VALUE(MOS_COMPONENT_HW, 0, (nullptr == _ptr), destroyFunction, MOS_STATUS_NULL_POINTER, "error nullptr!")
+
+#define RENDER_PACKET_CHK_STATUS_WITH_DESTROY_RETURN_VALUE(_stmt, destroyFunction)                                                  \
+{                                                                                                                                   \
+    MOS_STATUS sts = (MOS_STATUS)(_stmt);                                                                                           \
+    MOS_CHK_COND_WITH_DESTROY_RETURN_VALUE(MOS_COMPONENT_HW, 0, (MOS_STATUS_SUCCESS != sts), destroyFunction, sts, "error status!") \
+}
+
 //!
 //! \brief Initialize MHW Kernel Param struct for loading Kernel
 //!
@@ -82,8 +92,10 @@ typedef struct _KERNEL_WALKER_PARAMS
     RECT                                alignedRect;
     bool                                isVerticalPattern;
     bool                                bSyncFlag;
+    bool                                bFlushL1;
     bool                                isGroupStartInvolvedInGroupSize;    // true if group start need be involved in the group size.
     bool                                calculateBlockXYByAlignedRect;      // true if iBlocksX/iBlocksY is calculated by alignedRect in RenderCmdPacket instead of kernel object.
+    bool                                forcePreferredSLMZero;              // true if preferredSLM need force to 0.
 }KERNEL_WALKER_PARAMS, * PKERNEL_WALKER_PARAMS;
 
 typedef struct _KERNEL_PACKET_RENDER_DATA
@@ -177,6 +189,16 @@ public:
         PRENDERHAL_SURFACE_STATE_ENTRY *surfaceEntries      = nullptr,
         uint32_t *                      numOfSurfaceEntries = nullptr);
 
+    virtual MOS_STATUS SetSurfaceForHwAccess(
+        PMOS_SURFACE                    surface,
+        PRENDERHAL_SURFACE_NEXT         pRenderSurface,
+        PRENDERHAL_SURFACE_STATE_PARAMS pSurfaceParams,
+        std::set<uint32_t>             &bindingIndexes,
+        bool                            bWrite,
+        uint32_t                        capcityOfSurfaceEntries = 0,
+        PRENDERHAL_SURFACE_STATE_ENTRY *surfaceEntries      = nullptr,
+        uint32_t                       *numOfSurfaceEntries = nullptr);
+
     virtual uint32_t SetBufferForHwAccess(
         PMOS_SURFACE                    buffer,
         PRENDERHAL_SURFACE_NEXT         pRenderSurface,
@@ -188,6 +210,13 @@ public:
         PRENDERHAL_SURFACE_NEXT         pRenderSurface,
         PRENDERHAL_SURFACE_STATE_PARAMS pSurfaceParams,
         uint32_t                        bindingIndex,
+        bool                            bWrite);
+    
+    virtual MOS_STATUS SetBufferForHwAccess(
+        PMOS_SURFACE                    buffer,
+        PRENDERHAL_SURFACE_NEXT         pRenderSurface,
+        PRENDERHAL_SURFACE_STATE_PARAMS pSurfaceParams,
+        std::set<uint32_t>             &bindingIndexes,
         bool                            bWrite);
 
     virtual uint32_t SetBufferForHwAccess(
@@ -218,6 +247,14 @@ public:
     bool m_isLargeSurfaceStateNeeded = false;
 
     bool m_isMultiKernelOneMediaState = false;
+
+#if (_DEBUG || _RELEASE_INTERNAL)
+    virtual MOS_STATUS StallBatchBuffer(
+        PMOS_COMMAND_BUFFER cmdBuffer)
+    {
+        return MOS_STATUS_SUCCESS;
+    }
+#endif
 
 protected:
     // Step5: Load Kernel

@@ -118,6 +118,7 @@ MOS_STATUS GraphicsResourceNext::Dump(OsContextNext* osContextPtr, uint32_t over
         if (hFile != nullptr)
         {
             MosUtilities::MosCloseHandle(hFile);
+            hFile = nullptr;
         }
         return eStatus;
     }
@@ -132,6 +133,7 @@ MOS_STATUS GraphicsResourceNext::Dump(OsContextNext* osContextPtr, uint32_t over
         if (hFile != nullptr)
         {
             MosUtilities::MosCloseHandle(hFile);
+            hFile = nullptr;
         }
         return MOS_STATUS_UNKNOWN;
     }
@@ -147,10 +149,10 @@ MOS_STATUS GraphicsResourceNext::Dump(OsContextNext* osContextPtr, uint32_t over
         nullptr)) != MOS_STATUS_SUCCESS)
     {
         MOS_OS_ASSERTMESSAGE("Failed to write to file '%s'.", sPath);
-        eStatus = MOS_STATUS_FILE_WRITE_FAILED;
         if (hFile != nullptr)
         {
             MosUtilities::MosCloseHandle(hFile);
+            hFile = nullptr;
         }
     }
 
@@ -163,6 +165,7 @@ MOS_STATUS GraphicsResourceNext::Dump(OsContextNext* osContextPtr, uint32_t over
     if (hFile != nullptr)
     {
         MosUtilities::MosCloseHandle(hFile);
+        hFile = nullptr;
     }
 
     return eStatus;

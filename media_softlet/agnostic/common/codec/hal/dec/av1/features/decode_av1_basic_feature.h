@@ -122,7 +122,6 @@ namespace decode
         CodecAv1SegmentsParams          *m_segmentParams           = nullptr;      //!< Pointer to AV1 segments parameter
         CodecAv1TileParams              *m_av1TileParams           = nullptr;      //!< Pointer to AV1 tiles parameter
 
-        PMOS_BUFFER                     m_tmpCdfBuffers[4]         = {};           //!< 4 temporal cdf table buffers for later use.
         PMOS_BUFFER                     m_defaultCdfBuffers[4]     = {};           //!< 4 default frame contexts per base_qindex
         PMOS_BUFFER                     m_defaultCdfBufferInUse    = nullptr;      //!< default cdf table used base on current base_qindex
         uint8_t                         m_curCoeffCdfQCtx          = 0;            //!< Coeff CDF Q context ID for current frame
@@ -156,7 +155,7 @@ namespace decode
         MOS_STATUS SetSegmentData(CodecAv1PicParams &picParams);
         MOS_STATUS GetDecodeTargetFormat(MOS_FORMAT &format);
         virtual MOS_STATUS CheckProfileAndSubsampling();
-
+        MOS_STATUS CheckBitdepth();
         //!
         //! \brief    Calculate global motion params
         //! \return   MOS_STATUS

@@ -68,11 +68,6 @@ MOS_STATUS GraphicsResourceSpecificNext::Allocate(OsContextNext* osContextPtr, C
     }
 
     OsContextSpecificNext *pOsContextSpecific = static_cast<OsContextSpecificNext *>(osContextPtr);
-    if (pOsContextSpecific == nullptr)
-    {
-        MOS_OS_ASSERTMESSAGE("Convert OsContextSpecific failed.");
-        return MOS_STATUS_INVALID_HANDLE;
-    }
 
     GMM_CLIENT_CONTEXT    *gmmClientContext = pOsContextSpecific->GetGmmClientContext();
     if (nullptr == gmmClientContext)
@@ -82,7 +77,7 @@ MOS_STATUS GraphicsResourceSpecificNext::Allocate(OsContextNext* osContextPtr, C
     }
 
     MOS_STATUS         status          = MOS_STATUS_SUCCESS;
-    uint32_t           tileFormatLinux = I915_TILING_NONE;
+    uint32_t           tileFormatLinux = TILING_NONE;
     uint32_t           alignedHeight   = params.m_height;
     uint32_t           bufHeight       = params.m_height;
     GMM_RESOURCE_TYPE  resourceType    = RESOURCE_2D;
@@ -134,7 +129,7 @@ MOS_STATUS GraphicsResourceSpecificNext::Allocate(OsContextNext* osContextPtr, C
     switch (tileformat)
     {
         case MOS_TILE_Y:
-            tileFormatLinux               = I915_TILING_Y;
+            tileFormatLinux               = TILING_Y;
             if (params.m_isCompressible                                            &&
                 MEDIA_IS_SKU(pOsContextSpecific->GetSkuTable(), FtrE2ECompression) &&
                 MEDIA_IS_SKU(pOsContextSpecific->GetSkuTable(), FtrCompressibleSurfaceDefault))
@@ -165,11 +160,11 @@ MOS_STATUS GraphicsResourceSpecificNext::Allocate(OsContextNext* osContextPtr, C
             break;
         case MOS_TILE_X:
             gmmParams.Flags.Info.TiledX   = true;
-            tileFormatLinux               = I915_TILING_X;
+            tileFormatLinux               = TILING_X;
             break;
         default:
             gmmParams.Flags.Info.Linear   = true;
-            tileFormatLinux               = I915_TILING_NONE;
+            tileFormatLinux               = TILING_NONE;
     }
 
     if (nullptr != params.m_pSystemMemory)
@@ -212,19 +207,19 @@ MOS_STATUS GraphicsResourceSpecificNext::Allocate(OsContextNext* osContextPtr, C
     {
         case GMM_TILED_X:
             tileformat      = MOS_TILE_X;
-            tileFormatLinux = I915_TILING_X;
+            tileFormatLinux = TILING_X;
             break;
         case GMM_TILED_Y:
             tileformat      = MOS_TILE_Y;
-            tileFormatLinux = I915_TILING_Y;
+            tileFormatLinux = TILING_Y;
             break;
         case GMM_NOT_TILED:
             tileformat      = MOS_TILE_LINEAR;
-            tileFormatLinux = I915_TILING_NONE;
+            tileFormatLinux = TILING_NONE;
             break;
         default:
             tileformat      = MOS_TILE_Y;
-            tileFormatLinux = I915_TILING_Y;
+            tileFormatLinux = TILING_Y;
             break;
     }
 
@@ -251,7 +246,6 @@ MOS_STATUS GraphicsResourceSpecificNext::Allocate(OsContextNext* osContextPtr, C
     uint32_t bufPitch        = GFX_ULONG_CAST(gmmResourceInfoPtr->GetRenderPitch());
     uint32_t bufSize         = GFX_ULONG_CAST(gmmResourceInfoPtr->GetSizeSurface());
     bufHeight                = gmmResourceInfoPtr->GetBaseHeight();
-    unsigned long linuxPitch = 0;
     MOS_LINUX_BO* boPtr      = nullptr;
 
     char bufName[m_maxBufNameLength];
@@ -263,33 +257,42 @@ MOS_STATUS GraphicsResourceSpecificNext::Allocate(OsContextNext* osContextPtr, C
     MOS_TraceEventExt(EVENT_RESOURCE_ALLOCATE, EVENT_TYPE_START, nullptr, 0, nullptr, 0);
     if (nullptr != params.m_pSystemMemory)
     {
-        boPtr = mos_bo_alloc_userptr(pOsContextSpecific->m_bufmgr,
-                                      bufName,
-                                      params.m_pSystemMemory,
-                                      tileFormatLinux,
-                                      bufPitch,
-                                      bufSize,
-                                      0);
+        struct mos_drm_bo_alloc_userptr alloc_uptr;
+        alloc_uptr.name = bufName;
+        alloc_uptr.addr = params.m_pSystemMemory;
+        alloc_uptr.tiling_mode = tileFormatLinux;
+        alloc_uptr.stride = bufPitch;
+        alloc_uptr.size = bufSize;
+        alloc_uptr.pat_index = patIndex;
+
+        boPtr = mos_bo_alloc_userptr(pOsContextSpecific->m_bufmgr, &alloc_uptr);
     }
     // Only Linear and Y TILE supported
-    else if (tileFormatLinux == I915_TILING_NONE)
+    else if (tileFormatLinux == TILING_NONE)
     {
-        boPtr = mos_bo_alloc(pOsContextSpecific->m_bufmgr, bufName, bufSize, 4096, mem_type, patIndex, isCpuCacheable);
+        struct mos_drm_bo_alloc alloc;
+        alloc.name = bufName;
+        alloc.size = bufSize;
+        alloc.alignment = 4096;
+        alloc.ext.mem_type = mem_type;
+        alloc.ext.pat_index = patIndex;
+        alloc.ext.cpu_cacheable = isCpuCacheable;
+        boPtr = mos_bo_alloc(pOsContextSpecific->m_bufmgr, &alloc);
     }
     else
     {
-        boPtr = mos_bo_alloc_tiled(pOsContextSpecific->m_bufmgr,
-                        bufName,
-                        bufPitch,
-                        bufSize/bufPitch,
-                        1,
-                        &tileFormatLinux,
-                        &linuxPitch,
-                        0,
-                        mem_type,
-                        patIndex,
-                        isCpuCacheable);
-        bufPitch = (uint32_t)linuxPitch;
+        struct mos_drm_bo_alloc_tiled alloc_tiled;
+        alloc_tiled.name = bufName;
+        alloc_tiled.x = bufPitch;
+        alloc_tiled.y = bufSize/bufPitch;
+        alloc_tiled.cpp = 1;
+        alloc_tiled.ext.tiling_mode = tileFormatLinux;
+        alloc_tiled.ext.mem_type = mem_type;
+        alloc_tiled.ext.pat_index = patIndex;
+        alloc_tiled.ext.cpu_cacheable = isCpuCacheable;
+
+        boPtr = mos_bo_alloc_tiled(pOsContextSpecific->m_bufmgr, &alloc_tiled);
+        bufPitch = (uint32_t)alloc_tiled.pitch;
     }
 
     m_mapped = false;
@@ -419,6 +422,7 @@ MOS_STATUS GraphicsResourceSpecificNext::ConvertToMosResource(MOS_RESOURCE* pMos
     pMosResource->Format   = m_format;
     pMosResource->iWidth   = m_width;
     pMosResource->iHeight  = m_height;
+    pMosResource->iSize    = m_size;
     pMosResource->iPitch   = m_pitch;
     pMosResource->iDepth   = m_depth;
     pMosResource->TileType = m_tileType;
@@ -631,10 +635,9 @@ MOS_STATUS GraphicsResourceSpecificNext::AllocateExternalResource(
     const char *bufname = params->pBufName;;
     int32_t iSize = 0;
     int32_t iPitch = 0;
-    unsigned long ulPitch = 0;
     MOS_LINUX_BO *bo = nullptr;
     MOS_TILE_TYPE tileformat = params->TileType;
-    uint32_t tileformat_linux = I915_TILING_NONE;
+    uint32_t tileformat_linux = TILING_NONE;
     int32_t iHeight = params->dwHeight;
     int32_t iAlignedHeight = 0;
     GMM_RESCREATE_PARAMS gmmParams;
@@ -727,15 +730,15 @@ MOS_STATUS GraphicsResourceSpecificNext::AllocateExternalResource(
     {
     case MOS_TILE_Y:
         gmmParams.Flags.Gpu.MMC = params->bIsCompressible;
-        tileformat_linux        = I915_TILING_Y;
+        tileformat_linux        = TILING_Y;
         break;
     case MOS_TILE_X:
         gmmParams.Flags.Info.TiledX = true;
-        tileformat_linux            = I915_TILING_X;
+        tileformat_linux            = TILING_X;
         break;
     default:
         gmmParams.Flags.Info.Linear = true;
-        tileformat_linux            = I915_TILING_NONE;
+        tileformat_linux            = TILING_NONE;
     }
     gmmParams.Flags.Info.LocalOnly = MEDIA_IS_SKU(&perStreamParameters->m_skuTable, FtrLocalMemory);
 
@@ -748,19 +751,19 @@ MOS_STATUS GraphicsResourceSpecificNext::AllocateExternalResource(
     {
     case GMM_TILED_X:
         tileformat       = MOS_TILE_X;
-        tileformat_linux = I915_TILING_X;
+        tileformat_linux = TILING_X;
         break;
     case GMM_TILED_Y:
         tileformat       = MOS_TILE_Y;
-        tileformat_linux = I915_TILING_Y;
+        tileformat_linux = TILING_Y;
         break;
     case GMM_NOT_TILED:
         tileformat       = MOS_TILE_LINEAR;
-        tileformat_linux = I915_TILING_NONE;
+        tileformat_linux = TILING_NONE;
         break;
     default:
         tileformat       = MOS_TILE_Y;
-        tileformat_linux = I915_TILING_Y;
+        tileformat_linux = TILING_Y;
         break;
     }
 
@@ -777,24 +780,31 @@ MOS_STATUS GraphicsResourceSpecificNext::AllocateExternalResource(
     isCpuCacheable = gmmResourceInfo->GetResFlags().Info.Cacheable;
 
     // Only Linear and Y TILE supported
-    if (tileformat_linux == I915_TILING_NONE)
+    if (tileformat_linux == TILING_NONE)
     {
-        bo = mos_bo_alloc(perStreamParameters->bufmgr, bufname, iSize, 4096, MOS_MEMPOOL_VIDEOMEMORY, patIndex, isCpuCacheable);
+        struct mos_drm_bo_alloc alloc;
+        alloc.name = bufname;
+        alloc.size = iSize;
+        alloc.alignment = 4096;
+        alloc.ext.mem_type = MOS_MEMPOOL_VIDEOMEMORY;
+        alloc.ext.pat_index = patIndex;
+        alloc.ext.cpu_cacheable = isCpuCacheable;
+        bo = mos_bo_alloc(perStreamParameters->bufmgr, &alloc);
     }
     else
     {
-        bo = mos_bo_alloc_tiled(perStreamParameters->bufmgr,
-                        bufname,
-                        iPitch,
-                        iSize / iPitch,
-                        1,
-                        &tileformat_linux,
-                        &ulPitch,
-                        0,
-                        MOS_MEMPOOL_VIDEOMEMORY,
-                        patIndex,
-                        isCpuCacheable);
-        iPitch = (int32_t)ulPitch;
+        struct mos_drm_bo_alloc_tiled alloc_tiled;
+        alloc_tiled.name = bufname;
+        alloc_tiled.x = iPitch;
+        alloc_tiled.y = iSize / iPitch;
+        alloc_tiled.cpp = 1;
+        alloc_tiled.ext.tiling_mode = tileformat_linux;
+        alloc_tiled.ext.mem_type = MOS_MEMPOOL_VIDEOMEMORY;
+        alloc_tiled.ext.pat_index = patIndex;
+        alloc_tiled.ext.cpu_cacheable = isCpuCacheable;
+
+        bo = mos_bo_alloc_tiled(perStreamParameters->bufmgr, &alloc_tiled);
+        iPitch = (int32_t)alloc_tiled.pitch;
     }
 
     resource->bMapped = false;
@@ -931,7 +941,12 @@ void* GraphicsResourceSpecificNext::LockExternalResource(
             resource->pGmmResInfo->IsMediaMemoryCompressed(0)))
         {            
             MosDecompression   *mosDecompression = nullptr;
-            MosInterface::GetMosDecompressionFromStreamState(streamState, mosDecompression);
+            MOS_STATUS status = MosInterface::GetMosDecompressionFromStreamState(streamState, mosDecompression);
+            if (status != MOS_STATUS_SUCCESS)
+            {
+                MOS_OS_ASSERTMESSAGE("Get Mos Decompression From StreamState failed, skip lock");
+                return nullptr;
+            }
             if (nullptr == mosDecompression)
             {
                 MOS_OS_ASSERTMESSAGE("mosDecompression is NULL.");

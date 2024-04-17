@@ -1,0 +1,10 @@
+prefix=/usr
+execprefix=${prefix}
+includedir=/usr/include/igdgmm
+libdir=/usr/lib/x86_64-linux-gnu
+
+Name: igdgmm
+Description: Intel(R) Graphics Memory Management Library
+Version: 12.3.0
+Cflags: -DGMM_LIB_DLL -I${includedir} -I${includedir}/GmmLib -I${includedir}/GmmLib/inc -I${includedir}/inc -I${includedir}/inc/common -I${includedir}/util
+Libs: -L${libdir} -ligdgmm

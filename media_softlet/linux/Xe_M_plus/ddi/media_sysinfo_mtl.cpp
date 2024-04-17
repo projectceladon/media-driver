@@ -1,6 +1,6 @@
 /*===================== begin_copyright_notice ==================================
 
-Copyright (c) 2022, Intel Corporation
+Copyright (c) 2023, Intel Corporation
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the "Software"),
@@ -196,8 +196,35 @@ static bool mtlDevice7d45 = DeviceInfoFactory<GfxDeviceInfo>::
 static bool mtlDevice7d60 = DeviceInfoFactory<GfxDeviceInfo>::
     RegisterDevice(0x7D60, &mtlInfo);
 
-static bool mtlDevice7d57 = DeviceInfoFactory<GfxDeviceInfo>::
-    RegisterDevice(0x7D57, &mtlInfo);
-    
-static bool mtlDevice7dD7 = DeviceInfoFactory<GfxDeviceInfo>::
-    RegisterDevice(0x7DD7, &mtlInfo);
+static struct GfxDeviceInfo arlInfo = {
+    .platformType  = PLATFORM_MOBILE,
+    .productFamily = (uint32_t)IGFX_ARROWLAKE,
+    .displayFamily = IGFX_UNKNOWN_CORE,
+    .renderFamily  = IGFX_GEN12_CORE,
+    .mediaFamily   = IGFX_UNKNOWN_CORE,
+    .eGTType       = GTTYPE_GT2,
+    .L3CacheSizeInKb = 0,
+    .L3BankCount   = 0,
+    .EUCount       = 0,
+    .SliceCount    = 0,
+    .SubSliceCount = 0,
+    .MaxEuPerSubSlice = 0,
+    .isLCIA        = 0,
+    .hasLLC        = 0,
+    .hasERAM       = 0,
+    .InitMediaSysInfo = InitMtlMediaSysInfo,
+    .InitShadowSku    = InitMtlShadowSku,
+    .InitShadowWa     = InitMtlShadowWa,
+};
+
+static bool arlsDevice7d67 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0x7D67, &arlInfo);
+
+static bool arlhDevice7d51 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0x7D51, &arlInfo);
+
+static bool arlhDevice7dd1 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0x7DD1, &arlInfo);
+
+static bool arlhDevice7d41 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0x7D41, &arlInfo);

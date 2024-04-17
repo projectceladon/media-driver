@@ -377,7 +377,6 @@ MOS_STATUS Vp9EncodeTile::SetTileData(void *params)
 
             cuLevelStreamoutOffset    += (m_tileData[idx].tileWidthInMinCbMinus1 + 1) * (m_tileData[idx].tileHeightInMinCbMinus1 + 1);
             sliceSizeStreamoutOffset  += (m_tileData[idx].tileWidthInMinCbMinus1 + 1) * (m_tileData[idx].tileHeightInMinCbMinus1 + 1);
-            sseRowstoreOffset         += (numLcuInTile * basicFeature->m_sizeOfSseSrcPixelRowStoreBufferPerLcu) / CODECHAL_CACHELINE_SIZE;
             bitstreamByteOffset       += bitstreamSizePerTile;
             numLcusInTiles            += numLcuInTile;
 
@@ -390,9 +389,6 @@ MOS_STATUS Vp9EncodeTile::SetTileData(void *params)
             // DW12
             m_tileData[idx].vp9ProbabilityCounterStreamoutOffset = ((idx * m_probabilityCounterBufferSize) + (CODECHAL_CACHELINE_SIZE - 1)) / CODECHAL_CACHELINE_SIZE;
         }
-        // Same row store buffer for different tile rows
-        saoRowstoreOffset = 0;
-        sseRowstoreOffset = 0;
     }
 
     return eStatus;
@@ -660,7 +656,10 @@ MHW_SETPAR_DECL_SRC(VDENC_HEVC_VP9_TILE_SLICE_STATE, Vp9EncodeTile)
 {
     ENCODE_FUNC_CALL();
 
-    auto picParams        = dynamic_cast<Vp9BasicFeature *>(m_basicFeature)->m_vp9PicParams;
+    auto vp9BasicFeature = dynamic_cast<Vp9BasicFeature *>(m_basicFeature);
+    ENCODE_CHK_NULL_RETURN(vp9BasicFeature);
+    auto picParams       = vp9BasicFeature->m_vp9PicParams;
+    ENCODE_CHK_NULL_RETURN(picParams);
     auto tileCodingParams = m_curTileCodingParams;
     params.ctbSize        = CODEC_VP9_SUPER_BLOCK_WIDTH;
 
@@ -702,7 +701,10 @@ MHW_SETPAR_DECL_SRC(VDENC_WALKER_STATE, Vp9EncodeTile)
 {
     ENCODE_FUNC_CALL();
 
-    auto picParams        = dynamic_cast<Vp9BasicFeature *>(m_basicFeature)->m_vp9PicParams;
+    auto vp9BasicFeature = dynamic_cast<Vp9BasicFeature *>(m_basicFeature);
+    ENCODE_CHK_NULL_RETURN(vp9BasicFeature);
+    auto picParams = vp9BasicFeature->m_vp9PicParams;
+    ENCODE_CHK_NULL_RETURN(picParams);
     auto tileCodingParams = m_curTileCodingParams;
 
     if (!m_enabled)

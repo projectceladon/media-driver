@@ -531,7 +531,7 @@ protected:
     //!
     //! \return   Codehal function
     //!
-    CODECHAL_FUNCTION GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint) override;
+    CODECHAL_FUNCTION GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint, bool bVDEnc) override;
     //!
     //! \brief    Return internal encode mode for given profile and entrypoint
     //!
@@ -557,6 +557,7 @@ private:
     inline bool NeedDisplayFormatSwizzle(DDI_MEDIA_SURFACE *rawSurface)
     {
         if (Media_Format_A8R8G8B8 == rawSurface->format ||
+            Media_Format_X8R8G8B8 == rawSurface->format ||
             Media_Format_B10G10R10A2 == rawSurface->format)
         {
             return true;

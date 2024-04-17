@@ -28,6 +28,7 @@
 #include "mhw_vebox_itf.h"
 #include "mos_os_cp_interface_specific.h"
 #include "media_copy_common.h"
+#include "hal_oca_interface_next.h"
 
 #define SURFACE_DW_UY_OFFSET(pSurface) \
     ((pSurface) != nullptr ? ((pSurface)->UPlaneOffset.iSurfaceOffset - (pSurface)->dwOffset) / (pSurface)->dwPitch + (pSurface)->UPlaneOffset.iYOffset : 0)
@@ -147,20 +148,6 @@ MOS_STATUS VeboxCopyStateNext::CopyMainSurface(PMOS_RESOURCE src, PMOS_RESOURCE 
     VEBOX_COPY_CHK_STATUS_RETURN(m_osInterface->pfnSetGpuContext(m_osInterface, VeboxGpuContext));
 
     m_osInterface->pfnSetPerfTag(m_osInterface, VEBOX_COPY);
-    // Sync on Vebox Input Resource, Ensure the input is ready to be read
-    // Currently, MOS RegisterResourcere cannot sync the 3d resource.
-    // Temporaly, call sync resource to do the sync explicitly.
-    // Sync need be done after switching context.
-    m_osInterface->pfnSyncOnResource(
-        m_osInterface,
-        src,
-        VeboxGpuContext,
-        false);
-    m_osInterface->pfnSyncOnResource(
-        m_osInterface,
-        dst,
-        VeboxGpuContext,
-        false);
 
     // Reset allocation list and house keeping
     m_osInterface->pfnResetOsStates(m_osInterface);
@@ -185,6 +172,8 @@ MOS_STATUS VeboxCopyStateNext::CopyMainSurface(PMOS_RESOURCE src, PMOS_RESOURCE 
     VEBOX_COPY_CHK_STATUS_RETURN(m_osInterface->pfnGetCommandBuffer(m_osInterface, &cmdBuffer, 0));
     VEBOX_COPY_CHK_STATUS_RETURN(InitCommandBuffer(&cmdBuffer));
 
+    HalOcaInterfaceNext::On1stLevelBBStart(cmdBuffer, m_osInterface->pOsContext, m_osInterface->CurrentGpuContextHandle, m_miItf, *m_miItf->GetMmioRegisters());
+
     MediaPerfProfiler* perfProfiler = MediaPerfProfiler::Instance();
     VEBOX_COPY_CHK_NULL_RETURN(perfProfiler);
     VEBOX_COPY_CHK_STATUS_RETURN(perfProfiler->AddPerfCollectStartCmd((void*)this, m_osInterface, m_miItf, &cmdBuffer));
@@ -202,6 +191,8 @@ MOS_STATUS VeboxCopyStateNext::CopyMainSurface(PMOS_RESOURCE src, PMOS_RESOURCE 
         &cmdBuffer,
         &mhwVeboxSurfaceStateCmdParams));
 
+    HalOcaInterfaceNext::OnDispatch(cmdBuffer, *m_osInterface, m_miItf, *m_miItf->GetMmioRegisters());
+
     //---------------------------------
     // Send CMD: Vebox_Tiling_Convert
     //---------------------------------
@@ -209,7 +200,6 @@ MOS_STATUS VeboxCopyStateNext::CopyMainSurface(PMOS_RESOURCE src, PMOS_RESOURCE 
 
     auto& flushDwParams = m_miItf->MHW_GETPAR_F(MI_FLUSH_DW)();
     flushDwParams = {};
-    flushDwParams.pOsResource = (PMOS_RESOURCE)&veboxHeap->DriverResource;
     VEBOX_COPY_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_FLUSH_DW)(&cmdBuffer));
 
     if (!m_osInterface->bEnableKmdMediaFrameTracking && veboxHeap)
@@ -218,9 +208,18 @@ MOS_STATUS VeboxCopyStateNext::CopyMainSurface(PMOS_RESOURCE src, PMOS_RESOURCE 
         flushDwParams.pOsResource = (PMOS_RESOURCE)&veboxHeap->DriverResource;
         flushDwParams.dwResourceOffset = veboxHeap->uiOffsetSync;
         flushDwParams.dwDataDW1 = veboxHeap->dwNextTag;
+
+        auto skuTable = m_osInterface->pfnGetSkuTable(m_osInterface);
+        if (skuTable && MEDIA_IS_SKU(skuTable, FtrEnablePPCFlush))
+        {
+            flushDwParams.bEnablePPCFlush = true;
+        }
         VEBOX_COPY_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_FLUSH_DW)(&cmdBuffer));
     }
     VEBOX_COPY_CHK_STATUS_RETURN(perfProfiler->AddPerfCollectEndCmd((void*)this, m_osInterface, m_miItf, &cmdBuffer));
+
+    HalOcaInterfaceNext::On1stLevelBBEnd(cmdBuffer, *m_osInterface);
+
     VEBOX_COPY_CHK_STATUS_RETURN(m_miItf->AddMiBatchBufferEnd(&cmdBuffer, nullptr));
 
     // Return unused command buffer space to OS
@@ -293,7 +292,7 @@ MOS_STATUS VeboxCopyStateNext::GetResourceInfo(PMOS_SURFACE surface)
     surface->bGMMTileEnabled                                    = resDetails.bGMMTileEnabled;
     surface->bCompressible                                      = resDetails.bCompressible;
     surface->bIsCompressed                                      = resDetails.bIsCompressed;
-    surface->dwOffset                                           = resDetails.RenderOffset.YUV.Y.BaseOffset;
+    surface->dwOffset                                           = resDetails.RenderOffset.YUV.Y.BaseOffset + surface->OsResource.dwOffsetForMono;
     surface->YPlaneOffset.iSurfaceOffset                        = resDetails.RenderOffset.YUV.Y.BaseOffset;
     surface->YPlaneOffset.iXOffset                              = resDetails.RenderOffset.YUV.Y.XOffset;
     surface->YPlaneOffset.iYOffset                              = resDetails.RenderOffset.YUV.Y.YOffset;
@@ -593,7 +592,8 @@ bool VeboxCopyStateNext::IsFormatSupported(PMOS_SURFACE surface)
         surface->Format != Format_A8B8G8R8    &&
         surface->Format != Format_X8R8G8B8    &&
         surface->Format != Format_X8B8G8R8    &&
-        surface->Format != Format_P8)
+        surface->Format != Format_P8 &&
+        surface->Format != Format_Y16U)
     {
         VEBOX_COPY_NORMALMESSAGE("Unsupported Source Format '0x%08x' for VEBOX Decompression.", surface->Format);
         return bRet;

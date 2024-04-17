@@ -1,0 +1,40 @@
+file(REMOVE_RECURSE
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/Xe_M_plus/ddi/media_libva_caps_mtl.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/Xe_M_plus/ddi/media_libva_caps_mtl_base.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/Xe_M_plus/ddi/media_sku_wa_mtl.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/Xe_M_plus/ddi/media_sysinfo_mtl.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/dec/ddi_decode_av1_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/dec/ddi_decode_avc_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/dec/ddi_decode_base_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/dec/ddi_decode_functions.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/dec/ddi_decode_hevc_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/dec/ddi_decode_jpeg_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/dec/ddi_decode_mpeg2_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/dec/ddi_decode_trace_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/dec/ddi_decode_vp8_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/dec/ddi_decode_vp9_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/enc/ddi_encode_av1_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/enc/ddi_encode_avc_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/enc/ddi_encode_base_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/enc/ddi_encode_functions.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/enc/ddi_encode_hevc_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/enc/ddi_encode_jpeg_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/enc/ddi_encode_vp9_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/enc/media_libvpx_vp9_next.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/shared/create_codechal_setting.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/codec/ddi/shared/ddi_codec_base_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/ddi/ddi_media_functions.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/ddi/media_capstable_specific.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/ddi/media_libva_caps_next.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/ddi/media_libva_common_next.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/ddi/media_libva_interface_next.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/ddi/media_libva_util_next.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/vp/ddi/ddi_vp_functions.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/common/vp/ddi/ddi_vp_tools.cpp.o"
+  "CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/__/media_softlet/linux/xe_lpm_plus/ddi/caps_register_specific_xe_lpm_plus.cpp.o"
+)
+
+# Per-language clean rules from dependency scanning.
+foreach(lang CXX)
+  include(CMakeFiles/iHD_drv_video_SOFTLET_DDI.dir/cmake_clean_${lang}.cmake OPTIONAL)
+endforeach()

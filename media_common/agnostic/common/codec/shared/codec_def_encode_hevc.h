@@ -106,18 +106,6 @@ enum HEVC_BRC_FRAME_TYPE
     HEVC_BRC_FRAME_TYPE_INVALID
 };
 
-//!
-//! \enum     HEVC_PYRAMID_LAYER_NUM
-//!
-enum HEVC_PYRAMID_LAYER_NUM
-{
-    HEVC_PYRAMID_LAYER_NUM_0 = 0,
-    HEVC_PYRAMID_LAYER_NUM_1 = 1,
-    HEVC_PYRAMID_LAYER_NUM_2 = 2,
-    HEVC_PYRAMID_LAYER_NUM_3 = 3,
-    HEVC_PYRAMID_LAYER_NUM_4 = 4
-};
-
 typedef enum
 {
     ENCODE_HEVC_BIT_DEPTH_8     = 0,
@@ -501,7 +489,9 @@ typedef struct _CODEC_HEVC_ENCODE_SEQUENCE_PARAMS
             uint32_t    RGBEncodingEnable                   : 1;
             uint32_t    PrimaryChannelForRGBEncoding        : 2;
             uint32_t    SecondaryChannelForRGBEncoding      : 2;
-            uint32_t                                        : 15;  // [0]
+            uint32_t    RGBInputStudioRange                 : 1;
+            uint32_t    ConvertedYUVStudioRange             : 1;
+            uint32_t                                        : 13;  // [0]
         };
         uint32_t    EncodeTools;
     };

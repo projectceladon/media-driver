@@ -1061,14 +1061,14 @@ MOS_STATUS CodechalEncoderState::Initialize(
     // Set Vdbox index in use
     m_vdboxIndex = (m_videoGpuNode == MOS_GPU_NODE_VIDEO2)? MHW_VDBOX_NODE_2 : MHW_VDBOX_NODE_1;
 
+    if (!m_feiEnable)
+    {
+        eStatus = AllocateMDFResources();
+    }
+
     if (eStatus != MOS_STATUS_SUCCESS)
     {
         Destroy();
-    }
-
-    if (!m_feiEnable)
-    {
-        CODECHAL_ENCODE_CHK_STATUS_RETURN(AllocateMDFResources());
     }
 
     return eStatus;
@@ -1150,7 +1150,7 @@ MOS_STATUS CodechalEncoderState::AddKernelMdf(
     CODECHAL_ENCODE_CHK_STATUS_RETURN(task->AddKernel(kernel));
     if (isEnqueue)
     {
-        queue->Enqueue(task, event);
+        CODECHAL_ENCODE_CHK_STATUS_RETURN(queue->Enqueue(task, event));
         task->Reset();
     }
     else
@@ -3248,7 +3248,7 @@ MOS_STATUS CodechalEncoderState::EndStatusReport(
         }
     }
 
-    MHW_MI_STORE_DATA_PARAMS storeDataParams;
+    MHW_MI_STORE_DATA_PARAMS storeDataParams = {};
     uint32_t offset = 0;
     if (m_osInterface->pfnGetGpuContext(m_osInterface) == m_renderContext)
     {
@@ -3973,31 +3973,14 @@ MOS_STATUS CodechalEncoderState::ReadCounterValue(uint16_t index, EncodeStatusRe
 
     if (m_hwInterface->GetCpInterface()->IsHwCounterIncrement(m_osInterface))
     {
-        if(MEDIA_IS_WA(m_waTable, WaReadCtrNounceRegister))
+        if (Mos_ResourceIsNull(&m_resHwCount))
         {
-            //Report counter from register
-            CODECHAL_ENCODE_CHK_STATUS_RETURN(
-                m_osInterface->osCpInterface->ReadCtrNounceRegister(
-                    true,
-                    (uint32_t *)&m_regHwCount[index]));
-            address2Counter = (uint64_t *)&m_regHwCount[index];
-            CODECHAL_ENCODE_NORMALMESSAGE("MMIO returns end ctr is %llx", *address2Counter);
-            CODECHAL_ENCODE_NORMALMESSAGE("bitstream size = %d.", encodeStatusReport->bitstreamSize);
-
-            // Here gets the end counter of current bit stream, which should minus counter increment.
-            *address2Counter = *address2Counter - (((encodeStatusReport->bitstreamSize + 63) >> 6) << 2);
+            CODECHAL_ENCODE_ASSERTMESSAGE("m_resHwCount is not allocated");
+            return MOS_STATUS_NULL_POINTER;
         }
-        else
-        {
-            if (Mos_ResourceIsNull(&m_resHwCount))
-            {
-                CODECHAL_ENCODE_ASSERTMESSAGE("m_resHwCount is not allocated");
-                return MOS_STATUS_NULL_POINTER;
-            }
 
-            //Report HW counter by command output resource
-            address2Counter = (uint64_t *)(((char *)(m_dataHwCount)) + (index * sizeof(HwCounter)));
-        }
+        //Report HW counter by command output resource
+        address2Counter = (uint64_t *)(((char *)(m_dataHwCount)) + (index * sizeof(HwCounter)));
     }
     else
     {
@@ -4132,7 +4115,7 @@ MOS_STATUS CodechalEncoderState::GetStatusReport(
                 m_statusReportDebugInterface->m_bufferDumpFrameNum = encodeStatus->dwStoredData;
             )
 
-            // to be discussed, how to identify whether huc invloved in pipeline
+            // to be discussed, how to identify whether huc involved in pipeline
             if (!m_swBrcMode && m_vdencEnabled && m_vdencBrcEnabled && (m_standard == CODECHAL_HEVC || m_standard == CODECHAL_AVC || m_standard == CODECHAL_VP9))
             {
                 MOS_USER_FEATURE_VALUE_WRITE_DATA userFeatureWriteData;

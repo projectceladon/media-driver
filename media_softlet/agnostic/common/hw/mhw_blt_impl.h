@@ -170,7 +170,7 @@ public:
         ResourceParams.presResource    = params.pSrcOsResource;
         ResourceParams.pdwCmd          = &(cmd.DW8_9.Value[0]);
         ResourceParams.dwLocationInCmd = 8;
-        ResourceParams.bIsWritable     = true;
+        ResourceParams.bIsWritable     = false;
 
         MHW_CHK_STATUS_RETURN(AddResourceToCmd(
             this->m_osItf,
@@ -219,6 +219,19 @@ public:
         MHW_CHK_NULL_RETURN(this->m_currentCmdBuf);
         MHW_CHK_NULL_RETURN(this->m_osItf);
 
+        // mmc
+        MOS_MEMCOMP_STATE srcMmcModel          = MOS_MEMCOMP_DISABLED;
+        MOS_MEMCOMP_STATE dstMmcModel          = MOS_MEMCOMP_DISABLED;
+        GMM_RESOURCE_FLAG inputFlags           = pSrcGmmResInfo->GetResFlags();
+        GMM_RESOURCE_FLAG outFlags             = pDstGmmResInfo->GetResFlags();
+        MCPY_CHK_STATUS_RETURN(this->m_osItf->pfnGetMemoryCompressionMode(this->m_osItf, params.pSrcOsResource, (PMOS_MEMCOMP_STATE) & (srcMmcModel)));
+        MCPY_CHK_STATUS_RETURN(this->m_osItf->pfnGetMemoryCompressionMode(this->m_osItf, params.pDstOsResource, (PMOS_MEMCOMP_STATE) & (dstMmcModel)));
+        
+        uint32_t srcQPitch = pSrcGmmResInfo->GetQPitch();
+        uint32_t dstQPitch = pDstGmmResInfo->GetQPitch();
+        GMM_RESOURCE_TYPE   dstResType = pDstGmmResInfo->GetResourceType();
+        GMM_RESOURCE_TYPE   srcResType = pSrcGmmResInfo->GetResourceType();
+
         uint32_t dstSampleNum        = pDstGmmResInfo->GetNumSamples();
 
         cmd.DW0.InstructionTargetOpcode = 0x41;
@@ -228,9 +241,7 @@ public:
             this->m_osItf->pfnCachePolicyGetMemoryObject(MOS_GMM_RESOURCE_USAGE_BLT_DESTINATION,
                                                          m_osItf->pfnGetGmmClientContext(m_osItf)).DwordValue;
 
-        cmd.DW1.DestinationControlSurfaceType = 1;// 1 is media; 0 is 3D;
         cmd.DW1.DestinationTiling             = GetFastTilingMode(dstTiledMode);
-        cmd.DW8.SourceControlSurfaceType      = 1; // 1 is media; 0 is 3D;
         cmd.DW8.SourceTiling                  = GetFastTilingMode(srcTiledMode);
         cmd.DW8.SourceMocs                    =
             this->m_osItf->pfnCachePolicyGetMemoryObject(MOS_GMM_RESOURCE_USAGE_BLT_SOURCE,
@@ -244,11 +255,11 @@ public:
         cmd.DW7.SourceY1CoordinateTop         = params.dwSrcTop;
         cmd.DW8.SourcePitch                   = params.dwSrcPitch - 1;
 
-        if (pDstGmmResInfo->GetResFlags().Info.NonLocalOnly)
+        if (!outFlags.Info.LocalOnly)
         {
             cmd.DW6.DestinationTargetMemory = 1;//DESTINATION_TARGET_MEMORY::DESTINATION_TARGET_MEMORY_SYSTEM_MEM;
         }
-        if (pSrcGmmResInfo->GetResFlags().Info.NonLocalOnly)
+        if (!inputFlags.Info.LocalOnly)
         {
             cmd.DW11.SourceTargetMemory = 1;// SOURCE_TARGET_MEMORY::SOURCE_TARGET_MEMORY_SYSTEM_MEM;
         }
@@ -259,12 +270,6 @@ public:
         cmd.DW19.SourceSurfaceHeight          = sourceResourceHeight - 1;
         cmd.DW19.SourceSurfaceWidth           = sourceResourceWidth - 1;
         cmd.DW19.SourceSurfaceType            = 1;
-
-
-        uint32_t srcQPitch = pSrcGmmResInfo->GetQPitch();
-        uint32_t dstQPitch = pDstGmmResInfo->GetQPitch();
-        GMM_RESOURCE_TYPE   dstResType = pDstGmmResInfo->GetResourceType();
-        GMM_RESOURCE_TYPE   srcResType = pSrcGmmResInfo->GetResourceType();
 
         MCPY_NORMALMESSAGE("Src type %d, dst type %d, srcTiledMode %d,  dstTiledMode %d", 
             srcResType, dstResType, srcTiledMode, dstTiledMode);
@@ -280,30 +285,6 @@ public:
         cmd.DW21.SourceVerticalAlign                            = pSrcGmmResInfo->GetHAlign();
         cmd.DW21.SourceMipTailStartLOD                          = 0xf;
 
-        // mmc
-        MOS_MEMCOMP_STATE srcMmcModel = MOS_MEMCOMP_DISABLED;
-        MOS_MEMCOMP_STATE dstMmcModel = MOS_MEMCOMP_DISABLED;
-        uint32_t srcCompressionFormat = 0;
-        uint32_t dstCompressionFormat = 0;
-        GMM_RESOURCE_FLAG inputFlags  = pSrcGmmResInfo->GetResFlags();
-        GMM_RESOURCE_FLAG outFlags    = pDstGmmResInfo->GetResFlags();
-        MCPY_CHK_STATUS_RETURN(this->m_osItf->pfnGetMemoryCompressionMode(this->m_osItf, params.pSrcOsResource, (PMOS_MEMCOMP_STATE) & (srcMmcModel)));
-        MCPY_CHK_STATUS_RETURN(this->m_osItf->pfnGetMemoryCompressionFormat(this->m_osItf, params.pSrcOsResource, &srcCompressionFormat));
-        MCPY_CHK_STATUS_RETURN(this->m_osItf->pfnGetMemoryCompressionMode(this->m_osItf, params.pDstOsResource, (PMOS_MEMCOMP_STATE) & (dstMmcModel)));
-        MCPY_CHK_STATUS_RETURN(this->m_osItf->pfnGetMemoryCompressionFormat(this->m_osItf, params.pDstOsResource, &dstCompressionFormat));
-
-        if (dstMmcModel != MOS_MEMCOMP_DISABLED) // will enable RC later
-        {
-            cmd.DW1.DestinationCompressionEnable = 1;
-            cmd.DW14.DestinationCompressionFormat = dstCompressionFormat;
-        }
-
-        if (srcMmcModel != MOS_MEMCOMP_DISABLED)//will enable RC later
-        {
-            cmd.DW8.SourceCompressionEnable = 1;
-            cmd.DW12.SourceCompressionFormat = srcCompressionFormat;
-        }
-
         // add source address
         MOS_ZeroMemory(&ResourceParams, sizeof(ResourceParams));
         ResourceParams.dwLsbNum        = 0;
@@ -311,7 +292,7 @@ public:
         ResourceParams.presResource    = params.pSrcOsResource;
         ResourceParams.pdwCmd          = &(cmd.DW9_10.Value[0]);
         ResourceParams.dwLocationInCmd = 9;
-        ResourceParams.bIsWritable     = true;
+        ResourceParams.bIsWritable     = false;
 
         MHW_CHK_STATUS_RETURN(AddResourceToCmd(
             this->m_osItf,
@@ -333,10 +314,10 @@ public:
             &ResourceParams));
 
         MCPY_NORMALMESSAGE("Block BLT cmd:dstSampleNum = %d;  width = %d, hieght = %d, ColorDepth = %d, Source Pitch %d, mocs = %d,tiled %d," 
-            "mmc model % d, mmc format % d, dst Pitch %d, mocs = %d,tiled %d, mmc model %d, MMC Format = %d",
+            "mmc model % d, dst Pitch %d, mocs = %d,tiled %d, mmc model %d",
             dstSampleNum, params.dwDstRight, params.dwDstBottom,
-            cmd.DW0.ColorDepth, cmd.DW8.SourcePitch, cmd.DW8.SourceMocs, cmd.DW8.SourceTiling, srcMmcModel, cmd.DW12.SourceCompressionFormat,
-            cmd.DW1.DestinationPitch, cmd.DW1.DestinationMocsValue, cmd.DW1.DestinationTiling, dstMmcModel, cmd.DW14.DestinationCompressionFormat);
+            cmd.DW0.ColorDepth, cmd.DW8.SourcePitch, cmd.DW8.SourceMocs, cmd.DW8.SourceTiling, srcMmcModel,
+            cmd.DW1.DestinationPitch, cmd.DW1.DestinationMocsValue, cmd.DW1.DestinationTiling, dstMmcModel);
 
         return MOS_STATUS_SUCCESS;
     }

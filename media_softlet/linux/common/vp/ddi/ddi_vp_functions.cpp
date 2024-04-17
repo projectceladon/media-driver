@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2021-2022, Intel Corporation
+* Copyright (c) 2021-2023, Intel Corporation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -1073,7 +1073,10 @@ VAStatus DdiVpFunctions::DdiDestroySrcParams(PDDI_VP_CONTEXT vpCtx)
             MOS_Delete(vpCtx->pVpHalRenderParams->pSrc[surfIndex]->pDenoiseParams);
             if (vpCtx->pVpHalRenderParams->pSrc[surfIndex]->pIEFParams)
             {
-                MOS_Delete(vpCtx->pVpHalRenderParams->pSrc[surfIndex]->pIEFParams->pExtParam);
+                if (!vpCtx->pVpHalRenderParams->pSrc[surfIndex]->pIEFParams->pExtParam)
+                {
+                    DDI_VP_ASSERTMESSAGE("vpCtx->pVpHalRenderParams->pSrc[surfIndex]->pIEFParams->pExtParam is nullptr.");
+                }
                 MOS_Delete(vpCtx->pVpHalRenderParams->pSrc[surfIndex]->pIEFParams);
             }
             MOS_Delete(vpCtx->pVpHalRenderParams->pSrc[surfIndex]->pBlendingParams);
@@ -1530,6 +1533,9 @@ void DdiVpFunctions::VpConfigValuesInit(
     configValues->dwScalerCompressModeReported  = LIBVA_VP_CONFIG_NOT_REPORTED;
     configValues->dwPrimaryCompressibleReported = LIBVA_VP_CONFIG_NOT_REPORTED;
     configValues->dwPrimaryCompressModeReported = LIBVA_VP_CONFIG_NOT_REPORTED;
+
+    configValues->dwReportedVeboxScalability    = LIBVA_VP_CONFIG_NOT_REPORTED;
+    configValues->dwReportedVPApogeios          = LIBVA_VP_CONFIG_NOT_REPORTED;
     return;
 }
 
@@ -1627,6 +1633,29 @@ void DdiVpFunctions::VpFeatureReport(PVP_CONFIG config, PDDI_VP_CONTEXT vpCtx)
 
 #endif
 #endif //(_DEBUG || _RELEASE_INTERNAL)
+
+    if (config->dwCurrentVeboxScalability != config->dwReportedVeboxScalability)
+    {
+        ReportUserSetting(
+            userSettingPtr,
+            __MEDIA_USER_FEATURE_VALUE_ENABLE_VEBOX_SCALABILITY_MODE,
+            config->dwCurrentVeboxScalability,
+            MediaUserSetting::Group::Device);
+
+        config->dwReportedVeboxScalability = config->dwCurrentVeboxScalability;
+    }
+
+    if (config->dwCurrentVPApogeios != config->dwReportedVPApogeios)
+    {
+        ReportUserSetting(
+            userSettingPtr,
+            __MEDIA_USER_FEATURE_VALUE_VPP_APOGEIOS_ENABLE,
+            config->dwCurrentVPApogeios,
+            MediaUserSetting::Group::Sequence);
+
+        config->dwReportedVPApogeios = config->dwCurrentVPApogeios;
+    }
+
     return;
 }
 
@@ -1767,6 +1796,7 @@ VAStatus DdiVpFunctions::VpSetRenderTargetParams(
     if(vpHalRenderParams->uDstCount < 1)
     {
         DDI_VP_ASSERTMESSAGE("vpHalRenderParams->uDstCount is lower than 1");
+        return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
     DDI_VP_CHK_NULL(vpHalRenderParams->pTarget, "nullptr vpHalRenderParams->pTarget.", VA_STATUS_ERROR_INVALID_BUFFER);
     vpHalTgtSurf = vpHalRenderParams->pTarget[vpHalRenderParams->uDstCount - 1];
@@ -2099,6 +2129,7 @@ VAStatus DdiVpFunctions::SetBackgroundColorfill(
         vpHalRenderParams->pColorFillParams->Color   = outBackGroundcolor;
         vpHalRenderParams->pColorFillParams->bYCbCr  = false;
         vpHalRenderParams->pColorFillParams->CSpace  = CSpace_sRGB;
+
     }
     else
     {
@@ -2564,13 +2595,13 @@ void DdiVpFunctions::VpSetColorSpaceByColorStandard(
             case VAProcColorStandardGenericFilm:
             case VAProcColorStandardXVYCC601:
             case VAProcColorStandardXVYCC709:
-                vpHalSurf->ColorSpace == CSpace_None;
+                vpHalSurf->ColorSpace = CSpace_None;
                 break;
             case VAProcColorStandardExplicit:
                 VpSetColorStandardExplictly(vpHalSurf, colorStandard, colorProperties);
                 break;
             default:
-                vpHalSurf->ColorSpace == CSpace_BT601;
+                vpHalSurf->ColorSpace = CSpace_BT601;
                 break;
             }
     return;
@@ -3260,7 +3291,10 @@ VAStatus DdiVpFunctions::DdiClearFilterParamBuffer(
     {
         if (vpCtx->pVpHalRenderParams->pSrc[surfIndex]->pIEFParams)
         {
-            MOS_Delete(vpCtx->pVpHalRenderParams->pSrc[surfIndex]->pIEFParams->pExtParam);
+            if (!vpCtx->pVpHalRenderParams->pSrc[surfIndex]->pIEFParams->pExtParam)
+            {
+                DDI_VP_ASSERTMESSAGE("vpCtx->pVpHalRenderParams->pSrc[surfIndex]->pIEFParams->pExtParam is nullptr.");
+            }
             MOS_Delete(vpCtx->pVpHalRenderParams->pSrc[surfIndex]->pIEFParams);
         }
     }
@@ -3991,23 +4025,21 @@ VAStatus DdiVpFunctions::DdiSetProcPipelineParams(
     }
 #endif  //(_DEBUG || _RELEASE_INTERNAL)
 
-    // Set stream type using pipeline_flags VA_PROC_PIPELINE_FAST flag
     // Currently we only support 1 primary surface in VP
-    if (pipelineParam->pipeline_flags & VA_PROC_PIPELINE_FAST)
+    if (vpCtx->iPriSurfs < VP_MAX_PRIMARY_SURFS)
     {
-        vpHalSrcSurf->SurfType = SURF_IN_SUBSTREAM;
+        vpHalSrcSurf->SurfType = SURF_IN_PRIMARY;
+        vpCtx->iPriSurfs++;
     }
     else
     {
-        if (vpCtx->iPriSurfs < VP_MAX_PRIMARY_SURFS)
-        {
-            vpHalSrcSurf->SurfType = SURF_IN_PRIMARY;
-            vpCtx->iPriSurfs++;
-        }
-        else
-        {
-            vpHalSrcSurf->SurfType = SURF_IN_SUBSTREAM;
-        }
+        vpHalSrcSurf->SurfType = SURF_IN_SUBSTREAM;
+    }
+
+    // Set workload path using pipeline_flags VA_PROC_PIPELINE_FAST flag
+    if (pipelineParam->pipeline_flags & VA_PROC_PIPELINE_FAST)
+    {
+        vpHalRenderParams->bForceToRender = true;
     }
 
     // Set src rect
@@ -4619,19 +4651,19 @@ VAStatus DdiVpFunctions::PutSurfaceLinuxHW(
     {
         switch (drawableTilingMode)
         {
-            case I915_TILING_Y:
+            case TILING_Y:
                 tileType = MOS_TILE_Y;
                 break;
-            case I915_TILING_X:
+            case TILING_X:
                 tileType = MOS_TILE_X;
                 gmmParams.Flags.Info.TiledX    = true;
                 break;
-            case I915_TILING_NONE:
+            case TILING_NONE:
                tileType = MOS_TILE_LINEAR;
                gmmParams.Flags.Info.Linear    = true;
                break;
             default:
-                drawableTilingMode          = I915_TILING_NONE;
+                drawableTilingMode          = TILING_NONE;
                 tileType = MOS_TILE_LINEAR;
                 gmmParams.Flags.Info.Linear    = true;
                 break;
@@ -4640,7 +4672,7 @@ VAStatus DdiVpFunctions::PutSurfaceLinuxHW(
     }
     else
     {
-        target.OsResource.TileType = (MOS_TILE_TYPE)I915_TILING_NONE;
+        target.OsResource.TileType = (MOS_TILE_TYPE)TILING_NONE;
         tileType = MOS_TILE_LINEAR;
         gmmParams.Flags.Info.Linear    = true;
     }

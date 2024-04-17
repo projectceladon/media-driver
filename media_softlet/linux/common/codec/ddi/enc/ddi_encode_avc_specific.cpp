@@ -235,7 +235,6 @@ VAStatus DdiEncodeAvc::ParseMiscParamRC(void *data)
 
     seqParams->TargetBitRate           = encMiscParamRC->bits_per_second;
     vuiParam->bit_rate_value_minus1[0] = MOS_ROUNDUP_SHIFT(encMiscParamRC->bits_per_second, 6 + vuiParam->bit_rate_scale) - 1;
-    seqParams->MBBRC                   = encMiscParamRC->rc_flags.bits.mb_rate_control;
 
     // Assuming picParams are sent before MiscParams
     picParams->ucMinimumQP = encMiscParamRC->min_qp;
@@ -292,11 +291,14 @@ VAStatus DdiEncodeAvc::ParseMiscParamRC(void *data)
             m_encodeCtx->uiMaxBitRate    = seqParams->MaxBitRate;
         }
     }
-    //if RateControl method is VBR/CBR, we can set MBBRC to enable or disable
-    if (VA_RC_CQP != m_encodeCtx->uiRCMethod)
+    //if RateControl method is VBR/CBR and VC_RC_MB bit is set, we can set MBBRC to enable or disable
+    if (VA_RC_CQP != m_encodeCtx->uiRCMethod && (VA_RC_MB & m_encodeCtx->uiRCMethod) && encMiscParamRC->rc_flags.bits.mb_rate_control <= mbBrcDisabled)
     {
-        if (encMiscParamRC->rc_flags.bits.mb_rate_control <= mbBrcDisabled)
-            seqParams->MBBRC = encMiscParamRC->rc_flags.bits.mb_rate_control;
+        seqParams->MBBRC = encMiscParamRC->rc_flags.bits.mb_rate_control;
+    }
+    else
+    {
+        seqParams->MBBRC = mbBrcDisabled;
     }
 
 #ifndef ANDROID
@@ -1189,7 +1191,7 @@ VAStatus DdiEncodeAvc::Qmatrix(void *ptr)
         return VA_STATUS_ERROR_INVALID_PARAMETER;
     }
 
-    MOS_SecureMemcpy((void *)&m_scalingLists8x8,
+    status = MOS_SecureMemcpy((void *)&m_scalingLists8x8,
         2 * 64 * sizeof(uint8_t),
         (void *)&qm->ScalingList8x8,
         2 * 64 * sizeof(uint8_t));
@@ -1364,9 +1366,10 @@ VAStatus DdiEncodeAvc::ParsePicParams(
 
     if (pic->CurrPic.picture_id != VA_INVALID_SURFACE)
     {
-        RegisterRTSurfaces(&(m_encodeCtx->RTtbl),
-            MediaLibvaCommonNext::GetSurfaceFromVASurfaceID(mediaCtx,
-                pic->CurrPic.picture_id));
+        DDI_CHK_RET(RegisterRTSurfaces(&(m_encodeCtx->RTtbl),
+                        MediaLibvaCommonNext::GetSurfaceFromVASurfaceID(mediaCtx,
+                            pic->CurrPic.picture_id)),
+                    "RegisterRTSurfaces failed!");
     }
 
     // Curr Recon Pic
@@ -1897,9 +1900,6 @@ MOS_STATUS DdiEncodeAvc::CheckPackedSlcHeaderData(
     *ppOutSlcHdr = NULL;
     OutBitSize = 0;
 
-    if (VAEntrypointEncSliceLP != m_encodeCtx->vaEntrypoint)
-        return MOS_STATUS_SUCCESS;
-
     if (0 == InBitSize || NULL == pInSlcHdr)
         return MOS_STATUS_SUCCESS;
 
@@ -2004,17 +2004,18 @@ VAStatus DdiEncodeAvc::ParsePackedHeaderData(void *ptr)
             bsBuffer->BufferSize - bsBuffer->SliceOffset,
             (uint8_t *)(temp_ptr ? temp_ptr : ptr),
             hdrDataSize);
-        if (MOS_STATUS_SUCCESS != status)
-        {
-            DDI_CODEC_ASSERTMESSAGE("DDI:packed slice header size is too large to be supported!");
-            return VA_STATUS_ERROR_INVALID_PARAMETER;
-        }
 
-        if (temp_size && temp_ptr)
+        if (temp_ptr)
         {
             MOS_FreeMemory(temp_ptr);
             temp_size = 0;
             temp_ptr = NULL;
+        }
+
+        if (MOS_STATUS_SUCCESS != status)
+        {
+            DDI_CODEC_ASSERTMESSAGE("DDI:packed slice header size is too large to be supported!");
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
         }
 
         m_encodeCtx->pSliceHeaderData[m_encodeCtx->uiSliceHeaderCnt].SliceOffset = bsBuffer->pCurrent - bsBuffer->pBase;
@@ -2277,10 +2278,10 @@ void DdiEncodeAvc::ClearPicParams()
     }
 }
 
-CODECHAL_FUNCTION DdiEncodeAvc::GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint)
+CODECHAL_FUNCTION DdiEncodeAvc::GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint, bool bVDEnc)
 {
     CODECHAL_FUNCTION codecFunction = CODECHAL_FUNCTION_INVALID;
-   if (entrypoint == VAEntrypointEncSliceLP)
+    if (bVDEnc)
     {
         codecFunction = CODECHAL_FUNCTION_ENC_VDENC_PAK;
     }

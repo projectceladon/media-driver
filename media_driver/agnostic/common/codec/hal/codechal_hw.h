@@ -478,7 +478,7 @@ public:
     {
         CODECHAL_HW_FUNCTION_ENTER;
 
-        if (MEDIA_IS_WA(m_waTable, WaHucStreamoutEnable))
+        if (MEDIA_IS_WA(m_waTable, WaHucStreamoutEnable) && m_osInterface)
         {
             m_osInterface->pfnFreeResource(
                 m_osInterface,
@@ -491,10 +491,13 @@ public:
                 &m_dummyStreamOut);
         }
 
-        m_osInterface->pfnFreeResource(m_osInterface, &m_conditionalBbEndDummy);
+        if (m_osInterface)
+        {
+            m_osInterface->pfnFreeResource(m_osInterface, &m_conditionalBbEndDummy);
 
-        m_osInterface->pfnDeleteMhwCpInterface(m_cpInterface);
-        m_cpInterface = nullptr;
+            m_osInterface->pfnDeleteMhwCpInterface(m_cpInterface);
+            m_cpInterface = nullptr;
+        }
 
         if (m_miInterface)
         {

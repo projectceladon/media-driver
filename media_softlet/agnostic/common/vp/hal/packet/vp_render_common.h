@@ -35,6 +35,7 @@ namespace vp
 #define GENX_TGLLP_CISAID                   12
 #define CM_MAX_ARGS_PER_KERNEL              255   // compiler only supports up to 255 arguments
 #define CM_PAYLOAD_OFFSET                   32    // CM Compiler generates offset by 32 bytes. This need to be subtracted from kernel data offset.
+#define CM_PAYLOAD_OFFSET_LARGE             64
 #define CM_MAX_THREAD_PAYLOAD_SIZE          2016  // 63 GRF
 #define CM_KERNEL_BINARY_PADDING_SIZE       128                                 // Padding after kernel binary to WA page fault issue.
 #define SURFACE_MASK                        0x7
@@ -73,6 +74,31 @@ struct KRN_ARG
     void*                  pData;
     uint32_t               uSize;            // size of arg in byte
     KRN_ARG_KIND           eArgKind;
+    bool                   isOutput;
+};
+
+//for L0 use only
+struct KRN_BTI
+{
+    uint32_t               uIndex;
+    uint32_t               uBTI;
+};
+
+//for L0 use only
+struct KRN_EXECUTE_ENV
+{
+    uint32_t uBarrierCount;
+    bool     bDisableMidThreadPreemption;
+    uint32_t uGrfCount;
+    bool     bHasGlobalAtomics;
+    bool     bHasNoStatelessWrite;
+    uint32_t uInlineDataPayloadSize;
+    uint32_t uOffsetToSkipPerThreadDataLoad;
+    uint32_t uSimdSize;
+    uint32_t uSubgroupIndependentForwardProgress;
+    uint32_t uEuThreadCount;
+    bool     bHasFenceForImageAccess;
+    bool     bHasSample;
 };
 
 using SurfaceIndex = uint32_t;
@@ -81,14 +107,9 @@ using KernelIndex  = uint32_t;              // index of current kernel in KERNEL
 
 enum KERNEL_SUBMISSION_MODE
 {
-    MULTI_KERNELS_WITH_MULTI_MEDIA_STATES = 0,
-    MULTI_KERNELS_WITH_ONE_MEDIA_STATE
-};
-
-enum KERNEL_BINDINGTABLE_MODE
-{
-    MULTI_KERNELS_WITH_MULTI_BINDINGTABLES = 0,
-    MULTI_KERNELS_WITH_ONE_BINDINGTABLE
+    SINGLE_KERNEL_ONLY = 0,
+    MULTI_KERNELS_SINGLE_MEDIA_STATE,
+    MULTI_KERNELS_MULTI_MEDIA_STATES
 };
 
 typedef struct _VP_RENDER_CACHE_CNTL

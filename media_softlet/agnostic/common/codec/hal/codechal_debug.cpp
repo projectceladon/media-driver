@@ -30,6 +30,9 @@
 #include "media_debug_fast_dump.h"
 #include <iomanip>
 
+#define QUERY_STATUS_BUFFER_INITIAL_VALUE 0xf
+#define STORE_DATA_DWORD_DATA 0x01010102
+
 // AVC Decode
 std::ostream &operator<<(std::ostream &oss, const CODEC_AVC_PIC_PARAMS &cr)
 {
@@ -1875,34 +1878,7 @@ CodechalDebugInterface::CodechalDebugInterface()
     MOS_ZeroMemory(m_fileName, sizeof(m_fileName));
     MOS_ZeroMemory(m_path, sizeof(m_path));
 
-    m_dumpYUVSurface_fast_dump = [this](
-                           PMOS_SURFACE              surface,
-                           const char               *attrName,
-                           const char               *surfName,
-                           CODECHAL_MEDIA_STATE_TYPE mediaState,
-                           uint32_t                  width_in,
-                           uint32_t                  height_in) {
-        bool     hasAuxSurf   = false;
-        bool     isPlanar     = true;
-        bool     hasRefSurf   = false;
-        uint8_t *surfBaseAddr = nullptr;
-        uint8_t *lockedAddr   = nullptr;
-        if (!DumpIsEnabled(attrName, mediaState))
-        {
-            return MOS_STATUS_SUCCESS;
-        }
-
-        const char *funcName = (m_codecFunction == CODECHAL_FUNCTION_DECODE) ? "_DEC" : (m_codecFunction == CODECHAL_FUNCTION_CENC_DECODE ? "_DEC" : "_ENC");
-        std::string bufName  = std::string(surfName) + "_w[" + std::to_string(surface->dwWidth) + "]_h[" + std::to_string(surface->dwHeight) + "]_p[" + std::to_string(surface->dwPitch) + "]";
-
-        const char *filePath = CreateFileName(funcName, bufName.c_str(), hasAuxSurf ? ".Y" : ".yuv");
-
-    
-        MediaDebugFastDump::Dump(surface->OsResource, filePath);
-        return MOS_STATUS_SUCCESS;
-    };
-
-    m_dumpYUVSurface_legacy_dump = [this](
+    m_dumpYUVSurfaceLegacy = [this](
                            PMOS_SURFACE              surface,
                            const char               *attrName,
                            const char               *surfName,
@@ -2006,7 +1982,7 @@ CodechalDebugInterface::CodechalDebugInterface()
 
                 uint32_t bpp = surface->OsResource.pGmmResInfo->GetBitsPerPixel();
 
-                CODECHAL_DEBUG_CHK_STATUS(m_osInterface->pfnMediaCopyResource2D(m_osInterface, &surface->OsResource, &m_temp2DSurfForCopy.OsResource, surface->dwPitch, sizeSrcSurface / (surface->dwPitch), 0, 0, bpp, false));
+                CODECHAL_DEBUG_CHK_STATUS(m_osInterface->pfnMediaCopyResource2D(m_osInterface, &surface->OsResource, &m_temp2DSurfForCopy.OsResource, surface->dwPitch, sizeSrcSurface / (surface->dwPitch), bpp, false));
 
                 lockedAddr = (uint8_t *)m_osInterface->pfnLockResource(m_osInterface, &m_temp2DSurfForCopy.OsResource, &lockFlags);
                 CODECHAL_DEBUG_CHK_NULL(lockedAddr);
@@ -2241,83 +2217,40 @@ CodechalDebugInterface::CodechalDebugInterface()
         return MOS_STATUS_SUCCESS;
     };
 
-    m_dumpBuffer_fast_dump = [this](
-                       PMOS_RESOURCE             resource,
-                       const char               *attrName,
-                       const char               *bufferName,
-                       uint32_t                  size,
-                       uint32_t                  offset,
-                       CODECHAL_MEDIA_STATE_TYPE mediaState) {
-        MEDIA_DEBUG_FUNCTION_ENTER;
-
-        MEDIA_DEBUG_CHK_NULL(resource);
-        MEDIA_DEBUG_CHK_NULL(bufferName);
-
-        if (size == 0)
+    m_dumpYUVSurface = [this](
+                                     PMOS_SURFACE              surface,
+                                     const char               *attrName,
+                                     const char               *surfName,
+                                     CODECHAL_MEDIA_STATE_TYPE mediaState,
+                                     uint32_t                  width_in,
+                                     uint32_t                  height_in) {
+        if (!DumpIsEnabled(attrName, mediaState))
         {
             return MOS_STATUS_SUCCESS;
         }
 
-        if (attrName)
+        const char *funcName = (m_codecFunction == CODECHAL_FUNCTION_DECODE) ? "_DEC" : (m_codecFunction == CODECHAL_FUNCTION_CENC_DECODE ? "_DEC" : "_ENC");
+        std::string bufName  = std::string(surfName) + "_w[" + std::to_string(surface->dwWidth) + "]_h[" + std::to_string(surface->dwHeight) + "]_p[" + std::to_string(surface->dwPitch) + "]";
+
+        const char *filePath = CreateFileName(funcName, bufName.c_str(), ".yuv");
+
+        MediaDebugFastDump::Dump(surface->OsResource, filePath);
+
+        if (!MediaDebugFastDump::IsGood())
         {
-            bool attrEnabled = false;
-
-            if (mediaState == CODECHAL_NUM_MEDIA_STATES)
-            {
-                attrEnabled = m_configMgr->AttrIsEnabled(attrName);
-            }
-            else
-            {
-                attrEnabled = static_cast<CodecDebugConfigMgr *>(m_configMgr)->AttrIsEnabled(mediaState, attrName);
-            }
-
-            if (!attrEnabled)
-            {
-                return MOS_STATUS_SUCCESS;
-            }
+            return m_dumpYUVSurfaceLegacy(
+                surface,
+                attrName,
+                surfName,
+                mediaState,
+                width_in,
+                height_in);
         }
 
-        const char *fileName;
-        bool        binaryDump = false;
-        if ((!strcmp(attrName, MediaDbgAttr::attrDecodeBitstream)) ||
-            (!strcmp(attrName, MediaDbgAttr::attrMvData))          ||
-            (!strcmp(attrName, MediaDbgAttr::attrSegId))           ||
-            (!strcmp(attrName, MediaDbgAttr::attrCoefProb))        ||
-            m_configMgr->AttrIsEnabled(MediaDbgAttr::attrDumpBufferInBinary))
-        {
-            binaryDump = true;
-        }
-        const char *extType    = binaryDump ? MediaDbgExtType::dat : MediaDbgExtType::txt;
-
-        if (mediaState == CODECHAL_NUM_MEDIA_STATES)
-        {
-            fileName = CreateFileName(bufferName, attrName, extType);
-        }
-        else
-        {
-            std::string kernelName = static_cast<CodecDebugConfigMgr *>(m_configMgr)->GetMediaStateStr(mediaState);
-            fileName               = CreateFileName(kernelName.c_str(), bufferName, extType);
-        }
-
-        MOS_LOCK_PARAMS lockFlags;
-        MOS_ZeroMemory(&lockFlags, sizeof(MOS_LOCK_PARAMS));
-        lockFlags.ReadOnly = 1;
-        uint8_t *data      = (uint8_t *)m_osInterface->pfnLockResource(m_osInterface, resource, &lockFlags);
-        MEDIA_DEBUG_CHK_NULL(data);
-
-        MOS_STATUS status = MOS_STATUS_SUCCESS;
-
-        MediaDebugFastDump::Dump(data, fileName, size, offset);
-
-        if (data)
-        {
-            m_osInterface->pfnUnlockResource(m_osInterface, resource);
-        }
-
-        return status;
+        return MOS_STATUS_SUCCESS;
     };
 
-    m_dumpBuffer_legacy_dump = [this](
+    m_dumpBufferLegacy = [this](
                        PMOS_RESOURCE             resource,
                        const char               *attrName,
                        const char               *bufferName,
@@ -2375,31 +2308,150 @@ CodechalDebugInterface::CodechalDebugInterface()
             fileName               = CreateFileName(kernelName.c_str(), bufferName, extType);
         }
 
-        MOS_LOCK_PARAMS lockFlags;
-        MOS_ZeroMemory(&lockFlags, sizeof(MOS_LOCK_PARAMS));
-        lockFlags.ReadOnly = 1;
-        uint8_t *data      = (uint8_t *)m_osInterface->pfnLockResource(m_osInterface, resource, &lockFlags);
-        MEDIA_DEBUG_CHK_NULL(data);
-        data += offset;
-
         MOS_STATUS status = MOS_STATUS_SUCCESS;
-
         
-        if (binaryDump)
+        if ((resource->pGmmResInfo != nullptr) &&
+            (resource->pGmmResInfo->GetResFlags().Info.NotLockable))
         {
-            status = DumpBufferInBinary(data, size);
+            uint8_t      *data            = nullptr;
+            PMOS_RESOURCE pReadbackBuffer = (PMOS_RESOURCE)MOS_AllocAndZeroMemory(sizeof(MOS_RESOURCE));
+            CODECHAL_DEBUG_CHK_NULL(pReadbackBuffer);
+            status                        = AllocateLinearResource(MOS_GFXRES_BUFFER, (uint32_t)resource->pGmmResInfo->GetBaseWidth(), (uint32_t)resource->pGmmResInfo->GetBaseHeight(), Format_Any, pReadbackBuffer);
+            if (MOS_FAILED(status))
+            {
+                MOS_FreeMemAndSetNull(pReadbackBuffer);
+            }
+            CODECHAL_DEBUG_CHK_STATUS(status);
+
+            status = VDBypassCopyResource(resource, pReadbackBuffer);
+            if (MOS_FAILED(status))
+            {
+                m_osInterface->pfnFreeResource(m_osInterface, pReadbackBuffer);
+                MOS_FreeMemAndSetNull(pReadbackBuffer);
+            }
+            CODECHAL_DEBUG_CHK_STATUS(status);
+
+            MOS_LOCK_PARAMS lockFlags;
+            MOS_ZeroMemory(&lockFlags, sizeof(MOS_LOCK_PARAMS));
+            lockFlags.ReadOnly = 1;
+            data               = (uint8_t *)m_osInterface->pfnLockResource(m_osInterface, pReadbackBuffer, &lockFlags);
+            if(data == nullptr)
+            {
+                m_osInterface->pfnFreeResource(m_osInterface, pReadbackBuffer);
+                MOS_FreeMemAndSetNull(pReadbackBuffer);
+            }
+            CODECHAL_DEBUG_CHK_NULL(data);
+
+            data += offset;
+
+            if (binaryDump)
+            {
+                status = DumpBufferInBinary(data, size);
+            }
+            else
+            {
+                status = DumpBufferInHexDwords(data, size);
+            }
+
+            m_osInterface->pfnUnlockResource(m_osInterface, pReadbackBuffer);
+            m_osInterface->pfnFreeResource(m_osInterface, pReadbackBuffer);
+            MOS_FreeMemAndSetNull(pReadbackBuffer);
+            CODECHAL_DEBUG_CHK_STATUS(status);
         }
         else
         {
-            status = DumpBufferInHexDwords(data, size);
-        }
+            MOS_LOCK_PARAMS lockFlags;
+            MOS_ZeroMemory(&lockFlags, sizeof(MOS_LOCK_PARAMS));
+            lockFlags.ReadOnly = 1;
+            uint8_t *data      = (uint8_t *)m_osInterface->pfnLockResource(m_osInterface, resource, &lockFlags);
+            MEDIA_DEBUG_CHK_NULL(data);
+            data += offset;
 
-        if (data)
-        {
-            m_osInterface->pfnUnlockResource(m_osInterface, resource);
+            if (binaryDump)
+            {
+                status = DumpBufferInBinary(data, size);
+            }
+            else
+            {
+                status = DumpBufferInHexDwords(data, size);
+            }
+
+            if (data)
+            {
+                m_osInterface->pfnUnlockResource(m_osInterface, resource);
+            }
         }
 
         return status;
+    };
+
+    m_dumpBuffer = [this](
+                                 PMOS_RESOURCE             resource,
+                                 const char               *attrName,
+                                 const char               *bufferName,
+                                 uint32_t                  size,
+                                 uint32_t                  offset,
+                                 CODECHAL_MEDIA_STATE_TYPE mediaState) {
+        MEDIA_DEBUG_FUNCTION_ENTER;
+
+        MEDIA_DEBUG_CHK_NULL(resource);
+        MEDIA_DEBUG_CHK_NULL(bufferName);
+
+        if (size == 0)
+        {
+            return MOS_STATUS_SUCCESS;
+        }
+
+        bool attrEnabled = false;
+        if (mediaState == CODECHAL_NUM_MEDIA_STATES)
+        {
+            attrEnabled = m_configMgr->AttrIsEnabled(attrName);
+        }
+        else
+        {
+            attrEnabled = static_cast<CodecDebugConfigMgr *>(m_configMgr)->AttrIsEnabled(mediaState, attrName);
+        }
+        if (!attrEnabled)
+        {
+            return MOS_STATUS_SUCCESS;
+        }
+
+        const char *fileName;
+        bool        binaryDump = false;
+        if ((!strcmp(attrName, MediaDbgAttr::attrDecodeBitstream)) ||
+            (!strcmp(attrName, MediaDbgAttr::attrMvData)) ||
+            (!strcmp(attrName, MediaDbgAttr::attrSegId)) ||
+            (!strcmp(attrName, MediaDbgAttr::attrCoefProb)) ||
+            m_configMgr->AttrIsEnabled(MediaDbgAttr::attrDumpBufferInBinary))
+        {
+            binaryDump = true;
+        }
+        const char *extType = binaryDump ? MediaDbgExtType::dat : MediaDbgExtType::txt;
+
+        if (mediaState == CODECHAL_NUM_MEDIA_STATES)
+        {
+            fileName = CreateFileName(bufferName, attrName, extType);
+        }
+        else
+        {
+            std::string kernelName = static_cast<CodecDebugConfigMgr *>(m_configMgr)->GetMediaStateStr(mediaState);
+            fileName               = CreateFileName(kernelName.c_str(), bufferName, extType);
+        }
+
+        MediaDebugFastDump::Dump(*resource, fileName, size, offset);
+
+        if (!MediaDebugFastDump::IsGood())
+        {
+            return m_dumpBufferLegacy(
+                resource,
+                attrName,
+                bufferName,
+                size,
+                offset,
+                mediaState);
+        }
+
+        return MOS_STATUS_SUCCESS;
     };
 }
 
@@ -2588,7 +2640,7 @@ MOS_STATUS CodechalDebugInterface::DumpRgbDataOnYUVSurface(
 
             uint32_t bpp = surface->OsResource.pGmmResInfo->GetBitsPerPixel();
 
-            CODECHAL_DEBUG_CHK_STATUS(m_osInterface->pfnMediaCopyResource2D(m_osInterface, &surface->OsResource, &m_temp2DSurfForCopy.OsResource, surface->dwPitch, sizeSrcSurface / (surface->dwPitch), 0, 0, bpp, false));
+            CODECHAL_DEBUG_CHK_STATUS(m_osInterface->pfnMediaCopyResource2D(m_osInterface, &surface->OsResource, &m_temp2DSurfForCopy.OsResource, surface->dwPitch, sizeSrcSurface / (surface->dwPitch), bpp, false));
         }
         else
         {
@@ -2819,21 +2871,6 @@ MOS_STATUS CodechalDebugInterface::Initialize(
 
     m_osInterface->pfnGetPlatform(m_osInterface, &m_platform);
 
-    if (GFX_IS_FAMILY_EQUAL_OR_ABOVE(m_platform.eProductFamily, 1270) && 
-        GFX_IS_FAMILY_EQUAL_OR_BELOW(m_platform.eProductFamily, 1272) &&
-        DumpIsEnabled(MediaDbgAttr::attrEnableFastDump))
-    {
-        m_dumpYUVSurface = m_dumpYUVSurface_fast_dump;
-
-        m_dumpBuffer = m_dumpBuffer_fast_dump;
-    }
-    else
-    {
-        m_dumpYUVSurface = m_dumpYUVSurface_legacy_dump;
-
-        m_dumpBuffer = m_dumpBuffer_legacy_dump;
-    }
-
 #if (_DEBUG || _RELEASE_INTERNAL)
     {
         MediaUserSetting::Value outValue;
@@ -2963,6 +3000,254 @@ std::string CodechalDebugInterface::InitDefaultOutput()
 {
     m_outputFilePath.append(MEDIA_DEBUG_CODECHAL_DUMP_OUTPUT_FOLDER);
     return SetOutputPathKey();
+}
+
+MOS_STATUS CodechalDebugInterface::VDBypassCopyResource(PMOS_RESOURCE src, PMOS_RESOURCE dst)
+{
+    CODECHAL_DEBUG_FUNCTION_ENTER;
+    
+    CODECHAL_DEBUG_CHK_NULL(m_osInterface);
+    CODECHAL_DEBUG_CHK_NULL(m_hwInterfaceNext)
+    CODECHAL_DEBUG_CHK_NULL(src);
+    CODECHAL_DEBUG_CHK_NULL(dst);
+
+    MOS_STATUS                       eStatus = MOS_STATUS_SUCCESS;
+    MOS_GPUCTX_CREATOPTIONS_ENHANCED createOption;
+    MOS_COMMAND_BUFFER               cmdBuffer;
+    std::shared_ptr<mhw::mi::Itf>    miInterface    = m_hwInterfaceNext->GetMiInterfaceNext();
+    PMHW_MI_MMIOREGISTERS            pMmioRegisters = miInterface->GetMmioRegisters();
+    MOS_CONTEXT                     *pOsContext     = m_osInterface->pOsContext;
+    MHW_ADD_CP_COPY_PARAMS           cpCopyParams;
+    MHW_MI_FLUSH_DW_PARAMS           FlushDwParams;
+    MhwCpInterface                  *mhwCpInterface = m_hwInterfaceNext->GetCpInterface();
+
+    CODECHAL_DEBUG_CHK_NULL(pMmioRegisters);
+    CODECHAL_DEBUG_CHK_NULL(pOsContext);
+    CODECHAL_DEBUG_CHK_NULL(mhwCpInterface);
+
+    CODECHAL_DEBUG_CHK_STATUS(m_osInterface->pfnGetCommandBuffer(m_osInterface, &cmdBuffer, 0));
+
+    CODECHAL_DEBUG_CHK_STATUS(miInterface->AddProtectedProlog(&cmdBuffer));
+
+    MOS_ZeroMemory(&cpCopyParams, sizeof(cpCopyParams));
+    uint32_t dwWidth     = (uint32_t)src->pGmmResInfo->GetBaseWidth();
+    uint32_t dwHeight    = (uint32_t)src->pGmmResInfo->GetBaseHeight();
+    cpCopyParams.size    = dwWidth * dwHeight;
+    cpCopyParams.presSrc = src;
+    cpCopyParams.presDst = dst;
+    cpCopyParams.offset  = 0;
+    cpCopyParams.bypass  = true;
+    
+    eStatus = mhwCpInterface->AddCpCopy(m_osInterface, &cmdBuffer, &cpCopyParams);
+
+    auto &flushDwParams = miInterface->MHW_GETPAR_F(MI_FLUSH_DW)();
+    flushDwParams       = {};
+    CODECHAL_DEBUG_CHK_STATUS(miInterface->MHW_ADDCMD_F(MI_FLUSH_DW)(&cmdBuffer));
+    PMOS_RESOURCE pStoreResource = (PMOS_RESOURCE)MOS_AllocAndZeroMemory(sizeof(MOS_RESOURCE));
+    CODECHAL_DEBUG_CHK_NULL(pStoreResource);
+    // Create store resource
+    {
+        //Insert MFX_WAIT command.
+        auto &mfxWaitParams               = miInterface->MHW_GETPAR_F(MFX_WAIT)();
+        mfxWaitParams                     = {};
+        mfxWaitParams.iStallVdboxPipeline = true;
+        CODECHAL_DEBUG_CHK_STATUS(miInterface->MHW_ADDCMD_F(MFX_WAIT)(&cmdBuffer, nullptr));
+
+        eStatus = AllocateLinearResource(MOS_GFXRES_BUFFER, sizeof(uint32_t), 1, Format_Buffer, pStoreResource, true);
+        if (MOS_FAILED(eStatus))
+        {
+            MOS_FreeMemAndSetNull(pStoreResource);
+        }
+        CODECHAL_DEBUG_CHK_STATUS(eStatus);
+
+        eStatus = FillResourceMemory(*pStoreResource, sizeof(uint32_t), QUERY_STATUS_BUFFER_INITIAL_VALUE);
+        if (MOS_FAILED(eStatus))
+        {
+            CODECHAL_DEBUG_ASSERTMESSAGE("Error: Failed FillResourceMemory to pStoreResource.");
+            m_osInterface->pfnFreeResource(m_osInterface, pStoreResource);
+            MOS_FreeMemAndSetNull(pStoreResource);
+        }
+        CODECHAL_DEBUG_CHK_STATUS(eStatus);
+
+        auto &flushDwParams             = miInterface->MHW_GETPAR_F(MI_FLUSH_DW)();
+        flushDwParams                   = {};
+        flushDwParams.postSyncOperation = MHW_FLUSH_WRITE_IMMEDIATE_DATA;
+        flushDwParams.pOsResource       = pStoreResource;
+        flushDwParams.dwResourceOffset  = 0;
+        flushDwParams.dwDataDW1         = STORE_DATA_DWORD_DATA;
+        eStatus = miInterface->MHW_ADDCMD_F(MI_FLUSH_DW)(&cmdBuffer);
+        if (MOS_FAILED(eStatus))
+        {
+            CODECHAL_DEBUG_ASSERTMESSAGE("Error: Failed MHW_ADDCMD_F(MI_FLUSH_DW).");
+            m_osInterface->pfnFreeResource(m_osInterface, pStoreResource);
+            MOS_FreeMemAndSetNull(pStoreResource);
+        }
+    }
+
+    do
+    {
+        auto &batchBufferEndParams = miInterface->MHW_GETPAR_F(MI_BATCH_BUFFER_END)();
+        batchBufferEndParams       = {};
+        eStatus = miInterface->MHW_ADDCMD_F(MI_BATCH_BUFFER_END)(&cmdBuffer);
+        if (MOS_FAILED(eStatus))
+        {
+            CODECHAL_DEBUG_ASSERTMESSAGE("Error: Failed MHW_ADDCMD_F(MI_BATCH_BUFFER_END).");
+            break;
+        }
+        m_osInterface->pfnReturnCommandBuffer(m_osInterface, &cmdBuffer, 0);
+        eStatus                           = m_osInterface->pfnSubmitCommandBuffer(m_osInterface, &cmdBuffer, false);
+        if (MOS_FAILED(eStatus))
+        {
+            CODECHAL_DEBUG_ASSERTMESSAGE("Error: Failed MHW_ADDCMD_F(MI_BATCH_BUFFER_END).");
+            break;
+        }
+
+        volatile uint32_t dwValueInMemory = 0;
+        MOS_LOCK_PARAMS sMosLockParams{};
+        sMosLockParams.ReadOnly = 1;
+        uint8_t *pStoreResBytes = reinterpret_cast<uint8_t*>(m_osInterface->pfnLockResource(m_osInterface, pStoreResource, &sMosLockParams));
+        if (pStoreResBytes == nullptr)
+        {
+            CODECHAL_DEBUG_ASSERTMESSAGE("Error: Failed locking pStoreResource.");
+            eStatus = MOS_STATUS_UNINITIALIZED;
+            break;
+        }
+
+        dwValueInMemory     = *(reinterpret_cast<uint32_t *>(pStoreResBytes));
+        if (dwValueInMemory != STORE_DATA_DWORD_DATA)
+        {
+            CODECHAL_DEBUG_ASSERTMESSAGE("Error: Failed to read Store Data output.");
+            m_osInterface->pfnUnlockResource(m_osInterface, pStoreResource);
+            eStatus = MOS_STATUS_SUCCESS;
+            break;
+        }
+        m_osInterface->pfnUnlockResource(m_osInterface, pStoreResource);
+
+    } while (false);
+    m_osInterface->pfnFreeResource(m_osInterface, pStoreResource);
+    MOS_FreeMemAndSetNull(pStoreResource);
+
+    return eStatus;
+}
+
+MOS_STATUS CodechalDebugInterface::AllocateLinearResource(MOS_GFXRES_TYPE eType, uint32_t dwWidth, uint32_t dwHeight, MOS_FORMAT eFormat, PMOS_RESOURCE pResource, bool bSystemMem, bool bLockable) const
+{
+    MOS_ALLOC_GFXRES_PARAMS sMosAllocParams;
+    MOS_STATUS              eStatus;
+
+    CODECHAL_DEBUG_FUNCTION_ENTER;
+
+    CODECHAL_DEBUG_CHK_NULL(m_osInterface);
+    CODECHAL_DEBUG_CHK_NULL(m_osInterface->pfnAllocateResource);
+
+    do
+    {
+        if (eType != MOS_GFXRES_BUFFER &&
+            eType != MOS_GFXRES_2D)
+        {
+            CODECHAL_DEBUG_ASSERTMESSAGE("Error: Only 'BUFFER' and '2D' types are supported in CP.");
+            eStatus = MOS_STATUS_INVALID_PARAMETER;
+            break;
+        }
+
+        if (eType == MOS_GFXRES_BUFFER &&
+            dwHeight != 1)
+        {
+            CODECHAL_DEBUG_ASSERTMESSAGE("Error: Resources of type 'BUFFER' must have height = 1.");
+            eStatus = MOS_STATUS_INVALID_PARAMETER;
+            break;
+        }
+
+        if (pResource == nullptr)
+        {
+            CODECHAL_DEBUG_ASSERTMESSAGE("Error: Failed to allocate memory for MOS_RESOURCE.");
+            eStatus = MOS_STATUS_NO_SPACE;
+            break;
+        }
+        MOS_ZeroMemory(pResource, sizeof(*pResource));
+
+        MOS_ZeroMemory(&sMosAllocParams, sizeof(sMosAllocParams));
+        sMosAllocParams.Type     = eType;
+        sMosAllocParams.dwWidth  = dwWidth;
+        sMosAllocParams.dwHeight = dwHeight;
+        sMosAllocParams.TileType = MOS_TILE_LINEAR;
+        sMosAllocParams.Format   = eFormat;
+
+        if (MEDIA_IS_SKU(m_osInterface->pfnGetSkuTable(m_osInterface), FtrLimitedLMemBar))
+        {
+            if (bSystemMem)
+            {
+                sMosAllocParams.dwMemType = MOS_MEMPOOL_SYSTEMMEMORY;
+            }
+            else if (!bLockable)
+            {
+                sMosAllocParams.Flags.bNotLockable = 1;
+                sMosAllocParams.dwMemType          = MOS_MEMPOOL_DEVICEMEMORY;
+            }
+            else if (bLockable)
+            {
+                sMosAllocParams.Flags.bNotLockable = 0;
+                sMosAllocParams.dwMemType          = MOS_MEMPOOL_VIDEOMEMORY;
+            }
+        }
+
+        if (MEDIA_IS_SKU(m_osInterface->pfnGetSkuTable(m_osInterface), FtrSAMediaCachePolicy))
+        {
+            sMosAllocParams.ResUsageType = MOS_HW_RESOURCE_USAGE_CP_INTERNAL_WRITE;
+        }
+
+        eStatus = m_osInterface->pfnAllocateResource(
+            m_osInterface,
+            &sMosAllocParams,
+            pResource);
+        if (MOS_FAILED(eStatus))
+        {
+            CODECHAL_DEBUG_ASSERTMESSAGE("Failed to allocate resource. Error = 0x%x.", eStatus);
+            eStatus = MOS_STATUS_UNKNOWN;
+        }
+    } while (false);
+
+    return eStatus;
+}
+
+MOS_STATUS CodechalDebugInterface::FillResourceMemory(MOS_RESOURCE &sResource, uint32_t uiSize, uint8_t ucValue)
+{
+    MOS_STATUS eStatus = MOS_STATUS_SUCCESS;
+    void      *pSurface = nullptr;
+
+    CODECHAL_DEBUG_FUNCTION_ENTER;
+
+    if (uiSize == 0)
+    {
+        // Nothing to do.
+        CODECHAL_DEBUG_ASSERTMESSAGE("Received uiSize = 0. This should never happen!");
+        return MOS_STATUS_INVALID_PARAMETER;
+    }
+
+    do
+    {
+        MOS_LOCK_PARAMS sMosLockParams{};
+        sMosLockParams.WriteOnly = true;
+
+        // Lock the surface for writing.
+        pSurface = m_osInterface->pfnLockResource(m_osInterface, &sResource, &sMosLockParams);
+
+        if (pSurface == nullptr)
+        {
+            CODECHAL_DEBUG_ASSERTMESSAGE("Error: Failed locking the resource.");
+            eStatus = MOS_STATUS_UNKNOWN;
+            break;
+        }
+
+        // Fill the surface with the wanted value.
+        MOS_FillMemory(pSurface, uiSize, ucValue);
+
+    } while (false);
+
+    // Unlock the resource if needed.
+    m_osInterface->pfnUnlockResource(m_osInterface, &sResource);
+
+    return eStatus;
 }
 
 MOS_STATUS CodechalDebugInterface::DumpHucRegion(
@@ -3254,6 +3539,21 @@ MOS_STATUS CodechalDebugInterface::SetFastDumpConfig(MediaCopyWrapper *mediaCopy
     {
         cfg.allowDataLoss = false;
         cfg.informOnError = false;
+
+        MediaUserSetting::Value outValue{};
+        ReadUserSettingForDebug(
+            m_userSettingPtr,
+            outValue,
+            "Enable VECopy For Surface Dump",
+            MediaUserSetting::Group::Sequence);
+
+        if (outValue.Get<bool>())
+        {
+            // use VE copy
+            cfg.weightRenderCopy = 0;
+            cfg.weightVECopy     = 100;
+            cfg.weightBLTCopy    = 0;
+        }
     }
 
     MediaDebugFastDump::CreateInstance(*m_osInterface, *mediaCopyWrapper, &cfg);
@@ -3409,7 +3709,7 @@ MOS_STATUS CodechalDebugInterface::DumpCmdBuffer(
         MediaDbgBufferType::bufCmd,
         binaryDumpEnabled ? MediaDbgExtType::dat : MediaDbgExtType::txt);
 
-    if (m_configMgr->AttrIsEnabled(CodechalDbgAttr::attrEnableFastDump))
+    if (m_configMgr->AttrIsEnabled(CodechalDbgAttr::attrEnableFastDump) && MediaDebugFastDump::IsGood())
     {
         MediaDebugFastDump::Dump(
             (uint8_t *)cmdBuffer->pCmdBase,
@@ -3440,6 +3740,8 @@ MOS_STATUS CodechalDebugInterface::Dump2ndLvlBatch(
 {
     MEDIA_DEBUG_FUNCTION_ENTER;
 
+    MEDIA_DEBUG_CHK_NULL(batchBuffer);
+
     bool attrEnabled = m_configMgr->AttrIsEnabled(MediaDbgAttr::attr2ndLvlBatchMfx);
 
     if (!attrEnabled && mediaState != CODECHAL_NUM_MEDIA_STATES)
@@ -3458,33 +3760,88 @@ MOS_STATUS CodechalDebugInterface::Dump2ndLvlBatch(
         MediaDbgBufferType::buf2ndLvl,
         MediaDbgExtType::txt);
 
-    bool batchLockedForDebug = !batchBuffer->bLocked;
-
-    if (batchLockedForDebug)
+    MOS_STATUS status = MOS_STATUS_SUCCESS;
+    if ((batchBuffer->OsResource.pGmmResInfo != nullptr) && 
+        (batchBuffer->OsResource.pGmmResInfo->GetResFlags().Info.NotLockable))
     {
-        (Mhw_LockBb(m_osInterface, batchBuffer));
-    }
+        uint8_t      *data            = nullptr;
+        PMOS_RESOURCE pReadbackBuffer = (PMOS_RESOURCE)MOS_AllocAndZeroMemory(sizeof(MOS_RESOURCE));
+        CODECHAL_DEBUG_CHK_NULL(pReadbackBuffer);
+        status = AllocateLinearResource(MOS_GFXRES_BUFFER, (uint32_t)batchBuffer->OsResource.pGmmResInfo->GetBaseWidth(), (uint32_t)batchBuffer->OsResource.pGmmResInfo->GetBaseHeight(), Format_Any, pReadbackBuffer);
+        if (MOS_FAILED(status))
+        {
+            MOS_FreeMemAndSetNull(pReadbackBuffer);
+        }
+        CODECHAL_DEBUG_CHK_STATUS(status);
+        status = VDBypassCopyResource(&batchBuffer->OsResource, pReadbackBuffer);
+        if (MOS_FAILED(status))
+        {
+            m_osInterface->pfnFreeResource(m_osInterface, pReadbackBuffer);
+            MOS_FreeMemAndSetNull(pReadbackBuffer);
+        }
+        CODECHAL_DEBUG_CHK_STATUS(status);
 
-    batchBuffer->pData += batchBuffer->dwOffset;
+        MOS_LOCK_PARAMS lockFlags;
+        MOS_ZeroMemory(&lockFlags, sizeof(MOS_LOCK_PARAMS));
+        lockFlags.ReadOnly = 1;
+        data               = (uint8_t *)m_osInterface->pfnLockResource(m_osInterface, pReadbackBuffer, &lockFlags);
+        if (data == nullptr)
+        {
+            m_osInterface->pfnFreeResource(m_osInterface, pReadbackBuffer);
+            MOS_FreeMemAndSetNull(pReadbackBuffer);
+        }
+        CODECHAL_DEBUG_CHK_NULL(data);
 
-    if (DumpIsEnabled(MediaDbgAttr::attrEnableFastDump))
-    {
-        MediaDebugFastDump::Dump(
-            batchBuffer->pData, 
-            fileName, 
-            (uint32_t)batchBuffer->iLastCurrent, 
-            0,
-            MediaDebugSerializer<uint32_t>());
+        if (DumpIsEnabled(MediaDbgAttr::attrEnableFastDump))
+        {
+            MediaDebugFastDump::Dump(
+                data + batchBuffer->dwOffset,
+                fileName,
+                (uint32_t)batchBuffer->iLastCurrent,
+                0,
+                MediaDebugSerializer<uint32_t>());
+        }
+        else
+        {
+            DumpBufferInHexDwords(data + batchBuffer->dwOffset,
+                (uint32_t)batchBuffer->iLastCurrent);
+        }
+
+        m_osInterface->pfnUnlockResource(m_osInterface, pReadbackBuffer);
+        m_osInterface->pfnFreeResource(m_osInterface, pReadbackBuffer);
+        MOS_FreeMemAndSetNull(pReadbackBuffer);
+        CODECHAL_DEBUG_CHK_STATUS(status);
     }
     else
     {
-        DumpBufferInHexDwords(batchBuffer->pData,
-            (uint32_t)batchBuffer->iLastCurrent);
-    }
+        bool batchLockedForDebug = !batchBuffer->bLocked;
 
-    if (batchLockedForDebug)
-    {
-        (Mhw_UnlockBb(m_osInterface, batchBuffer, false));
+        if (batchLockedForDebug)
+        {
+            (Mhw_LockBb(m_osInterface, batchBuffer));
+        }
+
+        batchBuffer->pData += batchBuffer->dwOffset;
+
+        if (DumpIsEnabled(MediaDbgAttr::attrEnableFastDump))
+        {
+            MediaDebugFastDump::Dump(
+                batchBuffer->pData,
+                fileName,
+                (uint32_t)batchBuffer->iLastCurrent,
+                0,
+                MediaDebugSerializer<uint32_t>());
+        }
+        else
+        {
+            DumpBufferInHexDwords(batchBuffer->pData,
+                (uint32_t)batchBuffer->iLastCurrent);
+        }
+
+        if (batchLockedForDebug)
+        {
+            (Mhw_UnlockBb(m_osInterface, batchBuffer, false));
+        }
     }
 
     return MOS_STATUS_SUCCESS;

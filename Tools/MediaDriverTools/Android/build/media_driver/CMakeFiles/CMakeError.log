@@ -1,0 +1,40 @@
+Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: /media1/celadon_u/hardware/intel/external/media/mod/Tools/MediaDriverTools/Android/build/media_driver/CMakeFiles/CMakeTmp
+
+Run Build Command(s):/usr/bin/make cmTC_4022f/fast && /usr/bin/make -f CMakeFiles/cmTC_4022f.dir/build.make CMakeFiles/cmTC_4022f.dir/build
+make[1]: Entering directory '/media1/celadon_u/hardware/intel/external/media/mod/Tools/MediaDriverTools/Android/build/media_driver/CMakeFiles/CMakeTmp'
+Building C object CMakeFiles/cmTC_4022f.dir/src.c.o
+/usr/bin/cc   -DCMAKE_HAVE_LIBC_PTHREAD   -o CMakeFiles/cmTC_4022f.dir/src.c.o   -c /media1/celadon_u/hardware/intel/external/media/mod/Tools/MediaDriverTools/Android/build/media_driver/CMakeFiles/CMakeTmp/src.c
+Linking C executable cmTC_4022f
+/usr/bin/cmake -E cmake_link_script CMakeFiles/cmTC_4022f.dir/link.txt --verbose=1
+/usr/bin/cc  -DCMAKE_HAVE_LIBC_PTHREAD   -m64  CMakeFiles/cmTC_4022f.dir/src.c.o  -o cmTC_4022f 
+/usr/bin/ld: CMakeFiles/cmTC_4022f.dir/src.c.o: in function `main':
+src.c:(.text+0x46): undefined reference to `pthread_create'
+/usr/bin/ld: src.c:(.text+0x52): undefined reference to `pthread_detach'
+/usr/bin/ld: src.c:(.text+0x63): undefined reference to `pthread_join'
+collect2: error: ld returned 1 exit status
+make[1]: *** [CMakeFiles/cmTC_4022f.dir/build.make:87: cmTC_4022f] Error 1
+make[1]: Leaving directory '/media1/celadon_u/hardware/intel/external/media/mod/Tools/MediaDriverTools/Android/build/media_driver/CMakeFiles/CMakeTmp'
+make: *** [Makefile:121: cmTC_4022f/fast] Error 2
+
+
+Source file was:
+#include <pthread.h>
+
+void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+

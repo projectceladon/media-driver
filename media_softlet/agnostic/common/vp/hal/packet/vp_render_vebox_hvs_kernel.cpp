@@ -71,7 +71,7 @@ MOS_STATUS VpRenderHVSKernel::GetWalkerSetting(KERNEL_WALKER_PARAMS &walkerParam
 }
 
 // Only for Adv kernels.
-MOS_STATUS VpRenderHVSKernel::SetWalkerSetting(KERNEL_THREAD_SPACE &threadSpace, bool bSyncFlag)
+MOS_STATUS VpRenderHVSKernel::SetWalkerSetting(KERNEL_THREAD_SPACE &threadSpace, bool bSyncFlag, bool flushL1)
 {
     VP_FUNC_CALL();
     MOS_ZeroMemory(&m_walkerParam, sizeof(KERNEL_WALKER_PARAMS));
@@ -275,12 +275,12 @@ MOS_STATUS VpRenderHVSKernel::GetCurbeState(void *&curbe, uint32_t &curbeLength)
         {
             // Resource need be added.
             uint32_t *pSurfaceindex = static_cast<uint32_t *>(arg.pData);
-            auto      it            = m_surfaceBindingIndex.find((SurfaceType)*pSurfaceindex);
-            if (it == m_surfaceBindingIndex.end())
+            auto      bindingMap    = GetSurfaceBindingIndex((SurfaceType)*pSurfaceindex);
+            if (bindingMap.empty())
             {
                 VP_RENDER_CHK_STATUS_RETURN(MOS_STATUS_INVALID_PARAMETER);
             }
-            *((uint32_t *)(data + arg.uOffsetInPayload)) = it->second;
+            *((uint32_t *)(data + arg.uOffsetInPayload)) = *bindingMap.begin();
         }
         else if (arg.eArgKind == ARG_KIND_GENERAL)
         {
@@ -305,6 +305,7 @@ MOS_STATUS VpRenderHVSKernel::SetupSurfaceState()
 
     PRENDERHAL_INTERFACE renderHal = m_hwInterface->m_renderHal;
     PMOS_INTERFACE osInterface = m_hwInterface->m_osInterface;
+    m_surfaceBindingIndex.clear();
 
     for (auto arg : m_kernelArgs)
     {

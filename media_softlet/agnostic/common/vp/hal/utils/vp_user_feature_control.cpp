@@ -219,6 +219,7 @@ VpUserFeatureControl::VpUserFeatureControl(MOS_INTERFACE &osInterface, VpPlatfor
     if (m_vpPlatformInterface)
     {
         m_ctrlValDefault.eufusionBypassWaEnabled = m_vpPlatformInterface->IsEufusionBypassWaEnabled();
+        m_ctrlValDefault.decompForInterlacedSurfWaEnabled = m_vpPlatformInterface->IsDecompForInterlacedSurfWaEnabled();
     }
     else
     {
@@ -226,6 +227,7 @@ VpUserFeatureControl::VpUserFeatureControl(MOS_INTERFACE &osInterface, VpPlatfor
         VP_PUBLIC_ASSERTMESSAGE("m_vpPlatformInterface == nullptr");
     }
     VP_PUBLIC_NORMALMESSAGE("eufusionBypassWaEnabled %d", m_ctrlValDefault.eufusionBypassWaEnabled);
+    VP_PUBLIC_NORMALMESSAGE("decompForInterlacedSurfWaEnabled %d", m_ctrlValDefault.decompForInterlacedSurfWaEnabled);
 
     MT_LOG3(MT_VP_USERFEATURE_CTRL, MT_NORMAL, MT_VP_UF_CTRL_DISABLE_VEOUT, m_ctrlValDefault.disableVeboxOutput,
         MT_VP_UF_CTRL_DISABLE_SFC, m_ctrlValDefault.disableSfc, MT_VP_UF_CTRL_CCS, m_ctrlValDefault.computeContextEnabled);
@@ -282,6 +284,13 @@ VpUserFeatureControl::VpUserFeatureControl(MOS_INTERFACE &osInterface, VpPlatfor
         m_ctrlValDefault.splitFramePortions = splitFramePortions;
     }
 
+    //check vebox type 
+    if (skuTable && (MEDIA_IS_SKU(skuTable, FtrVeboxTypeH)))
+    {
+        m_ctrlValDefault.veboxTypeH = true;
+    }
+    VP_PUBLIC_NORMALMESSAGE("veboxTypeH %d", m_ctrlValDefault.veboxTypeH);
+
     m_ctrlVal = m_ctrlValDefault;
 }
 
@@ -315,6 +324,22 @@ MOS_STATUS VpUserFeatureControl::CreateUserSettingForDebug()
 #endif
 
 #if (_DEBUG || _RELEASE_INTERNAL)
+    uint32_t   force3DLutInterpolation = 0;
+    eRegKeyReadStatus                  = ReadUserSettingForDebug(
+        m_userSettingPtr,
+        force3DLutInterpolation,
+        __VPHAL_FORCE_3DLUT_INTERPOLATION,
+        MediaUserSetting::Group::Sequence);
+    if (MOS_SUCCEEDED(eRegKeyReadStatus))
+    {
+        m_ctrlValDefault.force3DLutInterpolation = force3DLutInterpolation;
+    }
+    else
+    {
+        // Default value
+        m_ctrlValDefault.force3DLutInterpolation = 0;
+    }
+
     //SFC NV12/P010 Linear Output.
     uint32_t enabledSFCNv12P010LinearOutput = 0;
     eRegKeyReadStatus = ReadUserSettingForDebug(

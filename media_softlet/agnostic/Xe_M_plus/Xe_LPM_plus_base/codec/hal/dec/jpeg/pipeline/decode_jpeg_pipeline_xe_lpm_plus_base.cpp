@@ -229,6 +229,12 @@ MOS_STATUS JpegPipelineXe_Lpm_Plus_Base::Execute()
 
 #if (_DEBUG || _RELEASE_INTERNAL)
             DECODE_CHK_STATUS(StatusCheck());
+#ifdef _MMC_SUPPORTED
+            if (m_mmcState != nullptr)
+            {
+                m_mmcState->ReportSurfaceMmcMode(&(m_basicFeature->m_destSurface));
+            }
+#endif
 #endif
             // Only update user features for the first frame.
             if (m_basicFeature->m_frameNum == 0)
@@ -236,11 +242,8 @@ MOS_STATUS JpegPipelineXe_Lpm_Plus_Base::Execute()
                 DECODE_CHK_STATUS(UserFeatureReport());
             }
 
-            if (m_basicFeature->m_secondField || CodecHal_PictureIsFrame(m_basicFeature->m_curRenderPic))
-            {
-                DecodeFrameIndex++;
-                m_basicFeature->m_frameNum = DecodeFrameIndex;
-            }
+            DecodeFrameIndex++;
+            m_basicFeature->m_frameNum = DecodeFrameIndex;
 
             DECODE_CHK_STATUS(m_statusReport->Reset());
         }

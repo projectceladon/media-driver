@@ -32,6 +32,7 @@
 #include "mhw_vdbox_mfx_itf.h"
 #include "mhw_vdbox_huc_itf.h"
 #include "encode_mem_compression.h"
+#include "media_copy_wrapper.h"
 #include "codechal_debug.h"
 
 namespace encode
@@ -103,8 +104,10 @@ public:
                     CodechalHwInterfaceNext *hwInterface,
                     TrackedBuffer *trackedBuf,
                     RecycleResource *recycleBuf,
+                    MediaCopyWrapper *mediaCopyWrapper,
                     void *constSettings = nullptr) :
-                    EncodeBasicFeature(allocator, hwInterface, trackedBuf, recycleBuf) {m_constSettings = constSettings;}
+                    EncodeBasicFeature(allocator, hwInterface, trackedBuf, recycleBuf),
+                    m_mediaCopyWrapper(mediaCopyWrapper) { m_constSettings = constSettings; }
 
     virtual ~AvcBasicFeature();
 
@@ -160,15 +163,15 @@ public:
     EncodeMemComp *m_mmcState = nullptr;
 
     // Parameters passed from application
-    PCODEC_AVC_ENCODE_PIC_PARAMS                m_picParams[CODEC_AVC_MAX_PPS_NUM];  //!< Pointer to array of picture parameter, could be removed
-    PCODEC_AVC_ENCODE_SEQUENCE_PARAMS           m_seqParams[CODEC_AVC_MAX_SPS_NUM];  //!< Pointer to array of sequence parameter, could be removed
-    PCODEC_AVC_ENCODE_PIC_PARAMS                m_picParam           = nullptr;      //!< Pointer to AVC picture parameter
-    PCODEC_AVC_ENCODE_SEQUENCE_PARAMS           m_seqParam           = nullptr;      //!< Pointer to AVC sequence parameter
-    PCODECHAL_ENCODE_AVC_VUI_PARAMS             m_vuiParams          = nullptr;      //!< Pointer to AVC Uvi parameter
-    PCODEC_AVC_ENCODE_SLICE_PARAMS              m_sliceParams        = nullptr;      //!< Pointer to AVC slice parameter
-    PCODEC_AVC_IQ_MATRIX_PARAMS                 m_iqMatrixParams     = nullptr;      //!< Pointer to IQMaxtrix parameter
-    PCODEC_AVC_ENCODE_IQ_WEIGTHSCALE_LISTS      m_iqWeightScaleLists = nullptr;      //!< Pointer to IQWidght ScaleLists
-    CODEC_AVC_ENCODE_USER_FLAGS                 m_userFlags;                         //!< Encoder user flag settings
+    PCODEC_AVC_ENCODE_PIC_PARAMS                m_picParams[CODEC_AVC_MAX_PPS_NUM] = {};  //!< Pointer to array of picture parameter, could be removed
+    PCODEC_AVC_ENCODE_SEQUENCE_PARAMS           m_seqParams[CODEC_AVC_MAX_SPS_NUM] = {};  //!< Pointer to array of sequence parameter, could be removed
+    PCODEC_AVC_ENCODE_PIC_PARAMS                m_picParam           = nullptr;           //!< Pointer to AVC picture parameter
+    PCODEC_AVC_ENCODE_SEQUENCE_PARAMS           m_seqParam           = nullptr;           //!< Pointer to AVC sequence parameter
+    PCODECHAL_ENCODE_AVC_VUI_PARAMS             m_vuiParams          = nullptr;           //!< Pointer to AVC Uvi parameter
+    PCODEC_AVC_ENCODE_SLICE_PARAMS              m_sliceParams        = nullptr;           //!< Pointer to AVC slice parameter
+    PCODEC_AVC_IQ_MATRIX_PARAMS                 m_iqMatrixParams     = nullptr;           //!< Pointer to IQMaxtrix parameter
+    PCODEC_AVC_ENCODE_IQ_WEIGTHSCALE_LISTS      m_iqWeightScaleLists = nullptr;           //!< Pointer to IQWidght ScaleLists
+    CODEC_AVC_ENCODE_USER_FLAGS                 m_userFlags;                              //!< Encoder user flag settings
 
     std::shared_ptr<AvcReferenceFrames>  m_ref = nullptr;             //! Reference List
 
@@ -178,7 +181,8 @@ public:
     MHW_VDBOX_AVC_SLICE_STATE sliceState{};
 #endif  // USE_CODECHAL_DEBUG_TOOL
 
-    CODECHAL_ENCODE_AVC_NAL_UNIT_TYPE m_nalUnitType;                  //!< Nal unit type
+    CODECHAL_ENCODE_AVC_NAL_UNIT_TYPE m_nalUnitType         = CODECHAL_ENCODE_AVC_NAL_UT_RESERVED;      //!< Nal unit type
+    
     uint16_t                          m_sliceHeight         = 0;      //!< Slice height
     bool                              m_deblockingEnabled   = false;  //!< Enable deblocking flag
     bool                              m_mbaffEnabled        = false;  //!< Enable MBAFF flag
@@ -245,6 +249,7 @@ protected:
     MOS_STATUS SetSliceStructs();
     void CheckResolutionChange();
     MOS_STATUS PackPictureHeader();
+    virtual bool InputSurfaceNeedsExtraCopy(const MOS_SURFACE &input);
 
     virtual MOS_STATUS UpdateTrackedBufferParameters() override;
     virtual MOS_STATUS GetTrackedBuffers() override;
@@ -290,6 +295,8 @@ protected:
     CodechalEncodeSeiData m_seiData        = {};       //!< Encode SEI data parameter.
     uint32_t              m_seiDataOffset  = false;    //!< Encode SEI data offset.
     uint8_t *             m_seiParamBuffer = nullptr;  //!< Encode SEI data buffer.
+
+    MediaCopyWrapper *m_mediaCopyWrapper = nullptr;
 
 MEDIA_CLASS_DEFINE_END(encode__AvcBasicFeature)
 };

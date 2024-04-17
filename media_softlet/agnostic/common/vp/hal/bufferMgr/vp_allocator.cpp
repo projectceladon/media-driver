@@ -164,8 +164,12 @@ MOS_STATUS VpAllocator::DestroySurface(MOS_SURFACE *surface, MOS_GFXRES_FREE_FLA
 {
     VP_FUNC_CALL();
     VP_PUBLIC_CHK_NULL_RETURN(m_allocator);
-
-    return m_allocator->DestroySurface(surface, flags);
+    MOS_GFXRES_FREE_FLAGS resFreeFlags = {0};
+    if (IsSyncFreeNeededForMMCSurface(surface))
+    {
+        resFreeFlags.SynchronousDestroy = 1;
+    }
+    return m_allocator->DestroySurface(surface, resFreeFlags);
 }
 
 VP_SURFACE* VpAllocator::AllocateVpSurface(MOS_ALLOC_GFXRES_PARAMS &param, bool zeroOnAllocate, VPHAL_CSPACE ColorSpace, uint32_t ChromaSiting)
@@ -490,14 +494,14 @@ MOS_STATUS VpAllocator::DestroyVpSurface(VP_SURFACE* &surface, bool deferredDest
         MT_VP_HAL_SURF_ALLOC_PARAM_SIZE, static_cast<int64_t>(surface->osSurface->OsResource.pGmmResInfo ? surface->osSurface->OsResource.pGmmResInfo->GetSizeAllocation() : 0));
     VP_PUBLIC_NORMALMESSAGE(
         "VP_HAL_DESTROY_SURF. "
-        "VP_HAL_Surface: 0x%x, "
-        "VP_HAL_OsSurface: 0x%x, "
+        "VP_HAL_Surface: %p, "
+        "VP_HAL_OsSurface: %p, "
         "VP_HAL_isResourceOwner: %d, "
-        "VP_HAL_Surface_Handle: 0x%x, "
-        "VP_HAL_Surface_Size: %d",
+        "VP_HAL_Surface_Handle: 0x%llx, "
+        "VP_HAL_Surface_Size: 0x%llx",
         surface,
         surface->osSurface,
-        surface->isResourceOwner,
+        surface->isResourceOwner ? 1 : 0,
         surface->GetAllocationHandle(m_osInterface),
         surface->osSurface->OsResource.pGmmResInfo ? surface->osSurface->OsResource.pGmmResInfo->GetSizeAllocation() : 0);
 
@@ -611,6 +615,9 @@ MOS_STATUS VpAllocator::GetSurfaceInfo(VPHAL_SURFACE *surface, VPHAL_GET_SURFACE
     surface->dwWidth         = resDetails.dwWidth;
     surface->dwHeight        = resDetails.dwHeight;
     surface->dwPitch         = resDetails.dwPitch;
+    surface->dwYPitch        = resDetails.dwYPitch;
+    surface->dwUPitch        = resDetails.dwUPitch;
+    surface->dwVPitch        = resDetails.dwVPitch;
     surface->dwSlicePitch    = resDetails.dwSlicePitch;
     surface->dwDepth         = resDetails.dwDepth;
     surface->TileType        = resDetails.TileType;
@@ -886,7 +893,23 @@ MOS_STATUS VpAllocator::ReAllocateSurface(
 
     if (!surfInfoCheck(surface))
     {
-        VP_PUBLIC_ASSERTMESSAGE("Incorrect surface parameters.");
+        VP_PUBLIC_ASSERTMESSAGE("Allocated surface is not matched with allocating parameter.");
+        VP_PUBLIC_ASSERTMESSAGE("Allocated surface : format %d, compressible %d, compressionMode %d, tileType %d, bufferWidth %d, bufferHeight %d, width %d, height %d",
+            surface->osSurface->Format,
+            surface->osSurface->bCompressible,
+            surface->osSurface->CompressionMode,
+            surface->osSurface->TileType,
+            surface->bufferWidth,
+            surface->bufferHeight,
+            surface->osSurface->dwWidth,
+            surface->osSurface->dwHeight);
+        VP_PUBLIC_ASSERTMESSAGE("Parameter to allocate : format %d, compressible %d, compressionMode %d, tileType %d, width %d, height %d",
+            format,
+            compressible,
+            compressionMode,
+            defaultTileType,
+            width,
+            height);
     }
 
     MT_LOG7(MT_VP_HAL_REALLOC_SURF, MT_NORMAL, MT_VP_HAL_INTER_SURF_TYPE, surfaceName ? *((int64_t*)surfaceName) : 0,
@@ -903,18 +926,18 @@ MOS_STATUS VpAllocator::ReAllocateSurface(
         MT_VP_HAL_SURF_ALLOC_PARAM_NAME, surfaceName ? *((int64_t *)surfaceName) : 0);
     VP_PUBLIC_NORMALMESSAGE(
         "VP_HAL_REALLOC_SURF. "
-        "VP_HAL_Surface: 0x%x, "
-        "VP_HAL_OsSurface: 0x%x, "
+        "VP_HAL_Surface: %p, "
+        "VP_HAL_OsSurface: %p, "
         "VP_HAL_isResourceOwner: %d, "
-        "VP_HAL_Surface_Handle: 0x%x, "
-        "VP_HAL_Surface_Size: %d, "
-        "VP_HAL_Surface_Name: %s ",
+        "VP_HAL_Surface_Handle: 0x%llx, "
+        "VP_HAL_Surface_Size: 0x%llx, "
+        "VP_HAL_Surface_Name: %s",
         surface,
         surface->osSurface,
-        surface->isResourceOwner,
+        surface->isResourceOwner ? 1 : 0,
         surface->GetAllocationHandle(m_osInterface),
         surface->osSurface->OsResource.pGmmResInfo ? surface->osSurface->OsResource.pGmmResInfo->GetSizeAllocation() : 0,
-        surfaceName);
+        surfaceName ? surfaceName : "");
     int64_t currentSize  = static_cast<int64_t>(surface->osSurface->OsResource.pGmmResInfo ? surface->osSurface->OsResource.pGmmResInfo->GetSizeAllocation() : 0);
     m_totalSize          = m_totalSize + currentSize;
     m_peakSize           = m_peakSize > m_totalSize ? m_peakSize : m_totalSize;
@@ -1412,7 +1435,7 @@ MOS_STATUS VpAllocator::SetMmcFlags(MOS_SURFACE &osSurface)
 
         osSurface.bCompressible   = true;
         osSurface.bIsCompressed   = true;
-        m_mmc->GetSurfaceMmcFormat(&osSurface, &mmcFormat);
+        VP_PUBLIC_CHK_STATUS_RETURN(m_mmc->GetSurfaceMmcFormat(&osSurface, &mmcFormat));
         osSurface.CompressionFormat = mmcFormat;
     }
     else
@@ -1425,4 +1448,19 @@ MOS_STATUS VpAllocator::SetMmcFlags(MOS_SURFACE &osSurface)
     }
 
     return MOS_STATUS_SUCCESS;
+}
+
+MOS_HW_RESOURCE_DEF VpAllocator::GetResourceCache(uint32_t feature, bool bOut, ENGINE_TYPE engineType, MOS_COMPONENT id)
+{
+    VP_FUNC_CALL();
+    MOS_CACHE_ELEMENT element(MOS_CODEC_RESOURCE_USAGE_BEGIN_CODEC, MOS_CODEC_RESOURCE_USAGE_BEGIN_CODEC);
+    bool              res = m_osInterface->pfnGetCacheSetting(id, SUFACE_TYPE_ASSIGNED(feature), bOut, engineType, element, false);
+    if (res == false)
+    {
+        VP_PUBLIC_ASSERTMESSAGE("Resource %u was not found in cache manager, use default usage MOS_HW_RESOURCE_USAGE_VP_INTERNAL_READ_WRITE_RENDER!", feature);
+        return MOS_HW_RESOURCE_USAGE_VP_INTERNAL_READ_WRITE_RENDER;
+    }
+
+    VP_PUBLIC_NORMALMESSAGE("Resource %u was found in cache manager, use mocs usage %u!", feature, element.mocsUsageType);
+    return element.mocsUsageType;
 }

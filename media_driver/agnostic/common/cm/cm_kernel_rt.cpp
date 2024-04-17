@@ -184,15 +184,18 @@ int32_t CmKernelRT::Create(CmDeviceRT *device,
                            const char *options)
 {
     int32_t result = CM_SUCCESS;
-    CM_HAL_STATE * state = ((PCM_CONTEXT_DATA)device->GetAccelData())->cmHalState;
+    CM_HAL_STATE * state  = device ? ((PCM_CONTEXT_DATA)device->GetAccelData())->cmHalState : nullptr;
 
-    if (state && state->advExecutor)
+    if (device)
     {
-        kernel = state->advExecutor->CreateKernelRT(device, program, kernelIndex, kernelSeqNum);
-    }
-    else
-    {
-        kernel = new (std::nothrow) CmKernelRT(device, program, kernelIndex, kernelSeqNum);
+        if (state && state->advExecutor)
+        {
+            kernel = state->advExecutor->CreateKernelRT(device, program, kernelIndex, kernelSeqNum);
+        }
+        else
+        {
+            kernel = new (std::nothrow) CmKernelRT(device, program, kernelIndex, kernelSeqNum);
+        }
     }
     
     if( kernel )
@@ -227,7 +230,8 @@ int32_t CmKernelRT::Create(CmDeviceRT *device,
     }
 
 #if USE_EXTENSION_CODE
-    result = kernel->InitForGTPin(device, program, kernel);
+    if (device)
+        result = kernel->InitForGTPin(device, program, kernel);
 #endif
 
     return result;
@@ -960,11 +964,6 @@ CmSurface* CmKernelRT::GetSurfaceFromSurfaceArray( SurfaceIndex* value, uint32_t
     m_surfaceMgr->GetSurface(surfaceIndex->get_data(), surface);
 
 finish:
-    if(hr != CM_SUCCESS)
-    {
-        surface = nullptr;
-    }
-
     return surface;
 }
 
@@ -1975,11 +1974,6 @@ finish:
                     return CM_OUT_OF_HOST_MEMORY;
                 }
                 CmSafeMemSet((void *)arg.surfIndex, 0, size/sizeof(int32_t) * sizeof(uint16_t));
-                if( surfIndexValue == nullptr )
-                {
-                    CM_ASSERTMESSAGE("Error: Pointer to surface index value is null.");
-                    return CM_NULL_POINTER;
-                }
                 CmSafeMemCopy((void *)arg.surfIndex, surfIndexValue, size / sizeof(int32_t) * sizeof(uint16_t));
             }
 
@@ -2021,11 +2015,6 @@ finish:
              ( m_args[ index ].unitKind == ARG_KIND_STATE_BUFFER ) ) && surfIndexValue )
             {
                 CmSafeMemSet((void *)arg.surfIndex, 0, size/sizeof(int32_t) * sizeof(uint16_t));
-                if( surfIndexValue == nullptr )
-                {
-                    CM_ASSERTMESSAGE("Error: Pointer to surface index value is null.");
-                    return CM_NULL_POINTER;
-                }
                 CmSafeMemCopy((void *)arg.surfIndex, surfIndexValue, size/sizeof(int32_t) * sizeof(uint16_t));
             }
 
@@ -2087,11 +2076,6 @@ finish:
                     return CM_OUT_OF_HOST_MEMORY;
                 }
                 CmSafeMemSet((void *)arg.surfIndex, 0, size/sizeof(uint32_t) * sizeof(uint16_t) * m_threadCount);
-                if( surfIndexValue == nullptr )
-                {
-                    CM_ASSERTMESSAGE("Error: Pointer to surface index value is null.");
-                    return CM_NULL_POINTER;
-                }
                 CmSafeMemCopy((void *)(arg.surfIndex + size/sizeof(uint32_t)  * nThreadID), surfIndexValue, size/sizeof(uint32_t) * sizeof(uint16_t));
             }
             m_perThreadArgExists = true;
@@ -2127,11 +2111,6 @@ finish:
                  ( m_args[ index ].unitKind == ARG_KIND_SURFACE_2D_SCOREBOARD) ||
                  ( m_args[ index ].unitKind == ARG_KIND_STATE_BUFFER ) ) && surfIndexValue )
             {
-                if( surfIndexValue == nullptr )
-                {
-                    CM_ASSERTMESSAGE("Error: Pointer to surface index value is null.");
-                    return CM_NULL_POINTER;
-                }
                 CmSafeMemCopy((void *)(arg.surfIndex + size/sizeof(uint32_t)  * nThreadID), surfIndexValue, size/sizeof(uint32_t) * sizeof(uint16_t));
             }
         }
@@ -6199,22 +6178,19 @@ int CmKernelRT::UpdateSamplerHeap(CmKernelData *kernelData)
                         }
                     }
 
+                    if(!sampler.btiMultiplier)
+                    {
+                        CM_ASSERTMESSAGE("Sampler BTI setting error. Multiplier cannot be zero!\n");
+                        return MOS_STATUS_INVALID_PARAMETER;
+                    }
+
                     if (iter == sampler_heap->end())
                     {
                         // Aligns heapOffset to next nearest multiple of sampler size if next sampler is a different element type
                         heapOffset = (heapOffset + sampler.btiStepping * sampler.btiMultiplier - 1) / (sampler.btiStepping * sampler.btiMultiplier) * (sampler.btiStepping * sampler.btiMultiplier);
                     }
                     sampler.heapOffset = heapOffset;
-
-                    if (sampler.btiMultiplier != 0) 
-                    {
-                        sampler.bti = sampler.heapOffset / sampler.btiMultiplier;
-                    }
-                    else
-                    {
-                        CM_ASSERTMESSAGE("Sampler BTI setting error. Multiplier cannot be zero!\n");
-                        return MOS_STATUS_INVALID_PARAMETER;
-                    }
+                    sampler.bti = sampler.heapOffset / sampler.btiMultiplier;
                     sampler_heap->insert(iter, sampler);
                 }
             }

@@ -60,6 +60,9 @@
 #include "libdrm_lists.h"
 #include "mos_bufmgr.h"
 #include "mos_bufmgr_priv.h"
+#ifdef ENABLE_XE_KMD
+#include "mos_bufmgr_xe.h"
+#endif
 #include "string.h"
 
 #include "i915_drm.h"
@@ -69,6 +72,7 @@
 #include "intel_hwconfig_types.h"
 #include "mos_utilities.h"
 #include "linux_system_info.h"
+#include "mos_os_specific.h"
 
 #ifdef HAVE_VALGRIND
 #include <valgrind.h>
@@ -137,7 +141,7 @@ struct mos_bufmgr_gem {
     int exec_count;
 
     /** Array of lists of cached gem objects of power-of-two sizes */
-    struct mos_gem_bo_bucket cache_bucket[14 * 4];
+    struct mos_gem_bo_bucket cache_bucket[64];
     int num_buckets;
     time_t time;
 
@@ -400,6 +404,8 @@ static void mos_gem_bo_unreference(struct mos_linux_bo *bo);
 static bool mos_gem_bo_is_softpin(struct mos_linux_bo *bo);
 static void mos_gem_bo_start_gtt_access(struct mos_linux_bo *bo, int write_enable);
 static void mos_gem_bo_free(struct mos_linux_bo *bo);
+
+static int mos_bufmgr_get_driver_info(struct mos_bufmgr *bufmgr, struct LinuxDriverInfo *drvInfo);
 
 static inline struct mos_bo_gem *to_bo_gem(struct mos_linux_bo *bo)
 {
@@ -1011,15 +1017,7 @@ mos_gem_bo_vma_free(struct mos_bufmgr *bufmgr,
 
 drm_export struct mos_linux_bo *
 mos_gem_bo_alloc_internal(struct mos_bufmgr *bufmgr,
-                const char *name,
-                unsigned long size,
-                unsigned long flags,
-                uint32_t tiling_mode,
-                unsigned long stride,
-                unsigned int alignment,
-                int mem_type,
-                unsigned int pat_index,
-                bool cpu_cacheable)
+                struct mos_drm_bo_alloc *alloc)
 {
     struct mos_bufmgr_gem *bufmgr_gem = (struct mos_bufmgr_gem *) bufmgr;
     struct mos_bo_gem *bo_gem;
@@ -1031,17 +1029,17 @@ mos_gem_bo_alloc_internal(struct mos_bufmgr *bufmgr,
     unsigned long bo_size;
     bool for_render = false;
 
-    if (flags & BO_ALLOC_FOR_RENDER)
+    if (alloc->ext.flags & BO_ALLOC_FOR_RENDER)
         for_render = true;
 
     /* Round the allocated size up to a power of two number of pages. */
-    bucket = mos_gem_bo_bucket_for_size(bufmgr_gem, size);
+    bucket = mos_gem_bo_bucket_for_size(bufmgr_gem, alloc->size);
 
     /* If we don't have caching at this size, don't actually round the
      * allocation up.
      */
     if (bucket == nullptr) {
-        bo_size = size;
+        bo_size = alloc->size;
         if (bo_size < page_size)
             bo_size = page_size;
     } else {
@@ -1052,7 +1050,7 @@ mos_gem_bo_alloc_internal(struct mos_bufmgr *bufmgr,
         /* For old kernel without pat index support,
          * We need to reset pat_index for bo reuse policy
          */
-        pat_index = PAT_INDEX_INVALID;
+        alloc->ext.pat_index = PAT_INDEX_INVALID;
     }
     pthread_mutex_lock(&bufmgr_gem->lock);
     /* Get a buffer out of the cache if available */
@@ -1068,9 +1066,9 @@ retry:
                           bucket->head.prev, head);
             DRMLISTDEL(&bo_gem->head);
             alloc_from_cache = true;
-            bo_gem->bo.align = alignment;
+            bo_gem->bo.align = alloc->alignment;
         } else {
-            assert(alignment == 0);
+            assert(alloc->alignment == 0);
             /* For non-render-target BOs (where we're probably
              * going to map it first thing in order to fill it
              * with data), check if the last BO in the cache is
@@ -1094,18 +1092,18 @@ retry:
                                     bucket);
                 goto retry;
             }
-            if (bo_gem->pat_index != pat_index)
+            if (bo_gem->pat_index != alloc->ext.pat_index)
             {
                 mos_gem_bo_free(&bo_gem->bo);
                 goto retry;
             }
             if (mos_gem_bo_set_tiling_internal(&bo_gem->bo,
-                                 tiling_mode,
-                                 stride)) {
+                                 alloc->ext.tiling_mode,
+                                 alloc->stride)) {
                 mos_gem_bo_free(&bo_gem->bo);
                 goto retry;
             }
-            if (bufmgr_gem->has_lmem && mos_gem_bo_check_mem_region_internal(&bo_gem->bo, mem_type)) {
+            if (bufmgr_gem->has_lmem && mos_gem_bo_check_mem_region_internal(&bo_gem->bo, alloc->ext.mem_type)) {
                 mos_gem_bo_free(&bo_gem->bo);
                 goto retry;
             }
@@ -1125,7 +1123,7 @@ retry:
         bo_gem->cpu_cacheable = true;
 
         if (bufmgr_gem->has_lmem &&
-            (mem_type == MOS_MEMPOOL_VIDEOMEMORY || mem_type == MOS_MEMPOOL_DEVICEMEMORY)) {
+            (alloc->ext.mem_type == MOS_MEMPOOL_VIDEOMEMORY || alloc->ext.mem_type == MOS_MEMPOOL_DEVICEMEMORY)) {
             struct drm_i915_gem_memory_class_instance mem_region;
             memclear(mem_region);
             mem_region.memory_class = I915_MEMORY_CLASS_DEVICE;
@@ -1152,12 +1150,12 @@ retry:
         else
         {
             ret = -EINVAL;
-            if (support_pat_index && pat_index != PAT_INDEX_INVALID)
+            if (support_pat_index && alloc->ext.pat_index != PAT_INDEX_INVALID)
             {
                 struct drm_i915_gem_create_ext_set_pat set_pat_ext;
                 memclear(set_pat_ext);
                 set_pat_ext.base.name = I915_GEM_CREATE_EXT_SET_PAT;
-                set_pat_ext.pat_index = pat_index;
+                set_pat_ext.pat_index = alloc->ext.pat_index;
 
                 struct drm_i915_gem_create_ext create;
                 memclear(create);
@@ -1168,7 +1166,7 @@ retry:
                         &create);
                 bo_gem->gem_handle = create.handle;
                 bo_gem->bo.handle = bo_gem->gem_handle;
-                bo_gem->pat_index = pat_index;
+                bo_gem->pat_index = alloc->ext.pat_index;
                 if (ret != 0)
                 {
                     /* For old kernel without pat_index support,
@@ -1197,14 +1195,14 @@ retry:
             return nullptr;
         }
         bo_gem->bo.bufmgr = bufmgr;
-        bo_gem->bo.align = alignment;
+        bo_gem->bo.align = alloc->alignment;
 
         bo_gem->tiling_mode = I915_TILING_NONE;
         bo_gem->swizzle_mode = I915_BIT_6_SWIZZLE_NONE;
         bo_gem->stride = 0;
         if (bufmgr_gem->mem_profiler_fd != -1)
         {
-            snprintf(bufmgr_gem->mem_profiler_buffer, MEM_PROFILER_BUFFER_SIZE, "GEM_CREATE, %d, %d, %lu, %d, %s\n", getpid(), bo_gem->bo.handle, bo_gem->bo.size,bo_gem->mem_region, name);
+            snprintf(bufmgr_gem->mem_profiler_buffer, MEM_PROFILER_BUFFER_SIZE, "GEM_CREATE, %d, %d, %lu, %d, %s\n", getpid(), bo_gem->bo.handle, bo_gem->bo.size,bo_gem->mem_region, alloc->name);
             ret = write(bufmgr_gem->mem_profiler_fd, bufmgr_gem->mem_profiler_buffer, strnlen(bufmgr_gem->mem_profiler_buffer, MEM_PROFILER_BUFFER_SIZE));
             if (ret == -1)
             {
@@ -1216,14 +1214,14 @@ retry:
            list (vma_list), so better set the list head here */
         DRMINITLISTHEAD(&bo_gem->name_list);
         if (mos_gem_bo_set_tiling_internal(&bo_gem->bo,
-                             tiling_mode,
-                             stride)) {
+                             alloc->ext.tiling_mode,
+                             alloc->stride)) {
             mos_gem_bo_free(&bo_gem->bo);
             return nullptr;
         }
     }
 
-    bo_gem->name = name;
+    bo_gem->name = alloc->name;
     atomic_set(&bo_gem->refcount, 1);
     bo_gem->validate_index = -1;
     bo_gem->reloc_tree_fences = 0;
@@ -1234,10 +1232,10 @@ retry:
 
     if (bo_gem->pat_index != PAT_INDEX_INVALID)
     {
-        bo_gem->cpu_cacheable = cpu_cacheable;
+        bo_gem->cpu_cacheable = alloc->ext.cpu_cacheable;
     }
 
-    mos_bo_gem_set_in_aperture_size(bufmgr_gem, bo_gem, alignment);
+    mos_bo_gem_set_in_aperture_size(bufmgr_gem, bo_gem, alloc->alignment);
 
     if (bufmgr_gem->use_softpin)
     {
@@ -1245,44 +1243,24 @@ retry:
     }
 
     MOS_DBG("bo_create: buf %d (%s) %ldb\n",
-        bo_gem->gem_handle, bo_gem->name, size);
+        bo_gem->gem_handle, bo_gem->name, alloc->size);
 
     return &bo_gem->bo;
 }
 
 static struct mos_linux_bo *
-mos_gem_bo_alloc_for_render(struct mos_bufmgr *bufmgr,
-                  const char *name,
-                  unsigned long size,
-                  unsigned int alignment,
-                  int mem_type,
-                  unsigned int pat_index,
-                  bool cpu_cacheable)
-{
-    return mos_gem_bo_alloc_internal(bufmgr, name, size,
-                           I915_TILING_NONE, 0,
-                           BO_ALLOC_FOR_RENDER,
-                           alignment, mem_type, pat_index, cpu_cacheable);
-}
-
-static struct mos_linux_bo *
 mos_gem_bo_alloc(struct mos_bufmgr *bufmgr,
-               const char *name,
-               unsigned long size,
-               unsigned int alignment,
-               int mem_type,
-               unsigned int pat_index,
-               bool cpu_cacheable)
+               struct mos_drm_bo_alloc *alloc)
 {
-    return mos_gem_bo_alloc_internal(bufmgr, name, size, 0,
-                           I915_TILING_NONE, 0, 0, mem_type, pat_index, cpu_cacheable);
+    alloc->ext.flags = 0;
+    alloc->alignment = 0;
+    alloc->stride = 0;
+    return mos_gem_bo_alloc_internal(bufmgr, alloc);
 }
 
 static struct mos_linux_bo *
-mos_gem_bo_alloc_tiled(struct mos_bufmgr *bufmgr, const char *name,
-                 int x, int y, int cpp, uint32_t *tiling_mode,
-                 unsigned long *pitch, unsigned long flags,
-                 int mem_type, unsigned int pat_index, bool cpu_cacheable)
+mos_gem_bo_alloc_tiled(struct mos_bufmgr *bufmgr,
+            struct mos_drm_bo_alloc_tiled *alloc_tiled)
 {
     struct mos_bufmgr_gem *bufmgr_gem = (struct mos_bufmgr_gem *)bufmgr;
     unsigned long size, stride;
@@ -1291,7 +1269,7 @@ mos_gem_bo_alloc_tiled(struct mos_bufmgr *bufmgr, const char *name,
     do {
         unsigned long aligned_y, height_alignment;
 
-        tiling = *tiling_mode;
+        tiling = alloc_tiled->ext.tiling_mode;
 
         /* If we're tiled, our allocations are in 8 or 32-row blocks,
          * so failure to align our height means that we won't allocate
@@ -1304,7 +1282,7 @@ mos_gem_bo_alloc_tiled(struct mos_bufmgr *bufmgr, const char *name,
          * documented on 965, and may be the case on older chipsets
          * too so we try to be careful.
          */
-        aligned_y = y;
+        aligned_y = alloc_tiled->y;
         height_alignment = 2;
 
         if (tiling == I915_TILING_X
@@ -1313,30 +1291,29 @@ mos_gem_bo_alloc_tiled(struct mos_bufmgr *bufmgr, const char *name,
             height_alignment = 8;
         else if (tiling == I915_TILING_Y)
             height_alignment = 32;
-        aligned_y = ALIGN(y, height_alignment);
+        aligned_y = ALIGN(alloc_tiled->y, height_alignment);
 
-        stride = x * cpp;
-        stride = mos_gem_bo_tile_pitch(bufmgr_gem, stride, tiling_mode);
+        stride = alloc_tiled->x * alloc_tiled->cpp;
+        stride = mos_gem_bo_tile_pitch(bufmgr_gem, stride, &alloc_tiled->ext.tiling_mode);
         size = stride * aligned_y;
-        size = mos_gem_bo_tile_size(bufmgr_gem, size, tiling_mode);
-    } while (*tiling_mode != tiling);
-    *pitch = stride;
+        size = mos_gem_bo_tile_size(bufmgr_gem, size, &alloc_tiled->ext.tiling_mode);
+    } while (alloc_tiled->ext.tiling_mode != tiling);
+    alloc_tiled->pitch = stride;
 
     if (tiling == I915_TILING_NONE)
         stride = 0;
 
-    return mos_gem_bo_alloc_internal(bufmgr, name, size, flags,
-                           tiling, stride, 0, mem_type, pat_index, cpu_cacheable);
+    struct mos_drm_bo_alloc alloc;
+    alloc.name = alloc_tiled->name;
+    alloc.size = size;
+    alloc.stride = stride;
+    alloc.ext = alloc_tiled->ext;
+    return mos_gem_bo_alloc_internal(bufmgr, &alloc);
 }
 
 static struct mos_linux_bo *
 mos_gem_bo_alloc_userptr(struct mos_bufmgr *bufmgr,
-                const char *name,
-                void *addr,
-                uint32_t tiling_mode,
-                uint32_t stride,
-                unsigned long size,
-                unsigned long flags)
+                struct mos_drm_bo_alloc_userptr *alloc_uptr)
 {
     struct mos_bufmgr_gem *bufmgr_gem = (struct mos_bufmgr_gem *) bufmgr;
     struct mos_bo_gem *bo_gem;
@@ -1346,18 +1323,18 @@ mos_gem_bo_alloc_userptr(struct mos_bufmgr *bufmgr,
     /* Tiling with userptr surfaces is not supported
      * on all hardware so refuse it for time being.
      */
-    if (tiling_mode != I915_TILING_NONE)
+    if (alloc_uptr->tiling_mode != I915_TILING_NONE)
         return nullptr;
 
     bo_gem = (struct mos_bo_gem *)calloc(1, sizeof(*bo_gem));
     if (!bo_gem)
         return nullptr;
 
-    bo_gem->bo.size = size;
+    bo_gem->bo.size = alloc_uptr->size;
 
     memclear(userptr);
-    userptr.user_ptr = (__u64)((unsigned long)addr);
-    userptr.user_size = size;
+    userptr.user_ptr = (__u64)((unsigned long)alloc_uptr->addr);
+    userptr.user_size = alloc_uptr->size;
     userptr.flags = 0;
 
     ret = drmIoctl(bufmgr_gem->fd,
@@ -1366,7 +1343,7 @@ mos_gem_bo_alloc_userptr(struct mos_bufmgr *bufmgr,
     if (ret != 0) {
         MOS_DBG("bo_create_userptr: "
             "ioctl failed with user ptr %p size 0x%lx, "
-            "user flags 0x%lx\n", addr, size, flags);
+            "user flags 0x%lx\n", alloc_uptr->addr, alloc_uptr->size, alloc_uptr->flags);
         free(bo_gem);
         return nullptr;
     }
@@ -1378,19 +1355,19 @@ mos_gem_bo_alloc_userptr(struct mos_bufmgr *bufmgr,
     bo_gem->pat_index     = PAT_INDEX_INVALID;
     bo_gem->cpu_cacheable = true;
 #ifdef __cplusplus
-    bo_gem->bo.virt   = addr;
+    bo_gem->bo.virt   = alloc_uptr->addr;
 #else
-    bo_gem->bo.virtual   = addr;
+    bo_gem->bo.virtual   = alloc_uptr->addr;
 #endif
     /* Save the address provided by user */
-    bo_gem->user_virtual = addr;
+    bo_gem->user_virtual = alloc_uptr->addr;
     bo_gem->tiling_mode  = I915_TILING_NONE;
     bo_gem->swizzle_mode = I915_BIT_6_SWIZZLE_NONE;
     bo_gem->stride       = 0;
 
     DRMINITLISTHEAD(&bo_gem->name_list);
 
-    bo_gem->name = name;
+    bo_gem->name = alloc_uptr->name;
     atomic_set(&bo_gem->refcount, 1);
     bo_gem->validate_index = -1;
     bo_gem->reloc_tree_fences = 0;
@@ -1408,8 +1385,8 @@ mos_gem_bo_alloc_userptr(struct mos_bufmgr *bufmgr,
 
     MOS_DBG("bo_create_userptr: "
         "ptr %p buf %d (%s) size %ldb, stride 0x%x, tile mode %d\n",
-        addr, bo_gem->gem_handle, bo_gem->name,
-        size, stride, tiling_mode);
+        alloc_uptr->addr, bo_gem->gem_handle, bo_gem->name,
+        alloc_uptr->size, alloc_uptr->stride, alloc_uptr->tiling_mode);
 
     return &bo_gem->bo;
 }
@@ -1461,20 +1438,14 @@ retry:
 
 static struct mos_linux_bo *
 check_bo_alloc_userptr(struct mos_bufmgr *bufmgr,
-               const char *name,
-               void *addr,
-               uint32_t tiling_mode,
-               uint32_t stride,
-               unsigned long size,
-               unsigned long flags)
+               struct mos_drm_bo_alloc_userptr *alloc_uptr)
 {
     if (has_userptr((struct mos_bufmgr_gem *)bufmgr))
         bufmgr->bo_alloc_userptr = mos_gem_bo_alloc_userptr;
     else
         bufmgr->bo_alloc_userptr = nullptr;
 
-    return mos_bo_alloc_userptr(bufmgr, name, addr,
-                      tiling_mode, stride, size, flags);
+    return mos_bo_alloc_userptr(bufmgr, alloc_uptr);
 }
 
 /**
@@ -1572,11 +1543,17 @@ mos_bufmgr_bo_gem_create_from_name(struct mos_bufmgr *bufmgr,
                DRM_IOCTL_I915_GEM_GET_TILING,
                &get_tiling);
         if (ret != 0) {
+            MOS_DBG("create_from_name: failed to get tiling: %s\n", strerror(errno));
             mos_gem_bo_unreference(&bo_gem->bo);
             pthread_mutex_unlock(&bufmgr_gem->lock);
             return nullptr;
         }
     }
+    else
+    {
+        MOS_DBG("create_from_name: driver ignored to get tiling from kernel\n");
+    }
+
     bo_gem->tiling_mode = get_tiling.tiling_mode;
     bo_gem->swizzle_mode = get_tiling.swizzle_mode;
     /* XXX stride is unknown */
@@ -2452,19 +2429,9 @@ mos_gem_bo_start_gtt_access(struct mos_linux_bo *bo, int write_enable)
 }
 
 static void
-mos_bufmgr_gem_destroy(struct mos_bufmgr *bufmgr)
+mos_bufmgr_cleanup_cache(struct mos_bufmgr_gem *bufmgr_gem)
 {
-    struct mos_bufmgr_gem *bufmgr_gem = (struct mos_bufmgr_gem *) bufmgr;
-    struct drm_gem_close close_bo;
-    int i, ret;
-
-    free(bufmgr_gem->exec2_objects);
-    free(bufmgr_gem->exec_objects);
-    free(bufmgr_gem->exec_bos);
-    pthread_mutex_destroy(&bufmgr_gem->lock);
-
-    /* Free any cached buffer objects we were going to reuse */
-    for (i = 0; i < bufmgr_gem->num_buckets; i++) {
+    for (int i = 0; i < bufmgr_gem->num_buckets; i++) {
         struct mos_gem_bo_bucket *bucket =
             &bufmgr_gem->cache_bucket[i];
         struct mos_bo_gem *bo_gem;
@@ -2476,7 +2443,25 @@ mos_bufmgr_gem_destroy(struct mos_bufmgr *bufmgr)
 
             mos_gem_bo_free(&bo_gem->bo);
         }
+        bufmgr_gem->cache_bucket[i].size = 0;
     }
+    bufmgr_gem->num_buckets = 0;
+}
+
+static void
+mos_bufmgr_gem_destroy(struct mos_bufmgr *bufmgr)
+{
+    struct mos_bufmgr_gem *bufmgr_gem = (struct mos_bufmgr_gem *)bufmgr;
+    struct drm_gem_close close_bo;
+    int ret;
+
+    free(bufmgr_gem->exec2_objects);
+    free(bufmgr_gem->exec_objects);
+    free(bufmgr_gem->exec_bos);
+    pthread_mutex_destroy(&bufmgr_gem->lock);
+
+    /* Free any cached buffer objects we were going to reuse */
+    mos_bufmgr_cleanup_cache(bufmgr_gem);
 
     /* Release userptr bo kept hanging around for optimisation. */
     if (bufmgr_gem->userptr_active.ptr) {
@@ -3549,6 +3534,11 @@ mos_gem_bo_create_from_prime(struct mos_bufmgr *bufmgr, int prime_fd, int size)
             return nullptr;
         }
     }
+    else
+    {
+        MOS_DBG("create_from_prime: driver ignored to get tiling from kernel\n");
+    }
+
     bo_gem->tiling_mode = get_tiling.tiling_mode;
     bo_gem->swizzle_mode = get_tiling.swizzle_mode;
     /* XXX stride is unknown */
@@ -3896,6 +3886,84 @@ init_cache_buckets(struct mos_bufmgr_gem *bufmgr_gem)
         add_bucket(bufmgr_gem, size + size * 1 / 4);
         add_bucket(bufmgr_gem, size + size * 2 / 4);
         add_bucket(bufmgr_gem, size + size * 3 / 4);
+    }
+}
+
+static void
+mos_gem_realloc_cache(struct mos_bufmgr *bufmgr, uint8_t alloc_mode)
+{
+    unsigned long size, cache_max_size = 64 * 1024 * 1024, unit_size;
+    struct mos_bufmgr_gem *bufmgr_gem = (struct mos_bufmgr_gem *)bufmgr;
+
+    // Clean up the pre-allocated cache before re-allocating according
+    // to alloc_mode
+    mos_bufmgr_cleanup_cache(bufmgr_gem);
+
+    /* OK, so power of two buckets was too wasteful of memory.
+     * Give 3 other sizes between each power of two, to hopefully
+     * cover things accurately enough.  (The alternative is
+     * probably to just go for exact matching of sizes, and assume
+     * that for things like composited window resize the tiled
+     * width/height alignment and rounding of sizes to pages will
+     * get us useful cache hit rates anyway)
+     */
+    /* alloc_mode 0 is default alloc_mode
+     * alloc_mode 1 rounding up to 64K for all < 1M
+     * alloc_mode 2 rounding up to 2M for size> 1M
+     * alloc_mode 3 rounding up to 2M for size > 1M and 64K for size <= 1M */
+    if( alloc_mode > 3 )
+        alloc_mode = 0;
+
+    if ( 0 == alloc_mode || 2 == alloc_mode)
+    {
+        // < 1M normal alloc_mode
+        add_bucket(bufmgr_gem, 4096);
+        add_bucket(bufmgr_gem, 4096 * 2);
+        add_bucket(bufmgr_gem, 4096 * 3);
+        /* Initialize the linked lists for BO reuse cache. */
+        for (size = 4 * 4096; size < 1024 * 1024; size *= 2) {
+            add_bucket(bufmgr_gem, size);
+            add_bucket(bufmgr_gem, size + size * 1 / 4);
+            add_bucket(bufmgr_gem, size + size * 2 / 4);
+            add_bucket(bufmgr_gem, size + size * 3 / 4);
+        }
+
+        add_bucket(bufmgr_gem, 1024 * 1024);
+    }
+    if (1 == alloc_mode || 3 == alloc_mode)
+    {
+        // < 1M 64k alignment
+        unit_size = 64 * 1024;
+        for (size = unit_size; size <= 1024 * 1024; size += unit_size)
+        {
+            add_bucket(bufmgr_gem, size);
+        }
+    }
+    if( 0 == alloc_mode || 1 == alloc_mode)
+    {
+       //> 1M is normal alloc_mode
+        add_bucket(bufmgr_gem, 1280 * 1024);
+        add_bucket(bufmgr_gem, 1536 * 1024);
+        add_bucket(bufmgr_gem, 1792 * 1024);
+
+        for (size = 2 * 1024 * 1024; size < cache_max_size; size *= 2) {
+            add_bucket(bufmgr_gem, size);
+            add_bucket(bufmgr_gem, size + size * 1 / 4);
+            add_bucket(bufmgr_gem, size + size * 2 / 4);
+            add_bucket(bufmgr_gem, size + size * 3 / 4);
+        }
+    }
+    if( 2 == alloc_mode || 3 == alloc_mode)
+    {
+       //> 1M rolling to 2M
+       unit_size = 2 * 1024 * 1024;
+       add_bucket(bufmgr_gem, unit_size);
+       add_bucket(bufmgr_gem, 3 * 1024 * 1024);
+
+       for (size = 4 * 1024 * 1024; size <= cache_max_size; size += unit_size)
+       {
+           add_bucket(bufmgr_gem, size);
+       }
     }
 }
 
@@ -4732,6 +4800,47 @@ mos_bufmgr_query_sys_engines(struct mos_bufmgr *bufmgr, MEDIA_SYSTEM_INFO* gfx_i
     return 0;
 }
 
+void mos_gem_select_fixed_engine(struct mos_bufmgr *bufmgr,
+            void *engine_map,
+            uint32_t *nengine,
+            uint32_t fixed_instance_mask)
+{
+    MOS_UNUSED(bufmgr);
+#if (DEBUG || _RELEASE_INTERNAL)
+    if (fixed_instance_mask)
+    {
+        struct i915_engine_class_instance *_engine_map = (struct i915_engine_class_instance *)engine_map;
+        auto unselect_index = 0;
+        for(auto bit = 0; bit < *nengine; bit++)
+        {
+            if(((fixed_instance_mask >> bit) & 0x1) && (bit > unselect_index))
+            {
+                _engine_map[unselect_index].engine_class = _engine_map[bit].engine_class;
+                _engine_map[unselect_index].engine_instance = _engine_map[bit].engine_instance;
+                _engine_map[bit].engine_class = 0;
+                _engine_map[bit].engine_instance = 0;
+                unselect_index++;
+            }
+            else if(((fixed_instance_mask >> bit) & 0x1) && (bit == unselect_index))
+            {
+                unselect_index++;
+            }
+            else if(!((fixed_instance_mask >> bit) & 0x1))
+            {
+                _engine_map[bit].engine_class = 0;
+                _engine_map[bit].engine_instance = 0;
+            }
+        }
+        *nengine = unselect_index;
+    }
+#else
+    MOS_UNUSED(engine_map);
+    MOS_UNUSED(nengine);
+    MOS_UNUSED(fixed_instance_mask);
+#endif
+
+}
+
 static int mos_gem_set_context_param_parallel(struct mos_linux_context *ctx,
                      struct i915_engine_class_instance *ci,
                      unsigned int count)
@@ -5121,6 +5230,7 @@ mos_bufmgr_gem_init_i915(int fd, int batch_size)
     struct drm_i915_gem_get_aperture aperture;
     drm_i915_getparam_t gp;
     int ret, tmp;
+    uint8_t alloc_mode;
     bool exec2 = false;
 
     pthread_mutex_lock(&bufmgr_list_mutex);
@@ -5143,8 +5253,6 @@ mos_bufmgr_gem_init_i915(int fd, int batch_size)
     }
 
     bufmgr_gem->bufmgr.bo_alloc = mos_gem_bo_alloc;
-    bufmgr_gem->bufmgr.bo_alloc_for_render =
-        mos_gem_bo_alloc_for_render;
     bufmgr_gem->bufmgr.bo_alloc_tiled = mos_gem_bo_alloc_tiled;
     bufmgr_gem->bufmgr.bo_reference = mos_gem_bo_reference;
     bufmgr_gem->bufmgr.bo_unreference = mos_gem_bo_unreference;
@@ -5194,6 +5302,7 @@ mos_bufmgr_gem_init_i915(int fd, int batch_size)
     bufmgr_gem->bufmgr.disable_object_capture = mos_gem_disable_object_capture;
     bufmgr_gem->bufmgr.get_memory_info = mos_gem_get_memory_info;
     bufmgr_gem->bufmgr.get_devid = mos_gem_get_devid;
+    bufmgr_gem->bufmgr.realloc_cache = mos_gem_realloc_cache;
     bufmgr_gem->bufmgr.set_context_param = mos_gem_set_context_param;
     bufmgr_gem->bufmgr.set_context_param_parallel = mos_gem_set_context_param_parallel;
     bufmgr_gem->bufmgr.set_context_param_load_balance = mos_gem_set_context_param_load_balance;
@@ -5207,12 +5316,14 @@ mos_bufmgr_gem_init_i915(int fd, int batch_size)
     bufmgr_gem->bufmgr.set_context_param_sseu = mos_bufmgr_set_context_param_sseu;
     bufmgr_gem->bufmgr.query_sys_engines = mos_bufmgr_query_sys_engines;
     bufmgr_gem->bufmgr.query_device_blob = mos_bufmgr_query_device_blob;
+    bufmgr_gem->bufmgr.get_driver_info = mos_bufmgr_get_driver_info;
     bufmgr_gem->bufmgr.query_hw_ip_version = mos_bufmgr_query_hw_ip_version;
     bufmgr_gem->bufmgr.get_platform_information = mos_bufmgr_get_platform_information;
     bufmgr_gem->bufmgr.set_platform_information = mos_bufmgr_set_platform_information;
     bufmgr_gem->bufmgr.query_engines_count = mos_bufmgr_query_engines_count;
     bufmgr_gem->bufmgr.query_engines = mos_bufmgr_query_engines;
     bufmgr_gem->bufmgr.get_engine_class_size = mos_bufmgr_get_engine_class_size;
+    bufmgr_gem->bufmgr.select_fixed_engine = mos_gem_select_fixed_engine;
     bufmgr_gem->bufmgr.switch_off_n_bits = mos_bufmgr_switch_off_n_bits;
     bufmgr_gem->bufmgr.hweight8 = mos_bufmgr_hweight8;
     bufmgr_gem->bufmgr.get_ts_frequency = mos_bufmgr_get_ts_frequency;
@@ -5374,6 +5485,8 @@ mos_bufmgr_gem_init_i915(int fd, int batch_size)
      *
      * Every 4 was too few for the blender benchmark.
      */
+    alloc_mode = (uint8_t)(batch_size & 0xff);
+    batch_size &= 0xffffff00;
     bufmgr_gem->max_relocs = batch_size / sizeof(uint32_t) / 2 - 2;
 
     DRMINITLISTHEAD(&bufmgr_gem->named);
@@ -5392,12 +5505,23 @@ exit:
 }
 
 struct mos_bufmgr *
-mos_bufmgr_gem_init(int fd, int batch_size)
+mos_bufmgr_gem_init(int fd, int batch_size, int *device_type)
 {
-    if(DEVICE_TYPE_I915 == mos_query_device_type(fd))
+    int type = mos_query_device_type(fd);
+    if (device_type != nullptr)
+    {
+        *device_type = type;
+    }
+    if(DEVICE_TYPE_I915 == type)
     {
         return mos_bufmgr_gem_init_i915(fd, batch_size);
     }
+#ifdef ENABLE_XE_KMD
+    else if (DEVICE_TYPE_XE == type)
+    {
+        return mos_bufmgr_gem_init_xe(fd, batch_size);
+    }
+#endif
 
     return nullptr;
 }
@@ -5416,13 +5540,18 @@ int mos_get_param(int fd, int32_t param, uint32_t *param_value)
     return drmIoctl(fd, DRM_IOCTL_I915_GETPARAM, &gp) == 0;
 }
 
-static int mos_get_drvinfo_i915(int fd, struct LinuxDriverInfo *drvInfo)
+static int mos_bufmgr_get_driver_info(struct mos_bufmgr *bufmgr, struct LinuxDriverInfo *drvInfo)
 {
-    if ((fd < 0) || (drvInfo == nullptr))
+    if (bufmgr == nullptr || drvInfo == nullptr)
     {
         return -EINVAL;
     }
-
+    struct mos_bufmgr_gem *bufmgr_gem = (struct mos_bufmgr_gem*)bufmgr;
+    int fd = bufmgr_gem->fd;
+    if (fd < 0)
+    {
+        return -EINVAL;
+    }
     uint32_t retValue = 0;
 
     drvInfo->hasBsd = 0;
@@ -5497,16 +5626,34 @@ static int mos_get_drvinfo_i915(int fd, struct LinuxDriverInfo *drvInfo)
     return 0;
 }
 
-int
-mos_get_drvinfo(int fd, struct LinuxDriverInfo *drvInfo)
+static int mos_get_dev_id_i915(int fd, uint32_t *device_id)
+{
+    if (nullptr == device_id)
+    {
+        return -EINVAL;
+    }
+    uint32_t retValue = 0;
+    if (mos_get_param(fd, I915_PARAM_CHIPSET_ID, &retValue))
+    {
+        *device_id = retValue;
+    }
+
+    return 0;
+}
+
+int mos_get_device_id(int fd, uint32_t *deviceId)
 {
     int device_type = mos_query_device_type(fd);
 
-    if(DEVICE_TYPE_I915 == device_type)
+    if (DEVICE_TYPE_I915 == device_type)
     {
-        return mos_get_drvinfo_i915(fd, drvInfo);
+        return mos_get_dev_id_i915(fd, deviceId);
     }
-
+#ifdef ENABLE_XE_KMD
+    else if (DEVICE_TYPE_XE == device_type)
+    {
+        return mos_get_dev_id_xe(fd, deviceId);
+    }
+#endif
     return -ENODEV;
 }
-

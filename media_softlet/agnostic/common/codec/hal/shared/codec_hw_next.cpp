@@ -46,6 +46,7 @@ CodechalHwInterfaceNext::CodechalHwInterfaceNext(
     CODEC_HW_ASSERT(osInterface);
     m_osInterface = osInterface;
 
+    MOS_ZeroMemory(&m_platform, sizeof(PLATFORM));
     m_osInterface->pfnGetPlatform(m_osInterface, &m_platform);
 
     m_skuTable = m_osInterface->pfnGetSkuTable(m_osInterface);
@@ -62,6 +63,10 @@ CodechalHwInterfaceNext::CodechalHwInterfaceNext(
     m_cpInterface     = mhwInterfacesNext->m_cpInterface;
     m_veboxInterface  = mhwInterfacesNext->m_veboxInterface;
     m_sfcInterface    = mhwInterfacesNext->m_sfcInterface;
+    //Prevent double free
+    mhwInterfacesNext->m_cpInterface    = nullptr;
+    mhwInterfacesNext->m_veboxInterface = nullptr;
+    mhwInterfacesNext->m_sfcInterface   = nullptr;
 
     m_disableScalability = disableScalability;
     m_userSettingPtr     = osInterface->pfnGetUserSettingInstance(osInterface);

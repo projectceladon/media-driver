@@ -36,29 +36,13 @@
 #include "mos_resource_defs.h"
 #include "mos_utilities.h"
 #include "renderhal.h"
+#include "hal_oca_interface.h"
 
 #define SURFACE_DW_UY_OFFSET(pSurface) \
     ((pSurface) != nullptr ? ((pSurface)->UPlaneOffset.iSurfaceOffset - (pSurface)->dwOffset) / (pSurface)->dwPitch + (pSurface)->UPlaneOffset.iYOffset : 0)
 
 #define SURFACE_DW_VY_OFFSET(pSurface) \
     ((pSurface) != nullptr ? ((pSurface)->VPlaneOffset.iSurfaceOffset - (pSurface)->dwOffset) / (pSurface)->dwPitch + (pSurface)->VPlaneOffset.iYOffset : 0)
-
-VeboxCopyState::VeboxCopyState(PMOS_INTERFACE osInterface) :
-    m_osInterface(osInterface),
-    m_mhwInterfaces(nullptr),
-    m_miInterface(nullptr),
-    m_veboxInterface(nullptr),
-    m_cpInterface(nullptr)
-{
-    MOS_ZeroMemory(&params, sizeof(params));
-    params.Flags.m_vebox = 1;
-    m_mhwInterfaces = MhwInterfaces::CreateFactory(params, osInterface);
-    if (m_mhwInterfaces != nullptr)
-    {
-        m_veboxInterface = m_mhwInterfaces->m_veboxInterface;
-        m_miInterface = m_mhwInterfaces->m_miInterface;
-    }
-}
 
 VeboxCopyState::VeboxCopyState(PMOS_INTERFACE osInterface, MhwInterfaces* mhwInterfaces) :
     m_osInterface(osInterface),
@@ -91,7 +75,7 @@ MOS_STATUS VeboxCopyState::Initialize()
     {
         if (m_veboxInterface->m_veboxHeap == nullptr)
         {
-            m_veboxInterface->CreateHeap();
+            VEBOX_COPY_CHK_STATUS_RETURN(m_veboxInterface->CreateHeap());
         }
     }
     return MOS_STATUS_SUCCESS;
@@ -122,12 +106,12 @@ MOS_STATUS VeboxCopyState::CopyMainSurface(PMOS_RESOURCE src, PMOS_RESOURCE dst)
     // Get input resource info
     MOS_ZeroMemory(&inputSurface, sizeof(MOS_SURFACE));
     inputSurface.OsResource = *src;
-    GetResourceInfo(&inputSurface);
+    VEBOX_COPY_CHK_STATUS_RETURN(GetResourceInfo(&inputSurface));
 
     // Get output resource info
     MOS_ZeroMemory(&outputSurface, sizeof(MOS_SURFACE));
     outputSurface.OsResource = *dst;
-    GetResourceInfo(&outputSurface);
+    VEBOX_COPY_CHK_STATUS_RETURN(GetResourceInfo(&outputSurface));
 
     if (!IsFormatSupported(&inputSurface))
     {
@@ -152,16 +136,6 @@ MOS_STATUS VeboxCopyState::CopyMainSurface(PMOS_RESOURCE src, PMOS_RESOURCE dst)
         m_osInterface,
         MOS_GPU_CONTEXT_VEBOX));
 
-    // Sync on Vebox Input Resource, Ensure the input is ready to be read
-    // Currently, MOS RegisterResourcere cannot sync the 3d resource.
-    // Temporaly, call sync resource to do the sync explicitly.
-    // Sync need be done after switching context.
-    m_osInterface->pfnSyncOnResource(
-        m_osInterface,
-        src,
-        MOS_GPU_CONTEXT_VEBOX,
-        false);
-
     // Reset allocation list and house keeping
     m_osInterface->pfnResetOsStates(m_osInterface);
 
@@ -184,6 +158,9 @@ MOS_STATUS VeboxCopyState::CopyMainSurface(PMOS_RESOURCE src, PMOS_RESOURCE dst)
     VEBOX_COPY_CHK_STATUS_RETURN(m_osInterface->pfnGetCommandBuffer(m_osInterface, &cmdBuffer, 0));
     VEBOX_COPY_CHK_STATUS_RETURN(InitCommandBuffer(&cmdBuffer));
 
+    HalOcaInterface::On1stLevelBBStart(cmdBuffer, *m_osInterface->pOsContext, m_osInterface->CurrentGpuContextHandle, *m_miInterface, 
+        *m_miInterface->GetMmioRegisters());
+
     MediaPerfProfiler* perfProfiler = MediaPerfProfiler::Instance();
     VEBOX_COPY_CHK_NULL_RETURN(perfProfiler);
     VEBOX_COPY_CHK_STATUS_RETURN(perfProfiler->AddPerfCollectStartCmd((void*)this, m_osInterface, m_miInterface, &cmdBuffer));
@@ -199,6 +176,8 @@ MOS_STATUS VeboxCopyState::CopyMainSurface(PMOS_RESOURCE src, PMOS_RESOURCE dst)
     VEBOX_COPY_CHK_STATUS_RETURN(veboxInterface->AddVeboxSurfaces(
         &cmdBuffer,
         &mhwVeboxSurfaceStateCmdParams));
+
+    HalOcaInterface::OnDispatch(cmdBuffer, *m_osInterface, *m_miInterface, *m_miInterface->GetMmioRegisters());
 
     //---------------------------------
     // Send CMD: Vebox_Tiling_Convert
@@ -226,6 +205,8 @@ MOS_STATUS VeboxCopyState::CopyMainSurface(PMOS_RESOURCE src, PMOS_RESOURCE dst)
     VEBOX_COPY_CHK_STATUS_RETURN(m_miInterface->AddMiBatchBufferEnd(
         &cmdBuffer,
         nullptr));
+
+    HalOcaInterface::On1stLevelBBEnd(cmdBuffer, *m_osInterface);
 
     // Return unused command buffer space to OS
     m_osInterface->pfnReturnCommandBuffer(

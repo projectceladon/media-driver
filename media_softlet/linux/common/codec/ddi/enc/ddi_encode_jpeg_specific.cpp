@@ -625,6 +625,10 @@ VAStatus DdiEncodeJpeg::DefaultQmatrix()
     uint32_t quality = 0;
     if (picParams->m_quality < 50)
     {
+        if(picParams->m_quality == 0)
+        {
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
         quality = 5000 / picParams->m_quality;
     }
     else
@@ -756,7 +760,7 @@ uint32_t DdiEncodeJpeg::getQMatrixBufferSize()
     return sizeof(VAQMatrixBufferJPEG);
 }
 
-CODECHAL_FUNCTION DdiEncodeJpeg::GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint)
+CODECHAL_FUNCTION DdiEncodeJpeg::GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint, bool bVDEnc)
 {
     CODECHAL_FUNCTION codecFunction = CODECHAL_FUNCTION_INVALID;
     if (profile == VAProfileJPEGBaseline)

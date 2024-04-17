@@ -166,6 +166,14 @@ public:
     }
 
 protected:
+#if USE_CODECHAL_DEBUG_TOOL
+    //!
+    //! \brief  Dump input resources or infomation before submit
+    //! \return MOS_STATUS
+    //!         MOS_STATUS_SUCCESS if success, else fail reason
+    //!
+    virtual MOS_STATUS DumpInput();
+#endif
 
     virtual MOS_STATUS AllocateResources();
 
@@ -173,7 +181,7 @@ protected:
         uint32_t            srType,
         MOS_COMMAND_BUFFER *cmdBuffer) override;
 
-    MOS_STATUS EndStatusReport(
+    virtual MOS_STATUS EndStatusReport(
         uint32_t           srType,
         MOS_COMMAND_BUFFER *cmdBuffer) override;
 
@@ -316,13 +324,29 @@ protected:
 
     virtual MOS_STATUS AddAllCmds_AVP_SURFACE_STATE(PMOS_COMMAND_BUFFER cmdBuffer) const;
 
+    virtual MOS_STATUS AddAllCmds_AVP_PAK_INSERT_OBJECT(PMOS_COMMAND_BUFFER cmdBuffer) const;
+
     virtual MOS_STATUS GetVdencStateCommandsDataSize(uint32_t *commandsSize, uint32_t *patchListSize) const;
 
     virtual MOS_STATUS GetVdencPrimitiveCommandsDataSize(uint32_t *commandsSize, uint32_t *patchListSize) const;
 
     virtual MOS_STATUS GetAvpPrimitiveCommandsDataSize(uint32_t *commandsSize, uint32_t *patchListSize) const;
 
-MEDIA_CLASS_DEFINE_END(encode__Av1VdencPkt)
+    virtual MOS_STATUS PrepareHWMetaData(MOS_COMMAND_BUFFER *cmdBuffer);
+
+    virtual MOS_STATUS PrepareHWMetaDataFromStreamout(MOS_COMMAND_BUFFER *cmdBuffer, const MetaDataOffset resourceOffset, const AV1MetaDataOffset AV1ResourceOffset);
+
+    virtual MOS_STATUS PrepareHWMetaDataFromRegister(MOS_COMMAND_BUFFER *cmdBuffer, const MetaDataOffset resourceOffset);
+
+    virtual MOS_STATUS PrepareHWMetaDataFromDriver(MOS_COMMAND_BUFFER *cmdBuffer, const MetaDataOffset resourceOffset, const AV1MetaDataOffset AV1ResourceOffset);
+
+    virtual MOS_STATUS readBRCMetaDataFromSLBB(MOS_COMMAND_BUFFER *cmdBuffer, PMOS_RESOURCE presDst, uint32_t dstOffset, PMOS_RESOURCE presSrc, uint32_t srcOffset, uint32_t significantBits);
+
+    virtual MOS_STATUS PrepareHWMetaDataFromStreamoutTileLevel(MOS_COMMAND_BUFFER *cmdBuffer, uint32_t tileCol, uint32_t tileRow);
+
+    inline MOS_STATUS CalAtomic(PMOS_RESOURCE presDst, uint32_t dstOffset, PMOS_RESOURCE presSrc, uint32_t srcOffset, mhw::mi::MHW_COMMON_MI_ATOMIC_OPCODE opCode, MOS_COMMAND_BUFFER *cmdBuffer);
+
+    MEDIA_CLASS_DEFINE_END(encode__Av1VdencPkt)
 };
 
 }  // namespace encode

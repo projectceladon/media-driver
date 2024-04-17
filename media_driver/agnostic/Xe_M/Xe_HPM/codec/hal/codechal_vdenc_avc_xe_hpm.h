@@ -98,6 +98,11 @@ public:
 #endif
     };
 
+    //!
+    //! \brief    Destructor
+    //!
+    virtual ~CodechalVdencAvcStateXe_Hpm();
+
     virtual MOS_STATUS AllocateResources() override;
     virtual MOS_STATUS AllocateMDFResources() override;
 
@@ -119,6 +124,8 @@ public:
 
     virtual uint32_t GetCurrConstDataBufIdx() override;
 
+    virtual MOS_STATUS HuCBrcInitReset() override;
+
     virtual MOS_STATUS AddMfxAvcSlice(
         PMOS_COMMAND_BUFFER        cmdBuffer,
         PMHW_BATCH_BUFFER          batchBuffer,
@@ -127,6 +134,8 @@ public:
     virtual MOS_STATUS AddVdencSliceStateCmd(
         PMOS_COMMAND_BUFFER        cmdBuffer,
         PMHW_VDBOX_AVC_SLICE_STATE params) override;
+
+    MOS_STATUS Execute(void *params) override;
 
 protected:
     struct BrcInitDmem;
@@ -182,12 +191,23 @@ protected:
 
     MOS_STATUS SetupThirdRef(PMOS_RESOURCE vdencStreamIn);
 
+    // Switch GPU context at execute stage
+    MOS_STATUS SwitchContext();
+
+    MOS_STATUS ChangeContext();
+
+    MOS_STATUS CheckHucLoadStatus();
+
+    MOS_STATUS PackHucAuthCmds(MOS_COMMAND_BUFFER &cmdBuffer);
+
     uint32_t m_mfxAvcImgStateSize    = 0;
     uint32_t m_vdencCmd3Size         = 0;
     uint32_t m_vdencAvcImgStateSize  = 0;
     uint32_t m_mfxAvcSlcStateSize    = 0;
     uint32_t m_vdencAvcSlcStateSize  = 0;
     uint32_t m_miBatchBufferEndSize  = 0;
+
+    bool m_isContextSwitched         = false;  // used to change virtual node association at execute stage only once
 
     static const uint8_t G0_P_InterRounding[52];
     static const uint8_t G0_P_IntraRounding[52];
@@ -197,6 +217,11 @@ protected:
     static const uint8_t G3_rB_IntraRounding[52];
     static const uint8_t G3_B_InterRounding[52];
     static const uint8_t G3_B_IntraRounding[52];
+
+    //Resources
+    MOS_RESOURCE      m_hucAuthBuf                                      = {};  //!< Huc authentication buffer
+    MHW_BATCH_BUFFER  m_2ndLevelBB[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM] = {};  //!< 2nd level batch buffer
+    PMHW_BATCH_BUFFER m_batchBuf = nullptr;
 
 private:
     static const uint16_t SliceSizeThrsholdsI_Xe_Hpm[52];

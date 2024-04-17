@@ -103,6 +103,16 @@ MOS_STATUS Av1VdencPipeline::Prepare(void *params)
     return MOS_STATUS_SUCCESS;
 }
 
+MOS_STATUS Av1VdencPipeline::HuCCheckAndInit()
+{
+    ENCODE_FUNC_CALL();
+
+    bool immediateSubmit = !m_singleTaskPhaseSupported;
+    ENCODE_CHK_STATUS_RETURN(ActivatePacket(Av1HucBrcInit, immediateSubmit, 0, 0));
+
+    return MOS_STATUS_SUCCESS;
+}
+
 MOS_STATUS Av1VdencPipeline::ActivateVdencVideoPackets()
 {
     ENCODE_FUNC_CALL();
@@ -119,7 +129,7 @@ MOS_STATUS Av1VdencPipeline::ActivateVdencVideoPackets()
 
     if (brcFeature->IsBRCInitRequired())
     {
-        ENCODE_CHK_STATUS_RETURN(ActivatePacket(Av1HucBrcInit, immediateSubmit, 0, 0));
+        ENCODE_CHK_STATUS_RETURN(HuCCheckAndInit());
     }
 
     for (uint8_t curPass = 0; curPass < GetPassNum(); curPass++)
@@ -203,4 +213,42 @@ MOS_STATUS Av1VdencPipeline::SwitchContext(uint8_t outputChromaFormat, uint16_t 
 
     return MOS_STATUS_SUCCESS;
 }
+
+MOS_STATUS Av1VdencPipeline::FillStatusReportParameters(EncoderStatusParameters* pPar, EncoderParams* encodeParams)
+{
+    ENCODE_CHK_NULL_RETURN(pPar);
+    ENCODE_CHK_NULL_RETURN(encodeParams);
+
+    PCODEC_AV1_ENCODE_PICTURE_PARAMS picParams = static_cast<PCODEC_AV1_ENCODE_PICTURE_PARAMS>(encodeParams->pPicParams);
+    ENCODE_CHK_NULL_RETURN(picParams);
+
+    auto feature = dynamic_cast<Av1BasicFeature *>(m_featureManager->GetFeature(Av1FeatureIDs::basicFeature));
+    ENCODE_CHK_NULL_RETURN(feature);
+
+    uint16_t numTileRows = 0;
+    uint16_t numTileColumns = 0;
+    RUN_FEATURE_INTERFACE_RETURN(Av1EncodeTile, Av1FeatureIDs::encodeTile, GetTileRowColumns,
+        numTileRows, numTileColumns);
+
+    pPar->statusReportFeedbackNumber = picParams->StatusReportFeedbackNumber;
+    pPar->codecFunction              = encodeParams->ExecCodecFunction;
+    pPar->currRefList                = feature->m_ref.GetCurrRefList();
+    pPar->picWidthInMb               = feature->m_picWidthInMb;
+    pPar->frameFieldHeightInMb       = feature->m_frameFieldHeightInMb;
+    pPar->currOriginalPic            = feature->m_currOriginalPic;
+    pPar->pictureCodingType          = feature->m_pictureCodingType;
+    pPar->numUsedVdbox               = m_numVdbox;
+    pPar->hwWalker                   = false;
+    pPar->maxNumSlicesAllowed        = 0;
+
+    pPar->numberTilesInFrame         = numTileRows * numTileColumns;
+
+    pPar->av1EnableFrameObu            = feature->m_av1PicParams->PicFlags.fields.EnableFrameOBU;
+    pPar->av1FrameHdrOBUSizeByteOffset = feature->m_frameHdrOBUSizeByteOffset;
+    pPar->frameWidth                   = feature->m_frameWidth;
+    pPar->frameHeight                  = feature->m_frameHeight;
+
+    return MOS_STATUS_SUCCESS;
+}
+
 }

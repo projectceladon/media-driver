@@ -315,13 +315,13 @@ MOS_TILE_TYPE VpGetTileTypeFromMediaTileType(uint32_t mediaTileType)
 
     switch(mediaTileType)
     {
-       case I915_TILING_Y:
+       case TILING_Y:
            tileType = MOS_TILE_Y;
            break;
-       case I915_TILING_X:
+       case TILING_X:
            tileType = MOS_TILE_X;
            break;
-       case I915_TILING_NONE:
+       case TILING_NONE:
            tileType = MOS_TILE_LINEAR;
            break;
         default:
@@ -1148,7 +1148,7 @@ DdiVp_SetProcPipelineParams(
 
     // Background Colorfill
     // According to libva  definition, if alpha in output background color is zero, then colorfill is not needed
-    if ((pPipelineParam->output_background_color >> 24) != 0)
+    if ((pPipelineParam->output_background_color >> 24) != 0 || pVpHalTgtSurf->ColorSpace == CSpace_sRGB)
     {
         if (pVpHalRenderParams->pColorFillParams == nullptr)
         {
@@ -1157,10 +1157,18 @@ DdiVp_SetProcPipelineParams(
 
         DDI_CHK_NULL(pVpHalRenderParams->pColorFillParams, "Null pColorFillParams.", VA_STATUS_ERROR_UNKNOWN);
 
-        // set background colorfill option
-        pVpHalRenderParams->pColorFillParams->Color     = pPipelineParam->output_background_color;
-        pVpHalRenderParams->pColorFillParams->bYCbCr    = false;
-        pVpHalRenderParams->pColorFillParams->CSpace    = CSpace_sRGB;
+        if (pVpHalTgtSurf->ColorSpace == CSpace_sRGB && (pPipelineParam->output_background_color >> 24) == 0)
+        {
+            // set color space for sRGB output
+            pVpHalRenderParams->pColorFillParams->CSpace    = CSpace_sRGB;
+        }
+        else
+        {
+            // set background colorfill option
+            pVpHalRenderParams->pColorFillParams->Color     = pPipelineParam->output_background_color;
+            pVpHalRenderParams->pColorFillParams->bYCbCr    = false;
+            pVpHalRenderParams->pColorFillParams->CSpace    = CSpace_sRGB;
+        }
     }else
     {
         MOS_FreeMemAndSetNull(pVpHalRenderParams->pColorFillParams);

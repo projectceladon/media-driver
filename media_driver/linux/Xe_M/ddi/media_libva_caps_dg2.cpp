@@ -49,8 +49,7 @@ VAStatus MediaLibvaCapsDG2::LoadAv1EncProfileEntrypoints()
         (*attributeList)[VAConfigAttribEncDynamicScaling] = 0;
         (*attributeList)[VAConfigAttribEncTileSupport]    = 1;
         (*attributeList)[VAConfigAttribEncDirtyRect]      = 0;
-        (*attributeList)[VAConfigAttribEncMaxRefFrames]   = CODEC_AV1_NUM_REFL0P_FRAMES |
-            CODEC_AV1_NUM_REFL0B_FRAMES<<8 | CODEC_AV1_NUM_REFL1B_FRAMES<<16;
+        (*attributeList)[VAConfigAttribEncMaxRefFrames]   = CODEC_AV1_NUM_REFL0P_FRAMES | CODEC_AV1_NUM_REFL1B_FRAMES<<16;
 
         VAConfigAttrib attrib;
         attrib.type = (VAConfigAttribType) VAConfigAttribEncAV1;
@@ -89,6 +88,8 @@ VAStatus MediaLibvaCapsDG2::LoadAv1EncProfileEntrypoints()
         AddEncConfig(VA_RC_CQP);
         AddEncConfig(VA_RC_CBR);
         AddEncConfig(VA_RC_VBR);
+        AddEncConfig(VA_RC_ICQ);
+        AddEncConfig(VA_RC_TCBRC);
         AddProfileEntry(VAProfileAV1Profile0, VAEntrypointEncSliceLP, attributeList,
                 configStartIdx, m_encConfigs.size() - configStartIdx);
     }
@@ -719,7 +720,7 @@ VAStatus MediaLibvaCapsDG2::CreateEncAttributes(
     }
     if (IsAV1Profile(profile))
     {
-        attrib.value = VA_RC_CQP | VA_RC_CBR | VA_RC_VBR;
+        attrib.value = VA_RC_CQP | VA_RC_CBR | VA_RC_VBR | VA_RC_ICQ;
 #if VA_CHECK_VERSION(1, 10, 0)
         attrib.value |= VA_RC_TCBRC;
 #endif
@@ -1044,6 +1045,13 @@ VAStatus MediaLibvaCapsDG2::AddEncSurfaceAttributes(
         attribList[numAttribs].value.type = VAGenericValueTypeInteger;
         attribList[numAttribs].flags = VA_SURFACE_ATTRIB_GETTABLE;
         attribList[numAttribs].value.value.i = m_encMinHeight;
+        numAttribs++;
+
+        attribList[numAttribs].type = VASurfaceAttribMemoryType;
+        attribList[numAttribs].value.type = VAGenericValueTypeInteger;
+        attribList[numAttribs].flags = VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE;
+        attribList[numAttribs].value.value.i = VA_SURFACE_ATTRIB_MEM_TYPE_VA |
+            VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2;
         numAttribs++;
     }
     else

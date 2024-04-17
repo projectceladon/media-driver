@@ -27,6 +27,7 @@
 #include "mos_solo_generic.h"
 #include "mhw_mi_itf.h"
 #include "mhw_vdbox_g12_X.h"
+#include "hal_oca_interface_next.h"
 
 namespace encode
 {
@@ -207,17 +208,6 @@ namespace encode
         return MOS_STATUS_SUCCESS;
     }
 
-    MOS_STATUS Av1VdencPktXe_M_Base::Prepare()
-    {
-        ENCODE_FUNC_CALL();
-
-        Av1VdencPkt::Prepare();
-
-        m_basicFeature->m_ref.SetPostCdefAsEncRef(true);
-
-        return MOS_STATUS_SUCCESS;
-    }
-
     MOS_STATUS Av1VdencPktXe_M_Base::Submit(
         MOS_COMMAND_BUFFER* commandBuffer,
         uint8_t packetPhase)
@@ -247,17 +237,20 @@ namespace encode
 
         ENCODE_CHK_STATUS_RETURN(PatchTileLevelCommands(cmdBuffer, packetPhase));
 
+        ENCODE_CHK_STATUS_RETURN(PrepareHWMetaData(&cmdBuffer));
+
         ENCODE_CHK_STATUS_RETURN(Mos_Solo_PostProcessEncode(m_osInterface, &m_basicFeature->m_resBitstreamBuffer, &m_basicFeature->m_reconSurface));
 
     #if MHW_HWCMDPARSER_ENABLED
         auto instance = mhw::HwcmdParser::GetInstance();
         if (instance)
         {
-            instance->ParseCmdBuf(cmdBuffer.pCmdBase, cmdBuffer.iOffset / sizeof(uint32_t));
+            instance->ParseCmdBuf(IGFX_UNKNOWN, cmdBuffer.pCmdBase, cmdBuffer.iOffset / sizeof(uint32_t));
         }
     #endif
 #if USE_CODECHAL_DEBUG_TOOL
         ENCODE_CHK_STATUS_RETURN(DumpStatistics());
+        ENCODE_CHK_STATUS_RETURN(Av1VdencPkt::DumpInput());
 #endif  // USE_CODECHAL_DEBUG_TOOL
         return MOS_STATUS_SUCCESS;
     }
@@ -282,10 +275,7 @@ namespace encode
         if (m_pipeline->GetPipeNum() >= 2)
         {
             auto scalability = m_pipeline->GetMediaScalability();
-            if (m_pipeline->IsFirstPass())
-            {
-                ENCODE_CHK_STATUS_RETURN(scalability->ResetSemaphore(syncOnePipeWaitOthers, 0, &cmdBuffer));
-            }
+
             ENCODE_CHK_STATUS_RETURN(scalability->SyncPipe(syncOtherPipesForOne, 0, &cmdBuffer));
         }
 
@@ -359,6 +349,16 @@ namespace encode
             ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_BATCH_BUFFER_START)(&cmdBuffer, tileLevelBatchBuffer));
 
             tempCmdBuffer = &constructTileBatchBuf;
+            MHW_MI_MMIOREGISTERS mmioRegister;
+            if (m_vdencItf->ConvertToMiRegister(MHW_VDBOX_NODE_1, mmioRegister))
+            {
+                HalOcaInterfaceNext::On1stLevelBBStart(
+                    *tempCmdBuffer,
+                    (MOS_CONTEXT_HANDLE)m_osInterface->pOsContext,
+                    m_osInterface->CurrentGpuContextHandle,
+                    m_miItf,
+                    mmioRegister);
+            }
         }
 
         auto brcFeature = dynamic_cast<Av1Brc *>(m_featureManager->GetFeature(Av1FeatureIDs::av1BrcFeature));
@@ -372,13 +372,20 @@ namespace encode
         ENCODE_CHK_STATUS_RETURN(AddAllCmds_AVP_SURFACE_STATE(tempCmdBuffer));
         SETPAR_AND_ADDCMD(AVP_PIPE_BUF_ADDR_STATE, m_avpItf, tempCmdBuffer);
         SETPAR_AND_ADDCMD(AVP_IND_OBJ_BASE_ADDR_STATE, m_avpItf, tempCmdBuffer);
+        bool firstTileInGroup = false;
         if (brcFeature->IsBRCEnabled())
         {
-            bool firstTileInGroup = false;
             uint32_t tileGroupIdx = 0;
             RUN_FEATURE_INTERFACE_NO_RETURN(Av1EncodeTile, Av1FeatureIDs::encodeTile, IsFirstTileInGroup, firstTileInGroup, tileGroupIdx);
             vdenc2ndLevelBatchBuffer->dwOffset = firstTileInGroup? slbbData.avpPicStateOffset : slbbData.secondAvpPicStateOffset;
             ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_BATCH_BUFFER_START)(tempCmdBuffer, vdenc2ndLevelBatchBuffer));
+            HalOcaInterfaceNext::OnSubLevelBBStart(
+                *tempCmdBuffer,
+                m_osInterface->pOsContext,
+                &vdenc2ndLevelBatchBuffer->OsResource,
+                vdenc2ndLevelBatchBuffer->dwOffset,
+                false,
+                slbbData.slbSize - vdenc2ndLevelBatchBuffer->dwOffset);
         }
         else
         {
@@ -389,6 +396,13 @@ namespace encode
         {
             vdenc2ndLevelBatchBuffer->dwOffset = slbbData.avpSegmentStateOffset;
             ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_BATCH_BUFFER_START)(tempCmdBuffer, vdenc2ndLevelBatchBuffer));
+            HalOcaInterfaceNext::OnSubLevelBBStart(
+                *tempCmdBuffer,
+                m_osInterface->pOsContext,
+                &vdenc2ndLevelBatchBuffer->OsResource,
+                vdenc2ndLevelBatchBuffer->dwOffset,
+                false,
+                slbbData.vdencCmd1Offset - vdenc2ndLevelBatchBuffer->dwOffset);
         }
         else
         {
@@ -404,6 +418,13 @@ namespace encode
         {
             vdenc2ndLevelBatchBuffer->dwOffset = slbbData.vdencCmd1Offset;
             ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_BATCH_BUFFER_START)(tempCmdBuffer, vdenc2ndLevelBatchBuffer));
+            HalOcaInterfaceNext::OnSubLevelBBStart(
+                *tempCmdBuffer,
+                m_osInterface->pOsContext,
+                &vdenc2ndLevelBatchBuffer->OsResource,
+                vdenc2ndLevelBatchBuffer->dwOffset,
+                false,
+                slbbData.vdencCmd2Offset - vdenc2ndLevelBatchBuffer->dwOffset);
         }
         else
         {
@@ -414,6 +435,13 @@ namespace encode
         {
             vdenc2ndLevelBatchBuffer->dwOffset = slbbData.vdencCmd2Offset;
             ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_BATCH_BUFFER_START)(tempCmdBuffer, vdenc2ndLevelBatchBuffer));
+            HalOcaInterfaceNext::OnSubLevelBBStart(
+                *tempCmdBuffer,
+                m_osInterface->pOsContext,
+                &vdenc2ndLevelBatchBuffer->OsResource,
+                vdenc2ndLevelBatchBuffer->dwOffset,
+                false,
+                (firstTileInGroup ? slbbData.avpPicStateOffset : slbbData.secondAvpPicStateOffset) - vdenc2ndLevelBatchBuffer->dwOffset);
         }
         else
         {
@@ -435,13 +463,21 @@ namespace encode
             tileLevelBatchBuffer->iCurrent = constructTileBatchBuf.iOffset;
             tileLevelBatchBuffer->iRemaining = constructTileBatchBuf.iRemaining;
             ENCODE_CHK_STATUS_RETURN(m_miItf->AddMiBatchBufferEnd(nullptr, tileLevelBatchBuffer));
+            HalOcaInterfaceNext::OnSubLevelBBStart(
+                cmdBuffer,
+                m_osInterface->pOsContext,
+                &tempCmdBuffer->OsResource,
+                0,
+                false,
+                tempCmdBuffer->iOffset);
+            HalOcaInterfaceNext::On1stLevelBBEnd(*tempCmdBuffer, *m_osInterface);
         }
 
     #if MHW_HWCMDPARSER_ENABLED
         auto instance = mhw::HwcmdParser::GetInstance();
         if (instance)
         {
-            instance->ParseCmdBuf(tempCmdBuffer->pCmdBase, tempCmdBuffer->iOffset / sizeof(uint32_t));
+            instance->ParseCmdBuf(IGFX_UNKNOWN, tempCmdBuffer->pCmdBase, tempCmdBuffer->iOffset / sizeof(uint32_t));
         }
     #endif
 
@@ -459,7 +495,7 @@ namespace encode
         // End patching tile level batch cmds
         RUN_FEATURE_INTERFACE_RETURN(Av1EncodeTile, Av1FeatureIDs::encodeTile, EndPatchTileLevelBatch);
 
-        if (tileRowPass != 1)
+        if (tileRowPass != 1) // for dummy tile, donnot calculate tile size into frame size.
         {
             if (m_pipeline->GetPipeNum() > 1)
             {
@@ -470,7 +506,8 @@ namespace encode
                 ENCODE_CHK_STATUS_RETURN(ReadPakMmioRegisters(&cmdBuffer, tileRow == 0 && tileCol == 0));
             }
         }
-
+        ENCODE_CHK_STATUS_RETURN(PrepareHWMetaDataFromStreamoutTileLevel(&cmdBuffer, tileCol, tileRow));
+        
         return MOS_STATUS_SUCCESS;
     }
 
@@ -577,6 +614,10 @@ namespace encode
 
         if (m_pipeline->IsFirstPipe()) 
         {
+            for (auto i = 0; i < m_pipeline->GetPipeNum(); ++i)
+            {
+                ENCODE_CHK_STATUS_RETURN(scalability->ResetSemaphore(syncOnePipeWaitOthers, i, &cmdBuffer));
+            }
             ENCODE_CHK_STATUS_RETURN(EndStatusReport(statusReportMfx, &cmdBuffer));
         }
         else{
@@ -600,6 +641,11 @@ namespace encode
         else if (m_pipeline->IsLastPass() && m_pipeline->IsFirstPipe())
         {
             ENCODE_CHK_STATUS_RETURN(MediaPacket::UpdateStatusReportNext(statusReportGlobalCount, &cmdBuffer));
+        }
+
+        if (m_pipeline->IsDualEncEnabled())
+        {
+            SETPAR_AND_ADDCMD(VDENC_CONTROL_STATE, m_vdencItf, &cmdBuffer);
         }
 
         CODECHAL_DEBUG_TOOL(
@@ -717,90 +763,6 @@ namespace encode
             if (!segmentEnabled || (i == par.numSegments - 1))
             {
                 break;
-            }
-        }
-
-        return MOS_STATUS_SUCCESS;
-    }
-
-    MOS_STATUS Av1VdencPktXe_M_Base::AddAllCmds_AVP_PAK_INSERT_OBJECT(PMOS_COMMAND_BUFFER cmdBuffer) const
-    {
-        ENCODE_FUNC_CALL();
-
-        ENCODE_CHK_NULL_RETURN(m_osInterface);
-        auto& params = m_avpItf->MHW_GETPAR_F(AVP_PAK_INSERT_OBJECT)();
-        params      = {};
-
-        auto GetExtraData = [&]() { return params.bsBuffer->pBase + params.offset; };
-        auto GetExtraSize = [&]() { return (params.bitSize + 7) >> 3; };
-
-        // First, Send all other OBU bit streams other than tile group OBU when it's first tile in frame
-        uint32_t tileIdx    = 0;
-        bool     tgOBUValid = m_basicFeature->m_slcData[0].BitSize > 0 ? true : false;
-
-        RUN_FEATURE_INTERFACE_RETURN(Av1EncodeTile, Av1FeatureIDs::encodeTile, GetTileIdx, tileIdx);
-        auto brcFeature = dynamic_cast<Av1Brc *>(m_featureManager->GetFeature(Av1FeatureIDs::av1BrcFeature));
-        ENCODE_CHK_NULL_RETURN(brcFeature);
-
-        if (tileIdx == 0)
-        {
-            uint32_t nalNum = 0;
-            for (uint32_t i = 0; i < MAX_NUM_OBU_TYPES && m_nalUnitParams[i]->uiSize > 0; i++)
-            {
-                nalNum = i;
-            }
-
-            params.bsBuffer             = &m_basicFeature->m_bsBuffer;
-            params.endOfHeaderInsertion = false;
-
-            // Support multiple packed header buffer
-            for (uint32_t i = 0; i <= nalNum; i++)
-            {
-                uint32_t nalUnitSize   = m_nalUnitParams[i]->uiSize;
-                uint32_t nalUnitOffset = m_nalUnitParams[i]->uiOffset;
-
-                ENCODE_ASSERT(nalUnitSize < CODECHAL_ENCODE_AV1_PAK_INSERT_UNCOMPRESSED_HEADER);
-
-                params.bitSize    = nalUnitSize * 8;
-                params.offset     = nalUnitOffset;
-                params.lastHeader = !tgOBUValid && (i == nalNum);
-
-                if (IsFrameHeader(*(m_basicFeature->m_bsBuffer.pBase + nalUnitOffset)))
-                {
-                    if (brcFeature->IsBRCEnabled())
-                    {
-                        auto pakInsertOutputBatchBuffer = brcFeature->GetPakInsertOutputBatchBuffer(m_pipeline->m_currRecycledBufIdx);
-                        ENCODE_CHK_NULL_RETURN(pakInsertOutputBatchBuffer);
-                        // send pak insert obj cmds after back annotation
-                        ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_BATCH_BUFFER_START)(cmdBuffer, pakInsertOutputBatchBuffer));
-                    }
-                    else
-                    {
-                        m_avpItf->MHW_ADDCMD_F(AVP_PAK_INSERT_OBJECT)(cmdBuffer);
-                        m_osInterface->pfnAddCommand(cmdBuffer, GetExtraData(), GetExtraSize());
-                    }
-                }
-                else
-                {
-                    m_avpItf->MHW_ADDCMD_F(AVP_PAK_INSERT_OBJECT)(cmdBuffer);
-                    m_osInterface->pfnAddCommand(cmdBuffer, GetExtraData(), GetExtraSize());
-                }
-            }
-        }
-
-        // Second, Send tile group OBU when it is first tile in tile group
-        if (tgOBUValid)
-        {
-            ENCODE_CHK_NULL_RETURN(m_featureManager);
-
-            auto tileFeature = dynamic_cast<Av1EncodeTile *>(m_featureManager->GetFeature(Av1FeatureIDs::encodeTile));
-            ENCODE_CHK_NULL_RETURN(tileFeature);
-
-            MHW_CHK_STATUS_RETURN(tileFeature->MHW_SETPAR_F(AVP_PAK_INSERT_OBJECT)(params));
-            if (params.bitSize)
-            {
-                m_avpItf->MHW_ADDCMD_F(AVP_PAK_INSERT_OBJECT)(cmdBuffer);
-                m_osInterface->pfnAddCommand(cmdBuffer, GetExtraData(), GetExtraSize());
             }
         }
 

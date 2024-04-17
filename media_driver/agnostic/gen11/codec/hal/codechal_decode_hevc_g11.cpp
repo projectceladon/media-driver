@@ -294,9 +294,11 @@ MOS_STATUS CodechalDecodeHevcG11::SetFrameStates ()
     }
 
     CODECHAL_DECODE_CHK_STATUS_RETURN(CheckAndCopyBitstream());
-
-    PCODEC_REF_LIST destEntry = m_hevcRefList[m_hevcPicParams->CurrPic.FrameIdx];
-    MOS_ZeroMemory(destEntry, sizeof(CODEC_REF_LIST));
+    if (m_hevcPicParams->CurrPic.FrameIdx < CODECHAL_NUM_UNCOMPRESSED_SURFACE_HEVC)
+    {
+        PCODEC_REF_LIST destEntry = m_hevcRefList[m_hevcPicParams->CurrPic.FrameIdx];
+        MOS_ZeroMemory(destEntry, sizeof(CODEC_REF_LIST));
+    }
 
     if (m_incompletePicture)
     {
@@ -550,6 +552,7 @@ MOS_STATUS CodechalDecodeHevcG11::EndStatusReport(
     uint32_t currIndex = m_decodeStatusBuf.m_currIndex;
 
     MHW_MI_STORE_REGISTER_MEM_PARAMS regParams;
+    MOS_ZeroMemory(&regParams, sizeof(regParams));
 
     //Frame CRC
     if (m_reportFrameCrc)
@@ -629,6 +632,8 @@ MOS_STATUS CodechalDecodeHevcG11::EndStatusReportForFE(
         sizeof(uint32_t) * 2;
 
     MHW_MI_STORE_REGISTER_MEM_PARAMS regParams;
+    MOS_ZeroMemory(&regParams, sizeof(regParams));
+
     regParams.presStoreBuffer = &m_decodeStatusBuf.m_statusBuffer;
     regParams.dwOffset = errStatusOffset;
     regParams.dwRegister = mmioRegistersHcp ?
@@ -664,6 +669,7 @@ MOS_STATUS CodechalDecodeHevcG11::SetAndPopulateVEHintParams(
     if (static_cast<MhwVdboxMfxInterfaceG11*>(m_mfxInterface)->IsScalabilitySupported() && MOS_VE_SUPPORTED(m_osInterface))
     {
         CODECHAL_DECODE_SCALABILITY_SETHINT_PARMS scalSetParms;
+        MOS_ZeroMemory(&scalSetParms, sizeof(CODECHAL_DECODE_SCALABILITY_SETHINT_PARMS));
         if (!MOS_VE_CTXBASEDSCHEDULING_SUPPORTED(m_osInterface))
         {
             scalSetParms.bNeedSyncWithPrevious       = true;

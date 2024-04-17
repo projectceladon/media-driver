@@ -47,7 +47,9 @@
 #if IGFX_GEN11_SUPPORTED
 #include "cm_hal_g11.h"
 #endif
+#if IGFX_GEN12_SUPPORTED
 #include "cm_hal_g12.h"
+#endif
 
 static bool gGTPinInitialized = false;
 
@@ -589,7 +591,7 @@ int CmExecutionAdv::SetSuggestedL3Config(L3_SUGGEST_CONFIG l3SuggestConfig)
             table = m_cmhal->cmHalInterface->m_l3Plane;
             count = m_cmhal->cmHalInterface->m_l3ConfigCount;
             break;
-#if IGFX_GEN9_SUPPORTED || IGFX_GEN10_SUPPORTED
+#if IGFX_GEN9_SUPPORTED
         default:  // gen9
             count = sizeof(SKL_L3_PLANE) / sizeof(L3ConfigRegisterValues);
             table = (L3ConfigRegisterValues *)SKL_L3_PLANE;
@@ -778,11 +780,17 @@ int CmExecutionAdv::SubmitGpgpuTask(CMRT_UMD::CmQueueRT *queue,
 
     cmdBuf->AddSipState(cmish->GetSipKernelOffset());
 
-    CM_CHK_MOSSTATUS_RETURN(m_cmhal->osInterface->pfnRegisterResource(
+    MOS_STATUS eStatus = m_cmhal->osInterface->pfnRegisterResource(
         m_cmhal->osInterface,
         &m_cmhal->csrResource,
         true,
-        true));
+        true);
+
+    if (eStatus != MOS_STATUS_SUCCESS)
+    {
+        cmdsh->DestroyMediaState(cmMediaState);
+        return eStatus;
+    }
 
     cmdBuf->AddCsrBaseAddress(&m_cmhal->csrResource);
 

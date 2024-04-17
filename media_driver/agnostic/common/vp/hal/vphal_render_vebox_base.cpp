@@ -169,11 +169,7 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxSendVecsStatusTag(
     VPHAL_RENDER_CHK_NULL(pCmdBuffer);
     //------------------------------------
 
-#if EMUL
-    // Dummy function for VpSolo, since no sync b/w GPU contexts
-    goto finish;
-#endif
-
+#if !EMUL
     // Get GPU Status buffer
     VPHAL_RENDER_CHK_STATUS(pOsInterface->pfnGetGpuStatusBufferResource(
         pOsInterface, 
@@ -196,6 +192,7 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxSendVecsStatusTag(
 
     // Increase buffer tag for next usage
     pOsInterface->pfnIncrementGpuStatusTag(pOsInterface, MOS_GPU_CONTEXT_VEBOX);
+#endif
 
 finish:
     return eStatus;
@@ -424,6 +421,7 @@ void VPHAL_VEBOX_STATE::VeboxCopySurfaceParams(
 
     pOsInterface = pVeboxState->m_pOsInterface;
 
+    VPHAL_RENDER_CHK_NULL_NO_STATUS(pRenderData);
     VPHAL_RENDER_CHK_NULL_NO_STATUS(pSrcSurface);
     VPHAL_RENDER_CHK_NULL_NO_STATUS(pTempSurface);
     VPHAL_RENDER_CHK_NULL_NO_STATUS(pOutSurface);
@@ -494,6 +492,7 @@ PVPHAL_SURFACE VPHAL_VEBOX_STATE::VeboxSetReference(
     PVPHAL_VEBOX_STATE          pVeboxState = this;
     PVPHAL_VEBOX_RENDER_DATA    pRenderData = GetLastExecRenderData();
 
+    VPHAL_RENDER_CHK_NULL_NO_STATUS(pRenderData);
     if (pRenderData->bRefValid)
     {
         // Set the Reference surface
@@ -598,6 +597,7 @@ PVPHAL_SURFACE VPHAL_VEBOX_STATE::VeboxSetReference(
         }
     }
 
+finish:
     return pRefSurface;
 }
 
@@ -622,6 +622,7 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxSetDiOutput(
     PVPHAL_VEBOX_STATE          pVeboxState = this;
     PVPHAL_VEBOX_RENDER_DATA    pRenderData = GetLastExecRenderData();
 
+    VPHAL_RENDER_CHK_NULL_RETURN(pRenderData);
     if (pRenderData->bDeinterlace)
     {
         if (pVeboxState->m_pVeboxExecState->bDIOutputPair01)
@@ -776,7 +777,6 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxSetPerfTag(
                                 *pPerfTag = VPHAL_NV12_DN_422CP;
                                 break;
                             case Format_RGB32:
-                                *pPerfTag = VPHAL_NV12_DN_RGB32CP;
                             case Format_A8R8G8B8:
                             case Format_A8B8G8R8:
                                 *pPerfTag = VPHAL_NV12_DN_RGB32CP;
@@ -791,6 +791,8 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxSetPerfTag(
                             case Format_Y8:
                             case Format_Y16S:
                             case Format_Y16U:
+                            case Format_A16B16G16R16F:
+                            case Format_A16R16G16B16F:
                                 *pPerfTag = VPHAL_NONE;
                                 break;
                             default:
@@ -821,6 +823,7 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxSetPerfTag(
                                 break;
                             case Format_RGB32:
                                 *pPerfTag = VPHAL_NV12_RGB32CP;
+                                break;
                             case Format_A8R8G8B8:
                             case Format_A8B8G8R8:
                             case Format_R10G10B10A2:
@@ -837,6 +840,8 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxSetPerfTag(
                             case Format_Y8:
                             case Format_Y16S:
                             case Format_Y16U:
+                            case Format_A16B16G16R16F:
+                            case Format_A16R16G16B16F:
                                 *pPerfTag = VPHAL_NONE;
                                 break;
                             default:
@@ -908,6 +913,8 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxSetPerfTag(
                             case Format_Y8:
                             case Format_Y16S:
                             case Format_Y16U:
+                            case Format_A16B16G16R16F:
+                            case Format_A16R16G16B16F:
                                 *pPerfTag = VPHAL_NONE;
                                 break;
                             default:
@@ -955,6 +962,8 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxSetPerfTag(
                             case Format_Y8:
                             case Format_Y16S:
                             case Format_Y16U:
+                            case Format_A16B16G16R16F:
+                            case Format_A16R16G16B16F:
                                 *pPerfTag = VPHAL_NONE;
                                 break;
                             default:
@@ -1113,6 +1122,7 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxSetFMDParams(
     PVPHAL_VEBOX_RENDER_DATA         pRenderData = GetLastExecRenderData();
     MOS_STATUS                       eStatus = MOS_STATUS_SUCCESS;
 
+    VPHAL_RENDER_CHK_NULL(pRenderData);
     VPHAL_RENDER_CHK_NULL(pLumaParams);
 
 #if VEBOX_AUTO_DENOISE_SUPPORTED
@@ -1156,6 +1166,7 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxSetDNDIParams(
     PVPHAL_DNUV_PARAMS               pChromaParams;
     PVPHAL_VEBOX_STATE               pVeboxState = this;
     PVPHAL_VEBOX_RENDER_DATA         pRenderData = GetLastExecRenderData();
+    VPHAL_RENDER_CHK_NULL(pRenderData);
 
     eStatus             = MOS_STATUS_SUCCESS;
     pLumaParams         = &lumaParams;     // Params for DI and LumaDN
@@ -1583,6 +1594,7 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxUpdateVeboxStates(
     PVPHAL_VEBOX_STATE          pVeboxState = this;
     PVPHAL_VEBOX_RENDER_DATA    pRenderData = GetLastExecRenderData();
 
+    VPHAL_RENDER_CHK_NULL(pRenderData);
     eStatus             = MOS_STATUS_SUCCESS;
     pRenderHal          = pVeboxState->m_pRenderHal;
     pOsInterface        = pVeboxState->m_pOsInterface;
@@ -1818,6 +1830,7 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxSendVeboxCmd_Prepare(
     PVPHAL_VEBOX_STATE                      pVeboxState  = this;
     PVPHAL_VEBOX_RENDER_DATA                pRenderData  = GetLastExecRenderData();
 
+    VPHAL_RENDER_CHK_NULL(pRenderData);
     // Switch GPU context to VEBOX
     VPHAL_RENDER_CHK_STATUS(pOsInterface->pfnSetGpuContext(pOsInterface, MOS_GPU_CONTEXT_VEBOX));
 
@@ -1959,6 +1972,7 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxRenderVeboxCmd(
     MOS_CONTEXT                             *pOsContext = nullptr;
     PMHW_MI_MMIOREGISTERS                   pMmioRegisters = nullptr;
 
+    VPHAL_RENDER_CHK_NULL(pRenderData);
     VPHAL_RENDER_CHK_NULL(pVeboxState);
     VPHAL_RENDER_CHK_NULL(pVeboxState->m_pRenderHal);
     VPHAL_RENDER_CHK_NULL(pVeboxState->m_pRenderHal->pMhwMiInterface);
@@ -2206,12 +2220,6 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxSendVeboxCmd()
     PVPHAL_VEBOX_STATE                      pVeboxState                     = this;
     PVPHAL_VEBOX_RENDER_DATA                pRenderData                     = GetLastExecRenderData();
 
-    if (pVeboxState == nullptr)
-    {
-        VPHAL_RENDER_ASSERTMESSAGE("pVeboxState not available.");
-        return MOS_STATUS_INVALID_PARAMETER;
-    }
-
     pRenderHal              = pVeboxState->m_pRenderHal;
     pOsInterface            = pVeboxState->m_pOsInterface;
     iRemaining              = 0;
@@ -2289,7 +2297,8 @@ finish:
 MOS_STATUS VPHAL_VEBOX_STATE::VeboxSyncIndirectStateCmd()
 {
 #if VEBOX_AUTO_DENOISE_SUPPORTED
-    if (GetLastExecRenderData()->bAutoDenoise)
+    PVPHAL_VEBOX_RENDER_DATA pRenderData = GetLastExecRenderData();
+    if (pRenderData && pRenderData->bAutoDenoise)
     {
         // Make sure copy kernel and update kernels are finished before submitting
         // VEBOX commands
@@ -2324,6 +2333,7 @@ void VPHAL_VEBOX_STATE::VeboxSetCommonRenderingFlags(
     int32_t                     iSameSampleThreshold;
     PVPHAL_VEBOX_STATE          pVeboxState = this;
     PVPHAL_VEBOX_RENDER_DATA    pRenderData = GetLastExecRenderData();
+    VPHAL_RENDER_CHK_NULL_NO_STATUS_RETURN(pRenderData);
 
     if (IS_VEBOX_EXECUTION_MODE_2(pVeboxState->m_pVeboxExecState))
     {
@@ -2449,6 +2459,7 @@ void VPHAL_VEBOX_STATE::VeboxSetFieldRenderingFlags(
 {
     PVPHAL_VEBOX_RENDER_DATA    pRenderData = GetLastExecRenderData();
 
+    VPHAL_RENDER_CHK_NULL_NO_STATUS_RETURN(pRenderData);
     // No need to check future surface for Mode2 here
     // Because only current frame will change the field setting.
     // And whether current blt are top or bottom field doesn't matter here
@@ -2534,7 +2545,8 @@ void VPHAL_VEBOX_STATE::VeboxSetRenderingFlags(
                                   (GFX_IS_GEN_9_OR_LATER(pVeboxState->m_pRenderHal->Platform)) &&
                                   (IS_COLOR_SPACE_BT2020_YUV(pSrc->ColorSpace)) &&
                                   (pRenderTarget->ColorSpace != pSrc->ColorSpace) &&
-                                  (!IS_COLOR_SPACE_BT2020_RGB(pRenderTarget->ColorSpace)));
+                                  (!IS_COLOR_SPACE_BT2020_RGB(pRenderTarget->ColorSpace)) &&
+                                  (!IS_COLOR_SPACE_BT2020_YUV(pRenderTarget->ColorSpace)));
 
     pRenderData->BT2020DstColorSpace = pRenderTarget->ColorSpace;
 
@@ -2956,6 +2968,7 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxCopyAndUpdateVeboxState(
 
     MOS_STATUS eStatus = MOS_STATUS_SUCCESS;
 
+    VPHAL_RENDER_CHK_NULL(pRenderData);
     VPHAL_RENDER_ASSERT(pVeboxState);
     VPHAL_RENDER_ASSERT(pRenderData);
     VPHAL_RENDER_ASSERT(pSrcSurface);
@@ -3002,6 +3015,7 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxRenderMode2(
 
     MOS_UNUSED(pOutputSurface);
 
+    VPHAL_RENDER_CHK_NULL(pRenderData);
     VPHAL_RENDER_ASSERT(pVeboxState);
     VPHAL_RENDER_ASSERT(pRenderData);
     VPHAL_RENDER_ASSERT(pSrcSurface);
@@ -3128,6 +3142,7 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxRenderMode0To2(
 
     MOS_UNUSED(pOutputSurface);
 
+    VPHAL_RENDER_CHK_NULL(pRenderData);
     VPHAL_RENDER_ASSERT(pVeboxState);
     VPHAL_RENDER_ASSERT(pRenderData);
     VPHAL_RENDER_ASSERT(pSrcSurface);
@@ -3382,6 +3397,7 @@ MOS_STATUS VPHAL_VEBOX_STATE::VeboxRenderMode0(
     PVPHAL_VEBOX_STATE          pVeboxState = this;
     PVPHAL_VEBOX_RENDER_DATA    pRenderData = GetLastExecRenderData();
 
+    VPHAL_RENDER_CHK_NULL(pRenderData);
     VPHAL_RENDER_ASSERT(pVeboxState);
     VPHAL_RENDER_ASSERT(pRenderData);
     VPHAL_RENDER_ASSERT(pSrcSurface);
@@ -3529,6 +3545,11 @@ PVPHAL_SURFACE VPHAL_VEBOX_STATE::GetOutputSurfForDiSameSampleWithSFC(
     PVPHAL_VEBOX_STATE       pVeboxState    = this;
     PVPHAL_VEBOX_RENDER_DATA pRenderData    = pVeboxState->GetLastExecRenderData();
     PVPHAL_SURFACE           pOutputSurface = pSrcSurface;
+    if (!pRenderData)
+    {
+        VPHAL_RENDER_ASSERTMESSAGE("pRenderData is nullptr!");
+        return nullptr;
+    }
 
     // Update rect sizes in FFDI surface if input surface rect size changes
     if (pSrcSurface->rcSrc.left      != pVeboxState->FFDISurfaces[0]->rcSrc.left     ||
@@ -3646,6 +3667,8 @@ MOS_STATUS VPHAL_VEBOX_STATE::Render(
     bRender                 = false;
     bDIVeboxBypass          = false;
     pRenderData             = pVeboxState->GetLastExecRenderData();
+
+    VPHAL_RENDER_CHK_NULL(pRenderData);
 
     VPHAL_DBG_STATE_DUMPPER_SET_CURRENT_STAGE(VPHAL_DBG_STAGE_VEBOX);
 
@@ -4289,7 +4312,7 @@ MOS_STATUS VpHal_VeboxAllocateTempSurfaces(
     surfaceFormat       = pOutSurface->Format;
     surfaceColorSpace   = pOutSurface->ColorSpace;
 
-    if (IS_YUV_FORMAT(pOutSurface->Format))
+    if (IS_YUV_FORMAT(pOutSurface->Format) || IS_ALPHA_YUV_FORMAT(pOutSurface->Format))
     {
         surfaceFormat       = Format_R10G10B10A2;
         surfaceColorSpace   = (IS_COLOR_SPACE_BT2020(pOutSurface->ColorSpace)) ? CSpace_BT2020_RGB : CSpace_sRGB;
@@ -4436,6 +4459,8 @@ MOS_STATUS VpHal_RndrRenderVebox(
         {
             goto finish;
         }
+
+        VPHAL_RENDER_CHK_NULL(pRenderData);
 
         if (pRenderData->b2PassesCSC)
         {   // First step of two pass CSC in vebox for Linux BT.2020 -> BT.601/709/RGB

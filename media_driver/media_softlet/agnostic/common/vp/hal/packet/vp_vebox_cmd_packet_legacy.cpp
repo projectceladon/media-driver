@@ -64,6 +64,14 @@ void VpVeboxCmdPacketLegacy::SetupSurfaceStates(
     pVeboxSurfaceStateCmdParams->bDIEnable     = m_PacketCaps.bDI;
     pVeboxSurfaceStateCmdParams->b3DlutEnable  = m_PacketCaps.bHDR3DLUT;  // Need to consider cappipe
 
+    if (pVeboxSurfaceStateCmdParams->pSurfOutput &&
+        pVeboxSurfaceStateCmdParams->pSurfOutput->osSurface &&
+        pVeboxSurfaceStateCmdParams->pSurfOutput->osSurface->OsResource.bUncompressedWriteNeeded)
+    {
+        VP_RENDER_NORMALMESSAGE("Force compression as RC for bUncompressedWriteNeeded being true");
+        pVeboxSurfaceStateCmdParams->pSurfOutput->osSurface->CompressionMode = MOS_MMC_RC;
+    }
+
     UpdateCpPrepareResources();
 }
 
@@ -1751,7 +1759,7 @@ MOS_STATUS VpVeboxCmdPacketLegacy::SetVeboxSurfaces(
 
     if(m_veboxItf)
     {
-        m_veboxItf->AddVeboxSurfaces(pCmdBufferInUse, pMhwVeboxSurfaceStateCmdParams);
+        VP_RENDER_CHK_STATUS_RETURN(m_veboxItf->AddVeboxSurfaces(pCmdBufferInUse, pMhwVeboxSurfaceStateCmdParams));
     }
     else
     {
@@ -2094,6 +2102,10 @@ MOS_STATUS VpVeboxCmdPacketLegacy::RenderVeboxCmd(
 
         VP_RENDER_CHK_STATUS_RETURN(pRenderHal->pRenderHalPltInterface->AddPerfCollectEndCmd(pRenderHal, pOsInterface, pCmdBufferInUse));
 
+#if (_DEBUG || _RELEASE_INTERNAL)
+        VP_RENDER_CHK_STATUS_RETURN(StallBatchBuffer(pCmdBufferInUse));
+#endif
+
         HalOcaInterface::On1stLevelBBEnd(*pCmdBufferInUse, *pOsInterface);
 
         if (pOsInterface->bNoParsingAssistanceInKmd)
@@ -2119,12 +2131,10 @@ MOS_STATUS VpVeboxCmdPacketLegacy::RenderVeboxCmd(
     if (bMultipipe)
     {
         scalability->SetCurrentPipeIndex(inputPipe);
-        ReportUserSetting(m_userSettingPtr, __MEDIA_USER_FEATURE_VALUE_ENABLE_VEBOX_SCALABILITY_MODE, true, MediaUserSetting::Group::Device);
     }
-    else
-    {
-        ReportUserSetting(m_userSettingPtr, __MEDIA_USER_FEATURE_VALUE_ENABLE_VEBOX_SCALABILITY_MODE, false, MediaUserSetting::Group::Device);
-    }
+
+    auto report                            = (VpFeatureReport *)(m_hwInterface->m_reporting);
+    report->GetFeatures().VeboxScalability = bMultipipe;
 
     MT_LOG2(MT_VP_HAL_RENDER_VE, MT_NORMAL, MT_VP_MHW_VE_SCALABILITY_EN, bMultipipe, MT_VP_MHW_VE_SCALABILITY_USE_SFC, m_IsSfcUsed);
 
@@ -2356,13 +2366,15 @@ MOS_STATUS VpVeboxCmdPacketLegacy::DumpVeboxStateHeap()
         &kernelResource,
         counter,
         0,
-        VPHAL_DUMP_TYPE_VEBOX_DRIVERHEAP);
+        VPHAL_DUMP_TYPE_VEBOX_DRIVERHEAP,
+        VPHAL_SURF_DUMP_DDI_VP_BLT);
 
     VP_SURFACE_DUMP(debuginterface,
         &kernelResource,
         counter,
         0,
-        VPHAL_DUMP_TYPE_VEBOX_KERNELHEAP);
+        VPHAL_DUMP_TYPE_VEBOX_KERNELHEAP,
+        VPHAL_SURF_DUMP_DDI_VP_BLT);
 
     counter++;
 #endif
@@ -2620,6 +2632,10 @@ MOS_STATUS VpVeboxCmdPacketLegacy::SetUpdatedExecuteResource(
 {
     VP_FUNC_CALL();
 
+    VP_RENDER_CHK_NULL_RETURN(inputSurface);
+    VP_RENDER_CHK_NULL_RETURN(outputSurface);
+    VP_RENDER_CHK_NULL_RETURN(inputSurface->osSurface);
+    VP_RENDER_CHK_NULL_RETURN(outputSurface->osSurface);
     m_allocator->UpdateResourceUsageType(&inputSurface->osSurface->OsResource, MOS_HW_RESOURCE_USAGE_VP_INPUT_PICTURE_FF);
     m_allocator->UpdateResourceUsageType(&outputSurface->osSurface->OsResource, MOS_HW_RESOURCE_USAGE_VP_OUTPUT_PICTURE_FF);
 
@@ -3242,7 +3258,6 @@ MOS_STATUS VpVeboxCmdPacketLegacy::VeboxSetPerfTagNv12()
                         *pPerfTag = VPHAL_NV12_DN_422CP;
                         break;
                     case Format_RGB32:
-                        *pPerfTag = VPHAL_NV12_DN_RGB32CP;
                     case Format_A8R8G8B8:
                     case Format_A8B8G8R8:
                         *pPerfTag = VPHAL_NV12_DN_RGB32CP;
@@ -3287,6 +3302,7 @@ MOS_STATUS VpVeboxCmdPacketLegacy::VeboxSetPerfTagNv12()
                         break;
                     case Format_RGB32:
                         *pPerfTag = VPHAL_NV12_RGB32CP;
+                        break;
                     case Format_A8R8G8B8:
                     case Format_A8B8G8R8:
                     case Format_R10G10B10A2:

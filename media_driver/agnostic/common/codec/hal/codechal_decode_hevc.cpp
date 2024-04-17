@@ -1761,6 +1761,7 @@ MOS_STATUS CodechalDecodeHevc::InitPicLongFormatMhwParams()
         // Return error if reference surface's pitch * height is less than dest surface.
         MOS_SURFACE destSurfaceDetails;
         MOS_SURFACE refSurfaceDetails;
+        bool hasRefs = false;
 
         MOS_ZeroMemory(&destSurfaceDetails, sizeof(destSurfaceDetails));
         destSurfaceDetails.Format = Format_Invalid;
@@ -1793,7 +1794,16 @@ MOS_STATUS CodechalDecodeHevc::InitPicLongFormatMhwParams()
                     CODECHAL_DECODE_ASSERTMESSAGE("Reference surface's pitch * height is less than Dest surface.");
                     return MOS_STATUS_INVALID_PARAMETER;
                 }
+
+                hasRefs = true;
             }
+        }
+
+        if (!m_curPicIntra && !hasRefs)
+        {
+            MOS_ZeroMemory(&m_hevcRefList[m_hevcPicParams->CurrPic.FrameIdx]->resRefPic, sizeof(MOS_RESOURCE));
+            CODECHAL_DECODE_ASSERTMESSAGE("No any Ref frame for Current Frame. Current frame will be skipped. Thus, clear current frame Ref List.");
+            return MOS_STATUS_INVALID_PARAMETER;
         }
 
         if (firstValidFrame == nullptr)
@@ -2820,6 +2830,8 @@ CodechalDecodeHevc::CodechalDecodeHevc(
     MOS_ZeroMemory(&m_hevcIqMatrixParams,sizeof(m_hevcIqMatrixParams));
     MOS_ZeroMemory(&m_destSurface,sizeof(m_destSurface));
     MOS_ZeroMemory(&m_currPic,sizeof(m_currPic));
+    MOS_ZeroMemory(&m_hevcMvList, CODEC_NUM_HEVC_MV_BUFFERS * sizeof(CODECHAL_DECODE_HEVC_MV_LIST));
+    MOS_ZeroMemory(m_presReferences, sizeof(PMOS_RESOURCE) * CODEC_MAX_NUM_REF_FRAME_HEVC);
 
     m_hcpInUse = true;
 

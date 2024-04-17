@@ -293,14 +293,16 @@ private:
         bool ret = false;
 
         if (Media_Format_A8R8G8B8 == rawSurface->format ||
-           Media_Format_B10G10R10A2 == rawSurface->format)
+            Media_Format_X8R8G8B8 == rawSurface->format ||
+            Media_Format_B10G10R10A2 == rawSurface->format)
         {
             ret = true;
         }
 
         if (ret &&
             (Media_Format_A8R8G8B8 == reconSurface->format ||
-            Media_Format_B10G10R10A2 == reconSurface->format))
+             Media_Format_X8R8G8B8 == reconSurface->format ||
+             Media_Format_B10G10R10A2 == reconSurface->format))
         {
             ret = false;
         }
@@ -326,7 +328,7 @@ private:
     //!
     //! \return   Codehal function
     //!
-    CODECHAL_FUNCTION GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint) override;
+    CODECHAL_FUNCTION GetEncodeCodecFunction(VAProfile profile, VAEntrypoint entrypoint, bool bVDEnc) override;
     //!
     //! \brief    Return internal encode mode for given profile and entrypoint
     //!

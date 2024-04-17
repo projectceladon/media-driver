@@ -157,6 +157,48 @@ MOS_STATUS MosUserSetting::InitMosCommonUserSetting(MediaUserSettingSharedPtr us
         int32_t(0),
         false);
 
+    DeclareUserSettingKey(
+        userSettingPtr,
+        __MEDIA_USER_FEATURE_VALUE_IP_ALIGNMENT_DECODE_ENABLE,
+        MediaUserSetting::Group::Device,
+        2,
+        false);
+
+    DeclareUserSettingKey(
+        userSettingPtr,
+        __MEDIA_USER_FEATURE_VALUE_IP_ALIGNMENT_ENCODE_ENABLE,
+        MediaUserSetting::Group::Device,
+        2,
+        false);
+
+    DeclareUserSettingKey(
+        userSettingPtr,
+        __MEDIA_USER_FEATURE_VALUE_IP_ALIGNMENT_VPP_ENABLE,
+        MediaUserSetting::Group::Device,
+        2,
+        false);
+
+    DeclareUserSettingKey(
+        userSettingPtr,
+        __MEDIA_USER_FEATURE_VALUE_IP_ALIGNMENT_DECODE_TIMEOUT,
+        MediaUserSetting::Group::Device,
+        20,
+        false);
+
+    DeclareUserSettingKey(
+        userSettingPtr,
+        __MEDIA_USER_FEATURE_VALUE_IP_ALIGNMENT_ENCODE_TIMEOUT,
+        MediaUserSetting::Group::Device,
+        20,
+        false);
+
+    DeclareUserSettingKey(
+        userSettingPtr,
+        __MEDIA_USER_FEATURE_VALUE_IP_ALIGNMENT_VPP_TIMEOUT,
+        MediaUserSetting::Group::Device,
+        20,
+        false);
+
     DeclareUserSettingKey(  //TRUE for Enabling Vebox Scalability. (Default FALSE: disabled")
         userSettingPtr,
         __MEDIA_USER_FEATURE_VALUE_ENABLE_VEBOX_SCALABILITY_MODE,
@@ -202,6 +244,15 @@ MOS_STATUS MosUserSetting::InitMosCommonUserSetting(MediaUserSettingSharedPtr us
         true,
         true,
         USER_SETTING_CONFIG_PERF_PATH); //"Perf Profiler Multi Process Support."
+
+    DeclareUserSettingKey(
+        userSettingPtr,
+        __MEDIA_USER_FEATURE_VALUE_PERF_PROFILER_ENABLE_MER_HEADER,
+        MediaUserSetting::Group::Device,
+        int32_t(0),
+        true,
+        true,
+        USER_SETTING_CONFIG_PERF_PATH);  //"Perf Profiler Merge by Header Support."
 
     DeclareUserSettingKey(
         userSettingPtr,
@@ -406,6 +457,13 @@ MOS_STATUS MosUserSetting::InitMosMessageUserSetting(MediaUserSettingSharedPtr u
     DeclareUserSettingKey(
         userSettingPtr,
         __MOS_USER_FEATURE_KEY_FLUSH_LOG_FILE_BEFORE_SUBMISSION,
+        MediaUserSetting::Group::Device,
+        0,
+        true);
+
+    DeclareUserSettingKey(
+        userSettingPtr,
+        __MOS_USER_FEATURE_KEY_ENABLE_MEMORY_FOOT_PRINT,
         MediaUserSetting::Group::Device,
         0,
         true);
@@ -940,13 +998,6 @@ MOS_STATUS MosUserSetting::InitUserSettingForDebug(MediaUserSettingSharedPtr use
 
     DeclareUserSettingKeyForDebug(
         userSettingPtr,
-        __MEDIA_USER_FEATURE_VALUE_MEDIASOLO_TILE_Y_2_TILE_4_ADAPTER,
-        MediaUserSetting::Group::Device,
-        false,
-        true);
-
-    DeclareUserSettingKeyForDebug(
-        userSettingPtr,
         __MEDIA_USER_FEATURE_VALUE_MEDIASOLO_ENABLE_MEM_TRACE,
         MediaUserSetting::Group::Device,
         false,
@@ -1395,6 +1446,13 @@ MOS_STATUS MosUserSetting::InitUserSettingForDebug(MediaUserSettingSharedPtr use
         MediaUserSetting::Group::Device,
         0,      // 0 is ignore. 1 blt, 2 render, 3 vebox, 4 bypass copy engine;
         true);  //"media copy force copy model."
+
+    DeclareUserSettingKeyForDebug(
+        userSettingPtr,
+        __MEDIA_USER_FEATURE_ENABLE_VECOPY_SMALL_RESOLUTION,
+        MediaUserSetting::Group::Device,
+        0,
+        true);
 
     DeclareUserSettingKeyForDebug(
         userSettingPtr,

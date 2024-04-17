@@ -286,6 +286,10 @@ static bool InitMtlMediaWaExt(struct GfxDeviceInfo *devInfo,
 
     MEDIA_WR_WA(waTable, Wa_Vp9UnalignedHeight, 1);
 
+    MEDIA_WR_WA(waTable, Wa_15013355402, 1);
+
+    MEDIA_WR_WA(waTable, Wa_16021867713, 1);
+
     return true;
 }
 
@@ -299,3 +303,38 @@ static struct LinuxDeviceInit mtlDeviceInit =
 
 static bool mtlDeviceRegister = DeviceInfoFactory<LinuxDeviceInit>::
     RegisterDevice(IGFX_METEORLAKE, &mtlDeviceInit);
+
+static bool InitArlMediaSku(struct GfxDeviceInfo *devInfo,
+    MediaFeatureTable *                            skuTable,
+    struct LinuxDriverInfo                        *drvInfo,
+    MediaUserSettingSharedPtr                      userSettingPtr)
+{
+    if (!InitMtlMediaSkuExt(devInfo, skuTable, drvInfo, userSettingPtr))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+static bool InitArlMediaWa(struct GfxDeviceInfo *devInfo,
+    MediaWaTable *                                waTable,
+    struct LinuxDriverInfo *                      drvInfo)
+{
+    if (!InitMtlMediaWaExt(devInfo, waTable, drvInfo))
+    {
+        return false;
+    }
+
+    return true;
+}
+
+static struct LinuxDeviceInit arlDeviceInit =
+{
+    .productFamily    = (uint32_t)IGFX_ARROWLAKE,
+    .InitMediaFeature = InitArlMediaSku,
+    .InitMediaWa      = InitArlMediaWa,
+};
+
+static bool arlDeviceRegister = DeviceInfoFactory<LinuxDeviceInit>::
+    RegisterDevice((uint32_t)IGFX_ARROWLAKE, &arlDeviceInit);

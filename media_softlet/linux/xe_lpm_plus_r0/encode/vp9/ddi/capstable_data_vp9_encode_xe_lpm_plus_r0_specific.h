@@ -32,18 +32,18 @@
 //!
 //! \brief  Definition for bitset value
 //!
-static const VAConfigAttribValEncROI VP9Common_VAEntrypointEncSliceLP_encROI
+static const VAConfigAttribValEncROI VP9Common_VAEntrypointEncSlice_encROI
 {
     {0,0,1,0}
 };
 
-static const VAConfigAttribValEncRateControlExt VP9Common_VAEntrypointEncSliceLP_encRateControlExt
+static const VAConfigAttribValEncRateControlExt VP9Common_VAEntrypointEncSlice_encRateControlExt
 {
     {CODECHAL_ENCODE_VP9_MAX_NUM_TEMPORAL_LAYERS - 1,1,0}
 };
 
 //! \brief  Definition for ConfigDataList
-static ConfigDataList configDataList_VAProfileVP9Profile0_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0 =
+static ConfigDataList configDataList_VAProfileVP9Profile0_VAEntrypointEncSlice_Xe_Lpm_plus_r0 =
 { 
   {VA_RC_CQP, 0}, 
   {VA_RC_CBR, 0}, 
@@ -51,7 +51,7 @@ static ConfigDataList configDataList_VAProfileVP9Profile0_VAEntrypointEncSliceLP
   {VA_RC_ICQ, 0} 
 }; 
 
-static ConfigDataList configDataList_VAProfileVP9Profile1_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0 =
+static ConfigDataList configDataList_VAProfileVP9Profile1_VAEntrypointEncSlice_Xe_Lpm_plus_r0 =
 { 
   {VA_RC_CQP, 0}, 
   {VA_RC_CBR, 0}, 
@@ -59,7 +59,7 @@ static ConfigDataList configDataList_VAProfileVP9Profile1_VAEntrypointEncSliceLP
   {VA_RC_ICQ, 0} 
 }; 
 
-static ConfigDataList configDataList_VAProfileVP9Profile2_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0 =
+static ConfigDataList configDataList_VAProfileVP9Profile2_VAEntrypointEncSlice_Xe_Lpm_plus_r0 =
 { 
   {VA_RC_CQP, 0}, 
   {VA_RC_CBR, 0}, 
@@ -67,7 +67,7 @@ static ConfigDataList configDataList_VAProfileVP9Profile2_VAEntrypointEncSliceLP
   {VA_RC_ICQ, 0} 
 }; 
 
-static ConfigDataList configDataList_VAProfileVP9Profile3_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0 =
+static ConfigDataList configDataList_VAProfileVP9Profile3_VAEntrypointEncSlice_Xe_Lpm_plus_r0 =
 { 
   {VA_RC_CQP, 0}, 
   {VA_RC_CBR, 0}, 
@@ -78,7 +78,7 @@ static ConfigDataList configDataList_VAProfileVP9Profile3_VAEntrypointEncSliceLP
 //!
 //! \brief  Definition for AttribList
 //!
-static const AttribList attribList_VAProfileVP9Profile0_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0
+static const AttribList attribList_VAProfileVP9Profile0_VAEntrypointEncSlice_Xe_Lpm_plus_r0
 {
    //{VAConfigAttribRTFormat, VA_RT_FORMAT_YUV444_10},
    {VAConfigAttribRTFormat, VA_RT_FORMAT_YUV420 | VA_RT_FORMAT_YUV420_10 | VA_RT_FORMAT_YUV444 | VA_RT_FORMAT_YUV444_10 | VA_RT_FORMAT_RGB32 | VA_RT_FORMAT_RGB32_10},
@@ -92,23 +92,18 @@ static const AttribList attribList_VAProfileVP9Profile0_VAEntrypointEncSliceLP_X
    {VAConfigAttribEncTileSupport, 1},
    {VAConfigAttribEncDirtyRect, 4},
    {VAConfigAttribEncDynamicScaling, 1},
-   {VAConfigAttribEncJPEG, (JPEG_MAX_QUANT_TABLE << 14)|(JPEG_MAX_NUM_HUFF_TABLE_INDEX << 11)|(1 << 7)|(jpegNumComponent << 4)},
    {VAConfigAttribEncQualityRange, NUM_TARGET_USAGE_MODES - 1},
    {VAConfigAttribEncInterlaced, VA_ENC_INTERLACED_NONE},
    {VAConfigAttribEncQuantization, VA_ENC_QUANTIZATION_NONE},
-   //just to match with legacy correct value 0
-   {VAConfigAttribEncMaxSlices, 3},
-   {VAConfigAttribEncSliceStructure, VA_ENC_SLICE_STRUCTURE_EQUAL_ROWS | VA_ENC_SLICE_STRUCTURE_MAX_SLICE_SIZE | VA_ENC_SLICE_STRUCTURE_EQUAL_MULTI_ROWS | VA_ENC_SLICE_STRUCTURE_ARBITRARY_ROWS},
    {VAConfigAttribEncIntraRefresh, VA_ENC_INTRA_REFRESH_NONE},
    {VAConfigAttribEncSkipFrame, 0},
-   {VAConfigAttribEncROI, VP9Common_VAEntrypointEncSliceLP_encROI.value},
+   {VAConfigAttribEncROI, VP9Common_VAEntrypointEncSlice_encROI.value},
    {VAConfigAttribEncParallelRateControl, 0},
    {VAConfigAttribFEIMVPredictors, 0},
-   {VAConfigAttribCustomRoundingControl, 1},
-   {VAConfigAttribEncRateControlExt, VP9Common_VAEntrypointEncSliceLP_encRateControlExt.value},
+   {VAConfigAttribEncRateControlExt, VP9Common_VAEntrypointEncSlice_encRateControlExt.value},
 };
 
-static const AttribList attribList_VAProfileVP9Profile1_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0
+static const AttribList attribList_VAProfileVP9Profile1_VAEntrypointEncSlice_Xe_Lpm_plus_r0
 {
    //{VAConfigAttribRTFormat, VA_RT_FORMAT_YUV444_10},
    {VAConfigAttribRTFormat, VA_RT_FORMAT_YUV420 | VA_RT_FORMAT_YUV420_10 | VA_RT_FORMAT_YUV444 | VA_RT_FORMAT_YUV444_10 | VA_RT_FORMAT_RGB32 | VA_RT_FORMAT_RGB32_10},
@@ -122,23 +117,18 @@ static const AttribList attribList_VAProfileVP9Profile1_VAEntrypointEncSliceLP_X
    {VAConfigAttribEncTileSupport, 1},
    {VAConfigAttribEncDirtyRect, 4},
    {VAConfigAttribEncDynamicScaling, 1},
-   {VAConfigAttribEncJPEG, (JPEG_MAX_QUANT_TABLE << 14)|(JPEG_MAX_NUM_HUFF_TABLE_INDEX << 11)|(1 << 7)|(jpegNumComponent << 4)},
    {VAConfigAttribEncQualityRange, NUM_TARGET_USAGE_MODES - 1},
    {VAConfigAttribEncInterlaced, VA_ENC_INTERLACED_NONE},
    {VAConfigAttribEncQuantization, VA_ENC_QUANTIZATION_NONE},
-   //just to match with legacy correct value 0
-   {VAConfigAttribEncMaxSlices, 3},
-   {VAConfigAttribEncSliceStructure, VA_ENC_SLICE_STRUCTURE_EQUAL_ROWS | VA_ENC_SLICE_STRUCTURE_MAX_SLICE_SIZE | VA_ENC_SLICE_STRUCTURE_EQUAL_MULTI_ROWS | VA_ENC_SLICE_STRUCTURE_ARBITRARY_ROWS},
    {VAConfigAttribEncIntraRefresh, VA_ENC_INTRA_REFRESH_NONE},
    {VAConfigAttribEncSkipFrame, 0},
-   {VAConfigAttribEncROI, VP9Common_VAEntrypointEncSliceLP_encROI.value},
+   {VAConfigAttribEncROI, VP9Common_VAEntrypointEncSlice_encROI.value},
    {VAConfigAttribEncParallelRateControl, 0},
    {VAConfigAttribFEIMVPredictors, 0},
-   {VAConfigAttribCustomRoundingControl, 1},
-   {VAConfigAttribEncRateControlExt, VP9Common_VAEntrypointEncSliceLP_encRateControlExt.value},
+   {VAConfigAttribEncRateControlExt, VP9Common_VAEntrypointEncSlice_encRateControlExt.value},
 };
 
-static const AttribList attribList_VAProfileVP9Profile2_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0
+static const AttribList attribList_VAProfileVP9Profile2_VAEntrypointEncSlice_Xe_Lpm_plus_r0
 {
    //{VAConfigAttribRTFormat, VA_RT_FORMAT_YUV444_10},
    {VAConfigAttribRTFormat, VA_RT_FORMAT_YUV420 | VA_RT_FORMAT_YUV420_10 | VA_RT_FORMAT_YUV444 | VA_RT_FORMAT_YUV444_10 | VA_RT_FORMAT_RGB32 | VA_RT_FORMAT_RGB32_10},
@@ -152,23 +142,18 @@ static const AttribList attribList_VAProfileVP9Profile2_VAEntrypointEncSliceLP_X
    {VAConfigAttribEncTileSupport, 1},
    {VAConfigAttribEncDirtyRect, 4},
    {VAConfigAttribEncDynamicScaling, 1},
-   {VAConfigAttribEncJPEG, (JPEG_MAX_QUANT_TABLE << 14)|(JPEG_MAX_NUM_HUFF_TABLE_INDEX << 11)|(1 << 7)|(jpegNumComponent << 4)},
    {VAConfigAttribEncQualityRange, NUM_TARGET_USAGE_MODES - 1},
    {VAConfigAttribEncInterlaced, VA_ENC_INTERLACED_NONE},
    {VAConfigAttribEncQuantization, VA_ENC_QUANTIZATION_NONE},
-   //just to match with legacy correct value 0
-   {VAConfigAttribEncMaxSlices, 3},
-   {VAConfigAttribEncSliceStructure, VA_ENC_SLICE_STRUCTURE_EQUAL_ROWS | VA_ENC_SLICE_STRUCTURE_MAX_SLICE_SIZE | VA_ENC_SLICE_STRUCTURE_EQUAL_MULTI_ROWS | VA_ENC_SLICE_STRUCTURE_ARBITRARY_ROWS},
    {VAConfigAttribEncIntraRefresh, VA_ENC_INTRA_REFRESH_NONE},
    {VAConfigAttribEncSkipFrame, 0},
-   {VAConfigAttribEncROI, VP9Common_VAEntrypointEncSliceLP_encROI.value},
+   {VAConfigAttribEncROI, VP9Common_VAEntrypointEncSlice_encROI.value},
    {VAConfigAttribEncParallelRateControl, 0},
    {VAConfigAttribFEIMVPredictors, 0},
-   {VAConfigAttribCustomRoundingControl, 1},
-   {VAConfigAttribEncRateControlExt, VP9Common_VAEntrypointEncSliceLP_encRateControlExt.value},
+   {VAConfigAttribEncRateControlExt, VP9Common_VAEntrypointEncSlice_encRateControlExt.value},
 };
 
-static const AttribList attribList_VAProfileVP9Profile3_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0
+static const AttribList attribList_VAProfileVP9Profile3_VAEntrypointEncSlice_Xe_Lpm_plus_r0
 {
    //{VAConfigAttribRTFormat, VA_RT_FORMAT_YUV444_10},
    {VAConfigAttribRTFormat, VA_RT_FORMAT_YUV420 | VA_RT_FORMAT_YUV420_10 | VA_RT_FORMAT_YUV444 | VA_RT_FORMAT_YUV444_10 | VA_RT_FORMAT_RGB32 | VA_RT_FORMAT_RGB32_10},
@@ -182,34 +167,36 @@ static const AttribList attribList_VAProfileVP9Profile3_VAEntrypointEncSliceLP_X
    {VAConfigAttribEncTileSupport, 1},
    {VAConfigAttribEncDirtyRect, 4},
    {VAConfigAttribEncDynamicScaling, 1},
-   {VAConfigAttribEncJPEG, (JPEG_MAX_QUANT_TABLE << 14)|(JPEG_MAX_NUM_HUFF_TABLE_INDEX << 11)|(1 << 7)|(jpegNumComponent << 4)},
    {VAConfigAttribEncQualityRange, NUM_TARGET_USAGE_MODES - 1},
    {VAConfigAttribEncInterlaced, VA_ENC_INTERLACED_NONE},
    {VAConfigAttribEncQuantization, VA_ENC_QUANTIZATION_NONE},
-   //just to match with legacy correct value 0
-   {VAConfigAttribEncMaxSlices, 3},
-   {VAConfigAttribEncSliceStructure, VA_ENC_SLICE_STRUCTURE_EQUAL_ROWS | VA_ENC_SLICE_STRUCTURE_MAX_SLICE_SIZE | VA_ENC_SLICE_STRUCTURE_EQUAL_MULTI_ROWS | VA_ENC_SLICE_STRUCTURE_ARBITRARY_ROWS},
    {VAConfigAttribEncIntraRefresh, VA_ENC_INTRA_REFRESH_NONE},
    {VAConfigAttribEncSkipFrame, 0},
-   {VAConfigAttribEncROI, VP9Common_VAEntrypointEncSliceLP_encROI.value},
+   {VAConfigAttribEncROI, VP9Common_VAEntrypointEncSlice_encROI.value},
    {VAConfigAttribEncParallelRateControl, 0},
    {VAConfigAttribFEIMVPredictors, 0},
-   {VAConfigAttribCustomRoundingControl, 1},
-   {VAConfigAttribEncRateControlExt, VP9Common_VAEntrypointEncSliceLP_encRateControlExt.value},
+   {VAConfigAttribEncRateControlExt, VP9Common_VAEntrypointEncSlice_encRateControlExt.value},
 };
 
 //!
-static ProfileSurfaceAttribInfo surfaceAttribInfo_VAProfileVP9Profile0_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0 =
+static ProfileSurfaceAttribInfo surfaceAttribInfo_VAProfileVP9Profile0_VAEntrypointEncSlice_Xe_Lpm_plus_r0 =
 { 
   {VASurfaceAttribPixelFormat, VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE, {VAGenericValueTypeInteger, {VA_FOURCC_NV12}}}, 
   {VASurfaceAttribMaxWidth, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {8192}}}, 
   {VASurfaceAttribMaxHeight, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {8192}}}, 
   {VASurfaceAttribMinWidth, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {128}}}, 
   {VASurfaceAttribMinHeight, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {96}}},
-  {VASurfaceAttribMemoryType, VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE, {VAGenericValueTypeInteger, {VA_SURFACE_ATTRIB_MEM_TYPE_VA | VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2}}} 
+  {VASurfaceAttribMemoryType,  VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE,
+    {VAGenericValueTypeInteger, {
+#if VA_CHECK_VERSION(1, 21, 0)
+        VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_3 |
+#endif
+        VA_SURFACE_ATTRIB_MEM_TYPE_VA | 
+        VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2
+    }}}
 }; 
 
-static ProfileSurfaceAttribInfo surfaceAttribInfo_VAProfileVP9Profile1_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0 =
+static ProfileSurfaceAttribInfo surfaceAttribInfo_VAProfileVP9Profile1_VAEntrypointEncSlice_Xe_Lpm_plus_r0 =
 { 
   {VASurfaceAttribPixelFormat, VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE, {VAGenericValueTypeInteger, {VA_FOURCC_AYUV}}}, 
 #if VA_CHECK_VERSION(1, 13, 0)
@@ -219,20 +206,34 @@ static ProfileSurfaceAttribInfo surfaceAttribInfo_VAProfileVP9Profile1_VAEntrypo
   {VASurfaceAttribMaxHeight, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {8192}}}, 
   {VASurfaceAttribMinWidth, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {128}}}, 
   {VASurfaceAttribMinHeight, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {96}}},
-  {VASurfaceAttribMemoryType, VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE, {VAGenericValueTypeInteger, {VA_SURFACE_ATTRIB_MEM_TYPE_VA | VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2}}} 
+  {VASurfaceAttribMemoryType,  VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE,
+    {VAGenericValueTypeInteger, {
+#if VA_CHECK_VERSION(1, 21, 0)
+        VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_3 |
+#endif
+        VA_SURFACE_ATTRIB_MEM_TYPE_VA | 
+        VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2
+    }}}
 }; 
 
-static ProfileSurfaceAttribInfo surfaceAttribInfo_VAProfileVP9Profile2_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0 =
+static ProfileSurfaceAttribInfo surfaceAttribInfo_VAProfileVP9Profile2_VAEntrypointEncSlice_Xe_Lpm_plus_r0 =
 { 
   {VASurfaceAttribPixelFormat, VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE, {VAGenericValueTypeInteger, {VA_FOURCC_P010}}}, 
   {VASurfaceAttribMaxWidth, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {8192}}}, 
   {VASurfaceAttribMaxHeight, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {8192}}}, 
   {VASurfaceAttribMinWidth, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {128}}}, 
   {VASurfaceAttribMinHeight, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {96}}},
-  {VASurfaceAttribMemoryType, VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE, {VAGenericValueTypeInteger, {VA_SURFACE_ATTRIB_MEM_TYPE_VA | VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2}}}
+  {VASurfaceAttribMemoryType,  VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE,
+    {VAGenericValueTypeInteger, {
+#if VA_CHECK_VERSION(1, 21, 0)
+        VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_3 |
+#endif
+        VA_SURFACE_ATTRIB_MEM_TYPE_VA | 
+        VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2
+    }}}
 }; 
 
-static ProfileSurfaceAttribInfo surfaceAttribInfo_VAProfileVP9Profile3_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0 =
+static ProfileSurfaceAttribInfo surfaceAttribInfo_VAProfileVP9Profile3_VAEntrypointEncSlice_Xe_Lpm_plus_r0 =
 { 
   {VASurfaceAttribPixelFormat, VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE, {VAGenericValueTypeInteger, {VA_FOURCC_Y410}}}, 
   {VASurfaceAttribPixelFormat, VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE, {VAGenericValueTypeInteger, {VA_FOURCC_ARGB}}}, 
@@ -241,7 +242,14 @@ static ProfileSurfaceAttribInfo surfaceAttribInfo_VAProfileVP9Profile3_VAEntrypo
   {VASurfaceAttribMaxHeight, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {8192}}}, 
   {VASurfaceAttribMinWidth, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {128}}}, 
   {VASurfaceAttribMinHeight, VA_SURFACE_ATTRIB_GETTABLE, {VAGenericValueTypeInteger, {96}}},
-  {VASurfaceAttribMemoryType, VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE, {VAGenericValueTypeInteger, {VA_SURFACE_ATTRIB_MEM_TYPE_VA | VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2}}}
+  {VASurfaceAttribMemoryType,  VA_SURFACE_ATTRIB_GETTABLE | VA_SURFACE_ATTRIB_SETTABLE,
+    {VAGenericValueTypeInteger, {
+#if VA_CHECK_VERSION(1, 21, 0)
+        VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_3 |
+#endif
+        VA_SURFACE_ATTRIB_MEM_TYPE_VA | 
+        VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2
+    }}}
 }; 
 
 //!
@@ -249,30 +257,30 @@ static ProfileSurfaceAttribInfo surfaceAttribInfo_VAProfileVP9Profile3_VAEntrypo
 //!
 static const EntrypointData entrypointMap_VAProfileVP9Profile0_Data_Xe_Lpm_plus_r0
 {
-    &attribList_VAProfileVP9Profile0_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0,
-    &configDataList_VAProfileVP9Profile0_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0,
-    &surfaceAttribInfo_VAProfileVP9Profile0_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0
+    &attribList_VAProfileVP9Profile0_VAEntrypointEncSlice_Xe_Lpm_plus_r0,
+    &configDataList_VAProfileVP9Profile0_VAEntrypointEncSlice_Xe_Lpm_plus_r0,
+    &surfaceAttribInfo_VAProfileVP9Profile0_VAEntrypointEncSlice_Xe_Lpm_plus_r0
 };
 
 static const EntrypointData entrypointMap_VAProfileVP9Profile1_Data_Xe_Lpm_plus_r0
 {
-    &attribList_VAProfileVP9Profile1_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0,
-    &configDataList_VAProfileVP9Profile1_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0,
-    &surfaceAttribInfo_VAProfileVP9Profile1_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0
+    &attribList_VAProfileVP9Profile1_VAEntrypointEncSlice_Xe_Lpm_plus_r0,
+    &configDataList_VAProfileVP9Profile1_VAEntrypointEncSlice_Xe_Lpm_plus_r0,
+    &surfaceAttribInfo_VAProfileVP9Profile1_VAEntrypointEncSlice_Xe_Lpm_plus_r0
 };
 
 static const EntrypointData entrypointMap_VAProfileVP9Profile2_Data_Xe_Lpm_plus_r0
 {
-    &attribList_VAProfileVP9Profile2_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0,
-    &configDataList_VAProfileVP9Profile2_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0,
-    &surfaceAttribInfo_VAProfileVP9Profile2_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0
+    &attribList_VAProfileVP9Profile2_VAEntrypointEncSlice_Xe_Lpm_plus_r0,
+    &configDataList_VAProfileVP9Profile2_VAEntrypointEncSlice_Xe_Lpm_plus_r0,
+    &surfaceAttribInfo_VAProfileVP9Profile2_VAEntrypointEncSlice_Xe_Lpm_plus_r0
 };
 
 static const EntrypointData entrypointMap_VAProfileVP9Profile3_Data_Xe_Lpm_plus_r0
 {
-    &attribList_VAProfileVP9Profile3_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0,
-    &configDataList_VAProfileVP9Profile3_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0,
-    &surfaceAttribInfo_VAProfileVP9Profile3_VAEntrypointEncSliceLP_Xe_Lpm_plus_r0
+    &attribList_VAProfileVP9Profile3_VAEntrypointEncSlice_Xe_Lpm_plus_r0,
+    &configDataList_VAProfileVP9Profile3_VAEntrypointEncSlice_Xe_Lpm_plus_r0,
+    &surfaceAttribInfo_VAProfileVP9Profile3_VAEntrypointEncSlice_Xe_Lpm_plus_r0
 };
 
 #endif

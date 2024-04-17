@@ -138,6 +138,7 @@ public:
     PCODEC_AV1_ENCODE_PICTURE_PARAMS    m_av1PicParams          = nullptr;                      //!< Pointer to picture parameter
     Av1ReferenceFrames                  m_ref                   = {};                           //!< Reference List
     Av1StreamIn                         m_streamIn              = {};                           //!< Stream In
+    AV1MetaDataOffset                   m_AV1metaDataOffset     = {};                           //!< AV1 Metadata Offset
 
     uint32_t            m_sizeOfSseSrcPixelRowStoreBufferPerLcu = 0;                            //!< Size of SSE row store buffer per LCU
     static constexpr uint32_t  m_vdencBrcStatsBufferSize        = 1216;                         //!< Vdenc bitrate control buffer size
@@ -160,6 +161,8 @@ public:
     bool                               m_adaptiveRounding   = false;                            //!< whether adaptive rounding will be enabled
     bool                               m_enableCDEF = false;
 
+    uint32_t                           m_vdencTileSliceStart[av1MaxTileNum] = { 0 };           //!< VDEnc TILE_SLICE buffer offset array for every tile
+
     enum FlushCmd
     {
         waitVdenc = 0,
@@ -169,7 +172,7 @@ public:
 
 #define ASYNC_NUM 32
 
-    uint32_t                           m_frameHdrOBUSizeByteOffset[ASYNC_NUM] = {};  //!< indicate current frame OBUFrame offset
+    uint32_t                           m_frameHdrOBUSizeByteOffset = 0;  //!< indicate current frame OBUFrame offset
     uint16_t                           m_tileGroupHeaderSize = 0;
     uint32_t                           m_encodedFrameNum = 0;                                   //!< Currently encoded frame number
 

@@ -25,6 +25,7 @@
 //!
 
 #include <math.h>
+#include <set>
 #include "mhw_utilities_next.h"
 #include "mhw_state_heap.h"
 #include "mos_interface.h"
@@ -36,6 +37,26 @@
 #include "mhw_mi_itf.h"
 
 #define MHW_NS_PER_TICK_RENDER_ENGINE 80  // 80 nano seconds per tick in render engine
+
+static const std::set<MOS_HW_COMMAND> s_OCAResourceInfoType = {
+    MOS_MI_BATCH_BUFFER_START,
+    MOS_VEBOX_STATE,
+    MOS_VEBOX_DI_IECP,
+    MOS_VEBOX_TILING_CONVERT,
+    MOS_SFC_STATE,
+    MOS_STATE_BASE_ADDR,
+    MOS_SURFACE_STATE,
+    MOS_SURFACE_STATE_ADV,
+    MOS_MFX_PIPE_BUF_ADDR,
+    MOS_MFX_INDIRECT_OBJ_BASE_ADDR,
+    MOS_MFX_BSP_BUF_BASE_ADDR,
+    MOS_MFX_AVC_DIRECT_MODE,
+    MOS_MFX_VP8_PIC,
+    MOS_HUC_IND_OBJ_BASE_ADDR,
+    MOS_HUC_DMEM,
+    MOS_HUC_VIRTUAL_ADDR,
+    MOS_VDENC_PIPE_BUF_ADDR,
+};
 
 //!
 //! \brief    Set mocs index
@@ -224,18 +245,7 @@ MOS_STATUS Mhw_AddResourceToCmd_GfxAddress(
             &PatchEntryParams));
     }
 
-    if (MOS_VEBOX_STATE                == pParams->HwCommandType   ||
-        MOS_VEBOX_DI_IECP              == pParams->HwCommandType   ||
-        MOS_VEBOX_TILING_CONVERT       == pParams->HwCommandType   ||
-        MOS_SFC_STATE                  == pParams->HwCommandType   ||
-        MOS_STATE_BASE_ADDR            == pParams->HwCommandType   ||
-        MOS_SURFACE_STATE              == pParams->HwCommandType   ||
-        MOS_SURFACE_STATE_ADV          == pParams->HwCommandType   ||
-        MOS_MFX_PIPE_BUF_ADDR          == pParams->HwCommandType   ||
-        MOS_MFX_VP8_PIC                == pParams->HwCommandType   ||
-        MOS_MFX_BSP_BUF_BASE_ADDR      == pParams->HwCommandType   ||
-        MOS_MFX_INDIRECT_OBJ_BASE_ADDR == pParams->HwCommandType   ||
-        MOS_MI_BATCH_BUFFER_START      == pParams->HwCommandType)
+    if (s_OCAResourceInfoType.count(pParams->HwCommandType))
     {
         HalOcaInterfaceNext::DumpResourceInfo(*pCmdBuffer, *pOsInterface, *pParams->presResource, pParams->HwCommandType,
             pParams->dwLocationInCmd, pParams->dwOffset);
@@ -290,6 +300,8 @@ MOS_STATUS Mhw_AddResourceToCmd_PatchList(
     // Offset and command LSB parameters
     dwOffset = pParams->dwOffset | ((*pParams->pdwCmd) & ((1 << dwLsbNum) - 1));
 
+    Mhw_SetMocsTableIndex(pOsInterface, pParams->presResource, pParams->mocsParams);
+    
     if (pParams->dwOffsetInSSH > 0)
     {
         // Calculate the patch offset to command buffer
@@ -366,18 +378,7 @@ MOS_STATUS Mhw_AddResourceToCmd_PatchList(
             &PatchEntryParams));
     }
 
-    if (MOS_VEBOX_STATE                == pParams->HwCommandType   ||
-        MOS_VEBOX_DI_IECP              == pParams->HwCommandType   ||
-        MOS_VEBOX_TILING_CONVERT       == pParams->HwCommandType   ||
-        MOS_SFC_STATE                  == pParams->HwCommandType   ||
-        MOS_STATE_BASE_ADDR            == pParams->HwCommandType   ||
-        MOS_SURFACE_STATE              == pParams->HwCommandType   ||
-        MOS_SURFACE_STATE_ADV          == pParams->HwCommandType   ||
-        MOS_MFX_PIPE_BUF_ADDR          == pParams->HwCommandType   ||
-        MOS_MFX_VP8_PIC                == pParams->HwCommandType   ||
-        MOS_MFX_BSP_BUF_BASE_ADDR      == pParams->HwCommandType   ||
-        MOS_MFX_INDIRECT_OBJ_BASE_ADDR == pParams->HwCommandType   ||
-        MOS_MI_BATCH_BUFFER_START      == pParams->HwCommandType)
+    if (s_OCAResourceInfoType.count(pParams->HwCommandType))
     {
         HalOcaInterfaceNext::DumpResourceInfo(*pCmdBuffer, *pOsInterface, *pParams->presResource, pParams->HwCommandType,
             pParams->dwLocationInCmd, pParams->dwOffset);
@@ -506,7 +507,7 @@ MOS_STATUS Mhw_SendGenericPrologCmdNext(
         auto& par = miItf->MHW_GETPAR_F(PIPE_CONTROL)();
         par = {};
         par.dwFlushMode = MHW_FLUSH_WRITE_CACHE;
-        miItf->MHW_ADDCMD_F(PIPE_CONTROL)(pCmdBuffer);
+        MHW_CHK_STATUS_RETURN(miItf->MHW_ADDCMD_F(PIPE_CONTROL)(pCmdBuffer));
 
         auto& par1 = miItf->MHW_GETPAR_F(PIPE_CONTROL)();
         par1 = {};
@@ -514,7 +515,7 @@ MOS_STATUS Mhw_SendGenericPrologCmdNext(
         par1.presDest = pParams->presStoreData;
         par1.dwResourceOffset = pParams->dwStoreDataOffset;
         par1.dwPostSyncOp = MHW_FLUSH_WRITE_IMMEDIATE_DATA;
-        miItf->MHW_ADDCMD_F(PIPE_CONTROL)(pCmdBuffer);
+        MHW_CHK_STATUS_RETURN(miItf->MHW_ADDCMD_F(PIPE_CONTROL)(pCmdBuffer));
 
         if(pCmdBuffer->Attributes.bUmdSSEUEnable)
         {
@@ -534,7 +535,7 @@ MOS_STATUS Mhw_SendGenericPrologCmdNext(
             par = {};
             par.dwRegister = MHW__PWR_CLK_STATE_REG;
             par.dwData = params.Data;
-            miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(pCmdBuffer);
+            MHW_CHK_STATUS_RETURN(miItf->MHW_ADDCMD_F(MI_LOAD_REGISTER_IMM)(pCmdBuffer));
         }
     }
     else
@@ -546,7 +547,7 @@ MOS_STATUS Mhw_SendGenericPrologCmdNext(
         params.pOsResource = pParams->presStoreData;
         params.dwResourceOffset = pParams->dwStoreDataOffset;
         params.dwDataDW1 = pParams->dwStoreDataValue;
-        miItf->MHW_ADDCMD_F(MI_FLUSH_DW)(pCmdBuffer);
+        MHW_CHK_STATUS_RETURN(miItf->MHW_ADDCMD_F(MI_FLUSH_DW)(pCmdBuffer));
     }
 
     MHW_CHK_STATUS_RETURN(miItf->AddProtectedProlog(pCmdBuffer));

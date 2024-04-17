@@ -1379,7 +1379,6 @@ MOS_STATUS VpRenderHdrKernel::VpHal_HdrColorTransfer3dLut(
 {
     VP_FUNC_CALL();
 
-    MOS_STATUS           eStatus = MOS_STATUS_SUCCESS;
     float                PriorCscMatrix[12] = {}, PostCscMatrix[12] = {};
     float                TempMatrix[12] = {};
     double               fTempX = 0, fTempY = 0, fTempZ = 0;
@@ -1452,7 +1451,7 @@ MOS_STATUS VpRenderHdrKernel::VpHal_HdrColorTransfer3dLut(
         else
         {
             VP_RENDER_ASSERTMESSAGE("Invalid Prior CSC parameter.");
-            eStatus = MOS_STATUS_INVALID_PARAMETER;
+            VP_RENDER_CHK_STATUS_RETURN(MOS_STATUS_INVALID_PARAMETER);
         }
 
         fTemp1X = fTempX;
@@ -1563,7 +1562,7 @@ MOS_STATUS VpRenderHdrKernel::VpHal_HdrColorTransfer3dLut(
         else
         {
             VP_RENDER_ASSERTMESSAGE("Invalid EOTF setting for tone mapping");
-            eStatus = MOS_STATUS_INVALID_PARAMETER;
+            VP_RENDER_CHK_STATUS_RETURN(MOS_STATUS_INVALID_PARAMETER);
         }
 
         CLAMP_MIN_MAX(fTempX, 0.0f, 1.0f);
@@ -1765,7 +1764,7 @@ MOS_STATUS VpRenderHdrKernel::VpHal_HdrColorTransfer3dLut(
         else
         {
             VP_RENDER_ASSERTMESSAGE("Invalid EOTF setting for tone mapping");
-            eStatus = MOS_STATUS_INVALID_PARAMETER;
+            VP_RENDER_CHK_STATUS_RETURN(MOS_STATUS_INVALID_PARAMETER);
         }
 
         CLAMP_MIN_MAX(fTempX, 0.0f, 1.0f);
@@ -1804,7 +1803,7 @@ MOS_STATUS VpRenderHdrKernel::VpHal_HdrColorTransfer3dLut(
         else
         {
             VP_RENDER_ASSERTMESSAGE("Color Space Not found.");
-            eStatus = MOS_STATUS_INVALID_PARAMETER;
+            VP_RENDER_CHK_STATUS_RETURN(MOS_STATUS_INVALID_PARAMETER);
         }
 
         fTemp1X = fTempX;
@@ -1837,9 +1836,7 @@ MOS_STATUS VpRenderHdrKernel::VpHal_HdrColorTransfer3dLut(
     *puOutputY = (uint16_t)(fTempY * params->f3DLUTNormalizationFactor + 0.5f);
     *puOutputZ = (uint16_t)(fTempZ * params->f3DLUTNormalizationFactor + 0.5f);
 
-    eStatus = MOS_STATUS_SUCCESS;
-
-    return eStatus;
+    return MOS_STATUS_SUCCESS;
 }
 
 //!
@@ -3407,6 +3404,7 @@ MOS_STATUS VpRenderHdrKernel::SetupSurfaceState()
     VP_RENDER_CHK_NULL_RETURN(m_hwInterface);
     VP_RENDER_CHK_NULL_RETURN(m_hwInterface->m_renderHal);
     renderHal = m_hwInterface->m_renderHal;
+    m_surfaceBindingIndex.clear();
 
     UpdatePerLayerPipelineStates(&dwUpdateMask);
 
@@ -3421,7 +3419,7 @@ MOS_STATUS VpRenderHdrKernel::SetupSurfaceState()
         surfParam.surfaceOverwriteParams.updatedSurfaceParams = true;
         surfParam.surfaceOverwriteParams.bindedKernel = true;
 
-        surfParam.surfaceOverwriteParams.bindIndex = m_hdrParams->uSourceBindingTableIndex[i];
+        UpdateCurbeBindingIndex(SurfaceType(SurfaceTypeHdrInputLayer0 + i), m_hdrParams->uSourceBindingTableIndex[i]);
         iBTentry                                   = m_hdrParams->uSourceBindingTableIndex[i];
 
         SetSurfaceParams(surfParam, layer, false);
@@ -3462,13 +3460,13 @@ MOS_STATUS VpRenderHdrKernel::SetupSurfaceState()
         if (m_hdrParams->LUTMode[i] == VPHAL_HDR_LUT_MODE_2D)
         {
             surfaceResource.surfaceOverwriteParams.renderSurfaceParams.MemObjCtl                = m_surfMemCacheCtl.Lut2DSurfMemObjCtl;
-            surfaceResource.surfaceOverwriteParams.bindIndex                                    = iBTentry + VPHAL_HDR_BTINDEX_OETF1DLUT_OFFSET;
+            UpdateCurbeBindingIndex(SurfaceType(SurfaceTypeHdrOETF1DLUTSurface0 + i), iBTentry + VPHAL_HDR_BTINDEX_OETF1DLUT_OFFSET);
             m_surfaceState.insert(std::make_pair(SurfaceType(SurfaceTypeHdrOETF1DLUTSurface0 + i), surfaceResource));
         }
         else if (m_hdrParams->LUTMode[i] == VPHAL_HDR_LUT_MODE_3D)
         {
             surfaceResource.surfaceOverwriteParams.renderSurfaceParams.MemObjCtl                = m_surfMemCacheCtl.Lut3DSurfMemObjCtl;
-            surfaceResource.surfaceOverwriteParams.bindIndex                                    = iBTentry + VPHAL_HDR_BTINDEX_CRI3DLUT_OFFSET;
+            UpdateCurbeBindingIndex(SurfaceType(SurfaceTypeHdrCRI3DLUTSurface0 + i), iBTentry + VPHAL_HDR_BTINDEX_CRI3DLUT_OFFSET);
             surfaceResource.surfaceOverwriteParams.renderSurfaceParams.bWidthInDword_Y          = false;
             surfaceResource.surfaceOverwriteParams.renderSurfaceParams.bWidthInDword_UV         = false;
             m_surfaceState.insert(std::make_pair(SurfaceType(SurfaceTypeHdrCRI3DLUTSurface0 + i), surfaceResource));
@@ -3483,7 +3481,7 @@ MOS_STATUS VpRenderHdrKernel::SetupSurfaceState()
 
         // Only need to specify binding index in surface parameters.
         surfParam.surfaceOverwriteParams.bindedKernel = true;
-        surfParam.surfaceOverwriteParams.bindIndex = m_hdrParams->uTargetBindingTableIndex[i];
+        UpdateCurbeBindingIndex(SurfaceType(SurfaceTypeHdrTarget0 + i), m_hdrParams->uTargetBindingTableIndex[i]);
 
         iBTentry = m_hdrParams->uTargetBindingTableIndex[i];
         auto    outputSrc = m_surfaceGroup->find(SurfaceTypeHdrTarget0);
@@ -3529,7 +3527,6 @@ MOS_STATUS VpRenderHdrKernel::SetupSurfaceState()
     surfCoeffParam.surfaceOverwriteParams.updatedSurfaceParams = true;
     // Only need to specify binding index in surface parameters.
     surfCoeffParam.surfaceOverwriteParams.bindedKernel = true;
-    surfCoeffParam.surfaceOverwriteParams.bindIndex    = VPHAL_HDR_BTINDEX_COEFF;
 
     surfCoeffParam.surfaceOverwriteParams.updatedRenderSurfaces        = true;
     surfCoeffParam.surfaceOverwriteParams.renderSurfaceParams.Type     = RENDERHAL_SURFACE_TYPE_G10;
@@ -3540,10 +3537,12 @@ MOS_STATUS VpRenderHdrKernel::SetupSurfaceState()
 
     if (m_hdrParams->bUsingAutoModePipe && bHasAutoModeLayer)
     {
+        UpdateCurbeBindingIndex(SurfaceTypeHdrAutoModeCoeff, VPHAL_HDR_BTINDEX_COEFF);
         m_surfaceState.insert(std::make_pair(SurfaceTypeHdrAutoModeCoeff, surfCoeffParam));
     }
     else
     {
+        UpdateCurbeBindingIndex(SurfaceTypeHdrCoeff, VPHAL_HDR_BTINDEX_COEFF);
         m_surfaceState.insert(std::make_pair(SurfaceTypeHdrCoeff, surfCoeffParam));
     }
 
@@ -4812,7 +4811,7 @@ void VpRenderHdrKernel::DumpCurbe(void *pCurbe, int32_t iSize)
         CurbeName,
         sizeof(CurbeName),
         sizeof(CurbeName),
-        "c:\\\\dump\\f[%04lu]hdr_Curbe.dat",
+        "c:\\\\dump\\f[%04d]hdr_Curbe.dat",
         1);
     MosUtilities::MosWriteFileFromPtr(
         (const char *)CurbeName,

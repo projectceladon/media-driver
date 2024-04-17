@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2017-2022, Intel Corporation
+* Copyright (c) 2017-2024, Intel Corporation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -170,6 +170,7 @@ enum REFLIST
 //!
 enum CODECHAL_MODE
 {
+    CODECHAL_DECODE_MODE_BEGIN              = 0,
     CODECHAL_DECODE_MODE_MPEG2IDCT          = 0,
     CODECHAL_DECODE_MODE_MPEG2VLD           = 1,
     CODECHAL_DECODE_MODE_VC1IT              = 2,
@@ -185,22 +186,23 @@ enum CODECHAL_MODE
     CODECHAL_DECODE_MODE_VP9VLD             = 12,
     CODECHAL_DECODE_MODE_CENC               = 13,   // Only for getting HuC-based DRM command size. Not an actual mode.
     CODECHAL_DECODE_MODE_RESERVED0          = 14,
-    CODECHAL_NUM_DECODE_MODES               = 15,
+    CODECHAL_DECODE_MODE_RESERVED1          = 15,
+    CODECHAL_DECODE_MODE_RESERVED2          = 16,
+    CODECHAL_DECODE_MODE_END                = 17,
 
-    CODECHAL_ENCODE_MODE_AVC                = 16,   // Must be a power of 2 to match perf report expectations
-    CODECHAL_ENCODE_MODE_MPEG2              = 18,
-    CODECHAL_ENCODE_MODE_VP8                = 19,
-    CODECHAL_ENCODE_MODE_JPEG               = 20,
-    CODECHAL_ENCODE_MODE_HEVC               = 22,
-    CODECHAL_ENCODE_MODE_VP9                = 23,
-    CODECHAL_ENCODE_MODE_AV1                = 24,
-    CODECHAL_NUM_ENCODE_MODES               = 8,
+    CODECHAL_ENCODE_MODE_BEGIN              = 32,
+    CODECHAL_ENCODE_MODE_AVC                = 32,   // Must be a power of 2 to match perf report expectations
+    CODECHAL_ENCODE_MODE_MPEG2              = 34,
+    CODECHAL_ENCODE_MODE_VP8                = 35,
+    CODECHAL_ENCODE_MODE_JPEG               = 36,
+    CODECHAL_ENCODE_MODE_HEVC               = 38,
+    CODECHAL_ENCODE_MODE_VP9                = 39,
+    CODECHAL_ENCODE_MODE_AV1                = 40,
+    CODECHAL_ENCODE_MODE_END                = 41,
 
-    CODECHAL_Rsvd                           = 25,
-    CODECHAL_NUM_MODES                      = 26,   // Use the value for the last encode mode to determine this
-    CODECHAL_UNSUPPORTED_MODE               = 26,
-    CODECHAL_MODE_MAX                       = 26
+    CODECHAL_Rsvd                           = 64,
 
+    CODECHAL_UNSUPPORTED_MODE               = 96
 };
 
 // Slice group mask
@@ -408,7 +410,8 @@ typedef enum _CODECHAL_STATUS
     *   Only error reporting parameters in the status reporting structure will be valid. This status will be returned if the workload(s) for the picture in question resulted in a HW hang or HW status indicators indicate a failure.
     */
     CODECHAL_STATUS_ERROR       = 2,
-    CODECHAL_STATUS_UNAVAILABLE = 3     //!< Indicates that the entry in the status reporting array was not used
+    CODECHAL_STATUS_UNAVAILABLE = 3,    //!< Indicates that the entry in the status reporting array was not used
+    CODECHAL_STATUS_RESET       = 4     //!< Indicates that Media Reset happend
 } CODECHAL_STATUS, *PCODECHAL_STATUS;
 
 typedef enum _CODECHAL_CHROMA_SITING_TYPE

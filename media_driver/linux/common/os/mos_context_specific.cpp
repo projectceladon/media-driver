@@ -125,11 +125,6 @@ MOS_STATUS OsContextSpecific::DestroySemaphore(unsigned int semid)
 {
     int32_t nwait = 0;
 
-    if (semid < 0)
-    {
-        return MOS_STATUS_UNKNOWN;
-    }
-
     nwait = semctl(semid, 0, GETZCNT, 0);
 
     if (nwait > 0)
@@ -420,7 +415,7 @@ MOS_STATUS OsContextSpecific::Init(PMOS_CONTEXT pOsDriverContext)
     {
         if( nullptr == pOsDriverContext         ||
             nullptr == pOsDriverContext->bufmgr ||
-            0 >= pOsDriverContext->fd )
+            0 > pOsDriverContext->fd )
         {
             MOS_OS_ASSERT(false);
             return MOS_STATUS_INVALID_HANDLE;
@@ -445,8 +440,8 @@ MOS_STATUS OsContextSpecific::Init(PMOS_CONTEXT pOsDriverContext)
             MEDIA_SYSTEM_INFO    gtSystemInfo;
     
             MOS_ZeroMemory(&platformInfo, sizeof(platformInfo));
-            MOS_ZeroMemory(&skuTable, sizeof(skuTable));
-            MOS_ZeroMemory(&waTable, sizeof(waTable));
+            skuTable.reset();
+            waTable.reset();
             MOS_ZeroMemory(&gtSystemInfo, sizeof(gtSystemInfo));
             eStatus = HWInfo_GetGfxInfo(pOsDriverContext->fd, pOsDriverContext->bufmgr, &platformInfo, &skuTable, &waTable, &gtSystemInfo, pOsDriverContext->m_userSettingPtr);
             if (eStatus != MOS_STATUS_SUCCESS)

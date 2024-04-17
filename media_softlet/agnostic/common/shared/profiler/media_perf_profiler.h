@@ -60,6 +60,15 @@ typedef enum _PerfGPUNode
     PERF_GPU_NODE_UNKNOW = 0xFF
 }PerfGPUNode;
 
+typedef enum _UMD_QUALITY_METRIC_ITEM
+{
+    UMD_QUALITY_ITEM_SSEY = 0,
+    UMD_QUALITY_ITEM_SSEU,
+    UMD_QUALITY_ITEM_SSEV,
+    UMD_QUALITY_ITEM_MEAN_SSIM_YU,
+    UMD_QUALITY_ITEM_MEAN_SSIM_V
+} UMD_QUALITY_METRIC_ITEM;
+
 class MediaPerfProfiler
 {
 public:
@@ -95,7 +104,7 @@ public:
     //! \return   MOS_STATUS
     //!           MOS_STATUS_SUCCESS if success, else fail reason
     //!
-    MOS_STATUS Initialize(void* context, MOS_INTERFACE *osInterface);
+    virtual MOS_STATUS Initialize(void* context, MOS_INTERFACE *osInterface);
 
     //!
     //! \brief    Insert start command of storing performance data
@@ -112,7 +121,7 @@ public:
     //! \return   MOS_STATUS
     //!           MOS_STATUS_SUCCESS if success, else fail reason
     //!
-    MOS_STATUS AddPerfCollectStartCmd(
+    virtual MOS_STATUS AddPerfCollectStartCmd(
         void* context,
         MOS_INTERFACE *osInterface,
         std::shared_ptr<mhw::mi::Itf> miItf,
@@ -133,16 +142,11 @@ public:
     //! \return   MOS_STATUS
     //!           MOS_STATUS_SUCCESS if success, else fail reason
     //!
-    MOS_STATUS AddPerfCollectEndCmd(
+    virtual MOS_STATUS AddPerfCollectEndCmd(
         void* context,
         MOS_INTERFACE *osInterface,
         std::shared_ptr<mhw::mi::Itf> miItf,
         MOS_COMMAND_BUFFER *cmdBuffer);
-
-    //!
-    //! \brief    Constructor
-    //!
-    MediaPerfProfiler();
 
     //!
     //! \brief    Deconstructor
@@ -150,6 +154,12 @@ public:
     virtual ~MediaPerfProfiler();
 
 private:
+
+    //!
+    //! \brief    Constructor
+    //!
+    MediaPerfProfiler();
+
     //!
     //! \brief    Save data to the buffer which store the performance data
     //!
@@ -462,6 +472,33 @@ private:
         PMOS_CONTEXT pOsContext,
         uint32_t offset);
 
+    //!
+    //! \brief    Copy DW data from src to dst 
+    //!
+    //! \param    [in] miInterface
+    //!           Pointer of MI interface
+    //! \param    [in] cmdBuffer
+    //!           Pointer of OS command buffer
+    //! \param    [in] pOsContext
+    //!           Pointer of DEVICE CONTEXT
+    //! \param    [in] presSrc
+    //!           SRC resource
+    //! \param    [in] dwSrcOffset
+    //!           Offset in the SRC
+    //! \param    [in] dwDstOffset       
+    //!           Offset in the DS
+    //!
+    //! \return   MOS_STATUS
+    //!           MOS_STATUS_SUCCESS if success, else fail reason
+    //!
+    MOS_STATUS CopyMemData(
+        std::shared_ptr<mhw::mi::Itf>& miItf,
+        PMOS_COMMAND_BUFFER            cmdBuffer,
+        MOS_CONTEXT_HANDLE             pOsContext,
+        PMOS_RESOURCE                  presSrc,
+        uint32_t                       dwSrcOffset,
+        uint32_t                       dwDstOffset);
+
 public:
     //!
     //! \brief    Insert start command of storing performance data
@@ -478,7 +515,7 @@ public:
     //! \return   MOS_STATUS
     //!           MOS_STATUS_SUCCESS if success, else fail reason
     //!
-    MOS_STATUS AddPerfCollectStartCmd(
+    virtual MOS_STATUS AddPerfCollectStartCmd(
         void* context,
         MOS_INTERFACE *osInterface,
         MhwMiInterface *miInterface,
@@ -499,11 +536,65 @@ public:
     //! \return   MOS_STATUS
     //!           MOS_STATUS_SUCCESS if success, else fail reason
     //!
-    MOS_STATUS AddPerfCollectEndCmd(
+    virtual MOS_STATUS AddPerfCollectEndCmd(
         void* context,
         MOS_INTERFACE *osInterface,
         MhwMiInterface *miInterface,
         MOS_COMMAND_BUFFER *cmdBuffer);
+
+    //!
+    //! \brief    Insert MEM Copy command of storing quality data 
+    //!
+    //! \param    [in] context
+    //!           Pointer of Codechal/VPHal
+    //! \param    [in] osInterface
+    //!           Pointer of OS interface
+    //! \param    [in] miInterface
+    //!           pointer of MI interface
+    //! \param    [in] cmdBuffer
+    //!           Pointer of OS command buffer
+    //! \param    [in] item
+    //!           Quality metric item
+    //! \param    [in] presSrc
+    //!           SRC resource
+    //! \param    [in] dwSrcOffset
+    //!           Offset in the SRC
+    //!
+    //! \return   MOS_STATUS
+    //!           MOS_STATUS_SUCCESS if success, else fail reason
+    //!
+    MOS_STATUS AddCopyQualityMetricCmd(
+        void                           *context,
+        MOS_INTERFACE                  *osInterface,
+        std::shared_ptr<mhw::mi::Itf>& miItf,
+        MOS_COMMAND_BUFFER             *cmdBuffer,
+        UMD_QUALITY_METRIC_ITEM        item,
+        PMOS_RESOURCE                  presSrc,
+        uint32_t                       dwSrcOffset);
+
+    //!
+    //! \brief    Insert MEM Copy command of storing quality data 
+    //!
+    //! \param    [in] context
+    //!           Pointer of Codechal/VPHal
+    //! \param    [in] osInterface
+    //!           Pointer of OS interface
+    //! \param    [in] miInterface
+    //!           pointer of MI interface
+    //! \param    [in] cmdBuffer
+    //!           Pointer of OS command buffer
+    //! \param    [in] reg
+    //!           Address of register
+    //!
+    //! \return   MOS_STATUS
+    //!           MOS_STATUS_SUCCESS if success, else fail reason
+    //!
+    MOS_STATUS AddStoreBitstreamSizeCmd(
+        void                           *context,
+        MOS_INTERFACE                  *osInterface,
+        std::shared_ptr<mhw::mi::Itf>& miItf,
+        MOS_COMMAND_BUFFER             *cmdBuffer,
+        uint32_t                       reg);
 
 private:
     std::unordered_map<PMOS_CONTEXT, PMOS_RESOURCE>  m_perfStoreBufferMap;   //!< Buffer for perf data collection
@@ -530,6 +621,7 @@ private:
     bool                          m_enableProfilerDump = true;   //!< Indicate whether enable UMD Profiler dump
     std::shared_ptr<mhw::mi::Itf> m_miItf = nullptr;
     int32_t                       m_multiprocesssinglebin = 0;   //!< multi process single binary flag
+    int32_t                       m_mergeheader = 0;            //!< multi header support
     uint32_t*                     m_perfDataCombined = nullptr;  //!< Combined perf data pointer
     uint32_t                      m_perfDataCombinedSize = 0;    //!< Combined perf data size
     uint32_t                      m_perfDataCombinedIndex = 0;   //!< Combined perf data index

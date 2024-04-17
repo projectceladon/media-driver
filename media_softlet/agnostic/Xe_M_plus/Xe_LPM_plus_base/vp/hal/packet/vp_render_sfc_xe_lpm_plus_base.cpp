@@ -456,13 +456,14 @@ bool SfcRenderXe_Lpm_Plus_Base::IsSFCUncompressedWriteNeeded(PVP_SURFACE targetS
     }
 
     byteInpixel = targetSurface->osSurface->OsResource.pGmmResInfo->GetBitsPerPixel() >> 3;
-#endif // !EMUL
 
     if (byteInpixel == 0)
     {
         VP_RENDER_NORMALMESSAGE("surface format is not a valid format for sfc");
         return false;
     }
+#endif  // !EMUL
+
     uint32_t writeAlignInWidth  = 32 / byteInpixel;
     uint32_t writeAlignInHeight = 8;
     
@@ -472,6 +473,13 @@ bool SfcRenderXe_Lpm_Plus_Base::IsSFCUncompressedWriteNeeded(PVP_SURFACE targetS
         (targetSurface->rcSrc.left % writeAlignInWidth) ||
         ((targetSurface->rcSrc.right - targetSurface->rcSrc.left) % writeAlignInWidth))
     {
+        // full Frame Write don't need decompression as it will not hit the compressed write limitation
+        if ((targetSurface->rcSrc.bottom - targetSurface->rcSrc.top) == targetSurface->osSurface->dwHeight &&
+            (targetSurface->rcSrc.right - targetSurface->rcSrc.left) == targetSurface->osSurface->dwWidth)
+        {
+            return false;
+        }
+
         VP_RENDER_NORMALMESSAGE(
             "SFC Render Target Uncompressed write needed, \
             targetSurface->rcSrc.top % d, \
@@ -636,9 +644,10 @@ bool SfcRenderXe_Lpm_Plus_Base::IsOutputChannelSwapNeeded(MOS_FORMAT outputForma
 bool SfcRenderXe_Lpm_Plus_Base::IsCscNeeded(SFC_CSC_PARAMS &cscParams)
 {
     VP_FUNC_CALL();
-    if (m_bVdboxToSfc && m_videoConfig.codecStandard == CODECHAL_JPEG)
+
+    if (m_bVdboxToSfc && cscParams.inputFormat != cscParams.outputFormat)
     {
-        if (cscParams.inputFormat != cscParams.outputFormat)
+        if (m_videoConfig.codecStandard == CODECHAL_JPEG || cscParams.outputFormat == Format_A8R8G8B8)
         {
             return true;
         }

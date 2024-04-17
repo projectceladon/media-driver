@@ -205,6 +205,13 @@ MOS_STATUS VpUserSetting::InitVpUserSetting(MediaUserSettingSharedPtr userSettin
             0,
             true);
 
+        DeclareUserSettingKeyForDebug(
+            userSettingPtr,
+            __VPHAL_FORCE_3DLUT_INTERPOLATION,
+            MediaUserSetting::Group::Sequence,
+            0,
+            true);
+
         DeclareUserSettingKeyForDebug(  //Enable 1K 1DLUT
             userSettingPtr,
             __VPHAL_ENABLE_1K_1DLUT,
@@ -292,6 +299,13 @@ MOS_STATUS VpUserSetting::InitVpUserSetting(MediaUserSettingSharedPtr userSettin
         DeclareUserSettingKeyForDebug(  // Set SFC RGBP Linear/Tile RGB24 Linear Output
             userSettingPtr,
             __VPHAL_ENABLE_SFC_RGBP_RGB24_OUTPUT,
+            MediaUserSetting::Group::Sequence,
+            0,
+            true);
+
+       DeclareUserSettingKey(  // Enable HDR 3DLut table caculate by CPU. 1: enabled, 0: disabled.
+            userSettingPtr,
+            __VPHAL_HDR_3DLUT_CPU_PATH,
             MediaUserSetting::Group::Sequence,
             0,
             true);

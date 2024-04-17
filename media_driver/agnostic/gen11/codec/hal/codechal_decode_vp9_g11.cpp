@@ -257,6 +257,7 @@ MOS_STATUS CodechalDecodeVp9G11::EndStatusReport(
     uint32_t currIndex = m_decodeStatusBuf.m_currIndex;
 
     MHW_MI_STORE_REGISTER_MEM_PARAMS regParams;
+    MOS_ZeroMemory(&regParams, sizeof(regParams));
 
     //Frame CRC
     if (m_reportFrameCrc)
@@ -336,6 +337,8 @@ MOS_STATUS CodechalDecodeVp9G11::EndStatusReportForFE(
         sizeof(uint32_t) * 2;
 
     MHW_MI_STORE_REGISTER_MEM_PARAMS regParams;
+    MOS_ZeroMemory(&regParams, sizeof(regParams));
+
     regParams.presStoreBuffer = &m_decodeStatusBuf.m_statusBuffer;
     regParams.dwOffset = errStatusOffset;
     regParams.dwRegister = mmioRegistersHcp ?
@@ -371,6 +374,7 @@ MOS_STATUS CodechalDecodeVp9G11::SetAndPopulateVEHintParams(
     if (static_cast<MhwVdboxMfxInterfaceG11*>(m_mfxInterface)->IsScalabilitySupported() && MOS_VE_SUPPORTED(m_osInterface))
     {
         CODECHAL_DECODE_SCALABILITY_SETHINT_PARMS scalSetParms;
+        MOS_ZeroMemory(&scalSetParms, sizeof(CODECHAL_DECODE_SCALABILITY_SETHINT_PARMS));
         if (!MOS_VE_CTXBASEDSCHEDULING_SUPPORTED(m_osInterface))
         {
             scalSetParms.bNeedSyncWithPrevious       = true;

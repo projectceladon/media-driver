@@ -152,6 +152,7 @@ LOCAL_SRC_FILES := \
     ../media_softlet/agnostic/Xe_R/Xe_HPG_Base/vp/kernel/cmfcpatch/igvpkrn_xe_hpg_cmfcpatch.c \
     ../media_softlet/agnostic/Xe_R/Xe_HPG_Base/vp/kernel/igvpkrn_isa_xe_hpg.c \
     ../media_softlet/agnostic/Xe_R/Xe_HPG_Base/vp/kernel/igvpkrn_xe_hpg.c \
+    ../media_softlet/agnostic/Xe_R/Xe_HPG_Base/vp/kernel_config/vp_kernel_config_xe_hpg_base.cpp \
     ../media_softlet/agnostic/common/codec/hal/codechal_common.cpp \
     ../media_softlet/agnostic/common/codec/hal/codechal_debug.cpp \
     ../media_softlet/agnostic/common/codec/hal/codechal_debug_config_manager.cpp \
@@ -370,6 +371,7 @@ LOCAL_SRC_FILES := \
     ../media_softlet/agnostic/common/codec/hal/enc/shared/features/encode_preenc_const_settings.cpp \
     ../media_softlet/agnostic/common/codec/hal/enc/shared/features/encode_tile.cpp \
     ../media_softlet/agnostic/common/codec/hal/enc/shared/mmc/encode_mem_compression.cpp \
+    ../media_softlet/agnostic/common/codec/hal/enc/shared/packet/encode_check_huc_load_packet.cpp \
     ../media_softlet/agnostic/common/codec/hal/enc/shared/packet/encode_huc.cpp \
     ../media_softlet/agnostic/common/codec/hal/enc/shared/packet/encode_packet_utilities.cpp \
     ../media_softlet/agnostic/common/codec/hal/enc/shared/packet/encode_preenc_packet.cpp \
@@ -412,13 +414,14 @@ LOCAL_SRC_FILES := \
     ../media_softlet/agnostic/common/hw/mhw_state_heap.cpp \
     ../media_softlet/agnostic/common/hw/mhw_utilities_next.cpp \
     ../media_softlet/agnostic/common/os/memory_policy_manager.cpp \
+    ../media_softlet/agnostic/common/os/mos_cache_manager.cpp \
     ../media_softlet/agnostic/common/os/mos_cmdbufmgr_next.cpp \
     ../media_softlet/agnostic/common/os/mos_commandbuffer_next.cpp \
     ../media_softlet/agnostic/common/os/mos_context_next.cpp \
-    ../media_softlet/agnostic/common/os/mos_gpucontext_next.cpp \
     ../media_softlet/agnostic/common/os/mos_gpucontextmgr_next.cpp \
     ../media_softlet/agnostic/common/os/mos_graphicsresource_next.cpp \
     ../media_softlet/agnostic/common/os/mos_oca_rtlog_mgr.cpp \
+    ../media_softlet/agnostic/common/os/mos_oca_rtlog_mgr_base.cpp \
     ../media_softlet/agnostic/common/os/mos_os.cpp \
     ../media_softlet/agnostic/common/os/mos_os_mock_adaptor.cpp \
     ../media_softlet/agnostic/common/os/mos_os_mock_adaptor_ext.cpp \
@@ -478,6 +481,7 @@ LOCAL_SRC_FILES := \
     ../media_softlet/agnostic/common/vp/hal/bufferMgr/vp_allocator.cpp \
     ../media_softlet/agnostic/common/vp/hal/bufferMgr/vp_hdr_resource_manager.cpp \
     ../media_softlet/agnostic/common/vp/hal/bufferMgr/vp_resource_manager.cpp \
+    ../media_softlet/agnostic/common/vp/hal/cacheSettings/vp_common_cache_settings.cpp \
     ../media_softlet/agnostic/common/vp/hal/feature_manager/hw_filter.cpp \
     ../media_softlet/agnostic/common/vp/hal/feature_manager/hw_filter_pipe.cpp \
     ../media_softlet/agnostic/common/vp/hal/feature_manager/policy.cpp \
@@ -1274,6 +1278,7 @@ LOCAL_SRC_FILES := \
     media_softlet/agnostic/Xe_M/Xe_M_base/codec/hal/dec/hevc/packet/decode_hevc_slice_packet_m12.cpp \
     media_softlet/agnostic/Xe_M/Xe_M_base/codec/hal/dec/hevc/packet/decode_hevc_slice_packet_xe_m_base.cpp \
     media_softlet/agnostic/Xe_M/Xe_M_base/codec/hal/dec/hevc/packet/decode_hevc_tile_packet_m12.cpp \
+    media_softlet/agnostic/Xe_M/Xe_M_base/codec/hal/dec/hevc/packet/decode_huc_authcheck_packet_m12.cpp \
     media_softlet/agnostic/Xe_M/Xe_M_base/codec/hal/dec/hevc/packet/decode_huc_s2l_packet_m12.cpp \
     media_softlet/agnostic/Xe_M/Xe_M_base/codec/hal/dec/hevc/packet/decode_huc_s2l_xe_m_base_packet.cpp \
     media_softlet/agnostic/Xe_M/Xe_M_base/codec/hal/dec/hevc/pipeline/decode_hevc_pipeline_adapter_m12.cpp \
@@ -1351,6 +1356,7 @@ LOCAL_SRC_FILES := \
     media_softlet/agnostic/g12/g12_0/renderhal/renderhal_g12_0.cpp \
     media_softlet/agnostic/g12/g12_1/renderhal/renderhal_g12_1.cpp \
     media_softlet/agnostic/g12/g12_base/renderhal/renderhal_g12_base.cpp \
+    media_softlet/agnostic/g12/g12_base/vp/kernel_config/vp_kernel_config_g12_base.cpp \
     media_softlet/agnostic/gen12/codec/hal/dec/av1/features/decode_av1_basic_feature_g12.cpp \
     media_softlet/agnostic/gen12/codec/hal/dec/av1/features/decode_av1_feature_manager_g12.cpp \
     media_softlet/agnostic/gen12/codec/hal/dec/av1/features/decode_av1_filmgrain_feature_g12.cpp \
@@ -1391,6 +1397,8 @@ LOCAL_SRC_FILES := \
     media_softlet/agnostic/m12/m12_0/shared/mediacopy/media_copy_m12_0.cpp \
     media_softlet/agnostic/m12/m12_0/vp/hal/feature_manager/vp_feature_manager_m12_0.cpp \
 
+LOCAL_HEADER_LIBRARIES := libva_headers
+
 LOCAL_SHARED_LIBRARIES := \
     libsync \
     libcutils \
@@ -1403,7 +1411,6 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_CPPFLAGS = \
     -DDRV_I915 \
     -DOTC_GRALLOC \
-    -DANDROID_VERSION=800 \
     -fexceptions \
     -frtti \
     -std=c++14 \
@@ -1446,7 +1453,7 @@ LOCAL_CPPFLAGS = \
     -DIGFX_GEN9_SUPPORTED \
     -DIGFX_MTL_SUPPORTED \
     -DMEDIA_VERSION=\"23.2.4\" \
-    -DMEDIA_VERSION_DETAILS=\"751bfcd12\" \
+    -DMEDIA_VERSION_DETAILS=\"fea96dfdb\" \
     -DVEBOX_AUTO_DENOISE_SUPPORTED=1 \
     -DX11_FOUND \
     -D_AV1_DECODE_SUPPORTED \
@@ -1638,6 +1645,7 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/media_softlet/agnostic/m12/m12_0/vp/hal/feature_manager \
     $(LOCAL_PATH)/media_softlet/agnostic/m12/m12_0/shared/mediacopy \
     $(LOCAL_PATH)/media_softlet/agnostic/g12/g12_base/renderhal \
+    $(LOCAL_PATH)/media_softlet/agnostic/g12/g12_base/vp/kernel_config \
     $(LOCAL_PATH)/media_softlet/agnostic/g12/g12_0/renderhal \
     $(LOCAL_PATH)/media_softlet/agnostic/g12/g12_1/renderhal \
     $(LOCAL_PATH)/media_softlet/agnostic/Xe_R/Xe_HP_Base/renderhal \
@@ -1742,6 +1750,7 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/utils \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/platform_interface \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/shared/scalability \
+    $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/hal/cacheSettings \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/vp/cm_fc_ld \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/cp \
     $(LOCAL_PATH)/../media_softlet/agnostic/common/codec/hal \
@@ -1817,6 +1826,7 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/../media_softlet/agnostic/Xe_R/Xe_HPG_Base/renderhal \
     $(LOCAL_PATH)/../media_softlet/agnostic/Xe_R/Xe_HPG_Base/vp/kernel/cmfcpatch \
     $(LOCAL_PATH)/../media_softlet/agnostic/Xe_R/Xe_HPG_Base/vp/kernel \
+    $(LOCAL_PATH)/../media_softlet/agnostic/Xe_R/Xe_HPG_Base/vp/kernel_config \
     $(LOCAL_PATH)/../media_softlet/agnostic/Xe_R/Xe_HPG_Base/hw \
     $(LOCAL_PATH)/../media_softlet/agnostic/Xe_R/Xe_HPG/renderhal \
     $(LOCAL_PATH)/../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus_base/codec/hal/enc/hevc/features/preenc \

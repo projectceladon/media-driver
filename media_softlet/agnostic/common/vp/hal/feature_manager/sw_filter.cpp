@@ -172,6 +172,8 @@ MOS_STATUS SwFilterCsc::Configure(VP_PIPELINE_PARAMS &params, bool isInputSurf, 
     m_Params.formatOutput           = surfOutput->Format;
     m_Params.input.chromaSiting     = surfInput->ChromaSiting;
     m_Params.output.chromaSiting    = surfOutput->ChromaSiting;
+    m_Params.input.tileMode         = surfInput->TileModeGMM;
+    m_Params.output.tileMode        = surfOutput->TileModeGMM;
     // Alpha should be handled in input pipe to avoid alpha data lost from image.
     m_Params.pAlphaParams           = params.pCompAlpha;
     // formatForCUS will be set on demand in Policy::GetCSCExecutionCapsBT2020ToRGB.
@@ -207,6 +209,8 @@ MOS_STATUS SwFilterCsc::Configure(PVP_SURFACE surfInput, PVP_SURFACE surfOutput,
         m_Params.input.colorSpace = surfInput->ColorSpace;
         m_Params.output.colorSpace = surfInput->ColorSpace;
 
+        m_Params.input.tileMode  = surfInput->osSurface->TileModeGMM;
+        m_Params.output.tileMode = surfOutput->osSurface->TileModeGMM;
         m_Params.formatInput = surfInput->osSurface->Format;
         // formatForCUS will be set on demand in Policy::GetCSCExecutionCapsBT2020ToRGB.
         m_Params.formatforCUS = Format_None;
@@ -226,6 +230,8 @@ MOS_STATUS SwFilterCsc::Configure(PVP_SURFACE surfInput, PVP_SURFACE surfOutput,
         // Skip CSC and only for chroma sitting purpose
         m_Params.input.colorSpace = m_Params.output.colorSpace = surfInput->ColorSpace;
         m_Params.formatInput = m_Params.formatOutput = surfInput->osSurface->Format;
+        m_Params.input.tileMode                      = surfInput->osSurface->TileModeGMM;
+        m_Params.output.tileMode                     = surfOutput->osSurface->TileModeGMM;
         // formatForCUS will be set on demand in Policy::GetCSCExecutionCapsBT2020ToRGB.
         m_Params.formatforCUS                        = Format_None;
         m_Params.input.chromaSiting                  = surfInput->ChromaSiting;
@@ -258,6 +264,8 @@ MOS_STATUS SwFilterCsc::Configure(VEBOX_SFC_PARAMS &params)
     }
     m_Params.input.colorSpace       = params.input.colorSpace;
     m_Params.output.colorSpace      = params.output.colorSpace;
+    m_Params.input.tileMode         = params.input.surface->TileModeGMM;
+    m_Params.output.tileMode        = params.output.surface->TileModeGMM;
     m_Params.pIEFParams             = nullptr;
     m_Params.formatInput            = params.input.surface->Format;
     // formatForCUS will be set on demand in Policy::GetCSCExecutionCapsBT2020ToRGB.
@@ -912,6 +920,7 @@ MOS_STATUS SwFilterDeinterlace::Clean()
     VP_FUNC_CALL();
 
     VP_PUBLIC_CHK_STATUS_RETURN(SwFilter::Clean());
+    MOS_ZeroMemory(&m_Params, sizeof(m_Params));
     return MOS_STATUS_SUCCESS;
 }
 
@@ -922,6 +931,8 @@ MOS_STATUS SwFilterDeinterlace::Configure(VP_PIPELINE_PARAMS& params, bool isInp
     PVPHAL_SURFACE surfInput = isInputSurf ? params.pSrc[surfIndex] : params.pSrc[0];
     VP_PUBLIC_CHK_NULL_RETURN(surfInput);
     VP_PUBLIC_CHK_NULL_RETURN(surfInput->pDeinterlaceParams);
+
+    MOS_ZeroMemory(&m_Params, sizeof(m_Params));
 
     m_Params.formatInput          = surfInput->Format;
     m_Params.formatOutput         = surfInput->Format;
@@ -1289,7 +1300,6 @@ MOS_STATUS SwFilterHdr::Configure(VP_PIPELINE_PARAMS &params, bool isInputSurf, 
 
     VP_PUBLIC_CHK_NULL_RETURN(surfInput);
     VP_PUBLIC_CHK_NULL_RETURN(surfOutput);
-    VP_PUBLIC_CHK_NULL_RETURN(surfInput->pHDRParams);
     VP_PUBLIC_CHK_NULL_RETURN(m_vpInterface.GetHwInterface());
     VP_PUBLIC_CHK_NULL_RETURN(m_vpInterface.GetHwInterface()->m_osInterface);
 
@@ -1299,32 +1309,30 @@ MOS_STATUS SwFilterHdr::Configure(VP_PIPELINE_PARAMS &params, bool isInputSurf, 
     m_Params.heightInput  = surfInput->dwHeight;
 
     // For H2S, it is possible that there is no HDR params for render target.
-    m_Params.uiMaxContentLevelLum = surfInput->pHDRParams->MaxCLL;
+    m_Params.uiMaxContentLevelLum = 4000;
     m_Params.srcColorSpace        = surfInput->ColorSpace;
     m_Params.dstColorSpace        = surfOutput->ColorSpace;
 
-    if (surfInput->pHDRParams->EOTF == VPHAL_HDR_EOTF_SMPTE_ST2084 ||
-       (surfInput->pHDRParams->EOTF == VPHAL_HDR_EOTF_TRADITIONAL_GAMMA_SDR && IS_RGB64_FLOAT_FORMAT(surfInput->Format))) // For FP16 HDR CSC typical usage
+    if (surfInput->pHDRParams)
     {
-        m_Params.hdrMode = VPHAL_HDR_MODE_TONE_MAPPING;
-        if (surfOutput->pHDRParams)
+        m_Params.uiMaxContentLevelLum = surfInput->pHDRParams->MaxCLL;
+        if (surfInput->pHDRParams->EOTF == VPHAL_HDR_EOTF_SMPTE_ST2084 ||
+           (surfInput->pHDRParams->EOTF == VPHAL_HDR_EOTF_TRADITIONAL_GAMMA_SDR && IS_RGB64_FLOAT_FORMAT(surfInput->Format))) // For FP16 HDR CSC typical usage
         {
-            m_Params.uiMaxDisplayLum = surfOutput->pHDRParams->max_display_mastering_luminance;
-            if (surfOutput->pHDRParams->EOTF == VPHAL_HDR_EOTF_SMPTE_ST2084)
+            m_Params.hdrMode = VPHAL_HDR_MODE_TONE_MAPPING;
+            if (surfOutput->pHDRParams)
             {
-                m_Params.hdrMode = VPHAL_HDR_MODE_H2H;
+                m_Params.uiMaxDisplayLum = surfOutput->pHDRParams->max_display_mastering_luminance;
+                if (surfOutput->pHDRParams->EOTF == VPHAL_HDR_EOTF_SMPTE_ST2084)
+                {
+                    m_Params.hdrMode = VPHAL_HDR_MODE_H2H;
+                }
             }
         }
-    }
-    else if (surfInput->pHDRParams->EOTF == VPHAL_HDR_EOTF_TRADITIONAL_GAMMA_SDR && surfOutput->pHDRParams->EOTF == VPHAL_HDR_EOTF_SMPTE_ST2084)
-    {
-        m_Params.hdrMode = VPHAL_HDR_MODE_INVERSE_TONE_MAPPING;
-    }
-
-    if (m_Params.hdrMode == VPHAL_HDR_MODE_NONE)
-    {
-        VP_PUBLIC_ASSERTMESSAGE("HDR Mode is NONE");
-        VP_PUBLIC_CHK_STATUS_RETURN(MOS_STATUS_INVALID_PARAMETER);
+        else if (surfInput->pHDRParams->EOTF == VPHAL_HDR_EOTF_TRADITIONAL_GAMMA_SDR && surfOutput->pHDRParams->EOTF == VPHAL_HDR_EOTF_SMPTE_ST2084)
+        {
+            m_Params.hdrMode = VPHAL_HDR_MODE_INVERSE_TONE_MAPPING;
+        }
     }
 
     m_Params.pColorFillParams = params.pColorFillParams;
@@ -1443,7 +1451,11 @@ MOS_STATUS SwFilterHdr::HdrIsInputFormatSupported(
         pSrcSurface->Format == Format_NV12 ||
         pSrcSurface->Format == Format_P010 ||
         pSrcSurface->Format == Format_YUY2 ||
-        pSrcSurface->Format == Format_AYUV)
+        pSrcSurface->Format == Format_AYUV ||
+        pSrcSurface->Format == Format_Y410 ||
+        pSrcSurface->Format == Format_Y416 ||
+        pSrcSurface->Format == Format_Y210 ||
+        pSrcSurface->Format == Format_Y216)
     {
         *pbSupported = true;
         goto finish;
@@ -1664,6 +1676,20 @@ MOS_STATUS SwFilterBlending::Configure(VP_PIPELINE_PARAMS& params, bool isInputS
     m_Params.formatOutput   = surfInput->Format;
     m_Params.blendingParams = surfInput->pBlendingParams;
 
+    //Skip Blend PARTIAL for alpha input non alpha output
+    if (m_Params.blendingParams && m_Params.blendingParams->BlendType == BLEND_PARTIAL)
+    {
+        auto surfOutput = params.pTarget[0];
+        if (surfOutput)
+        {
+            if (IS_ALPHA_FORMAT(m_Params.formatInput) &&
+                !IS_ALPHA_FORMAT(surfOutput->Format))
+            {
+                VP_PUBLIC_NORMALMESSAGE("Force to use Blend Source instead of Blend Partial");
+                m_Params.blendingParams->BlendType = BLEND_SOURCE;
+            }
+        }
+    }
     return MOS_STATUS_SUCCESS;
 }
 

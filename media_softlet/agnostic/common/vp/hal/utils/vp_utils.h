@@ -106,6 +106,14 @@ using MosFormatArray = std::vector<MOS_FORMAT>;
         return MOS_STATUS_NO_SPACE;                                                               \
     }                                                                                             \
 }
+
+#define VP_PUBLIC_CHK_NOT_FOUND_RETURN(_handle, _group)                         \
+{                                                                               \
+    if (_handle == (_group)->end())                                             \
+    {                                                                           \
+        VP_PUBLIC_CHK_STATUS_RETURN(MOS_STATUS_NULL_POINTER);                   \
+    }                                                                           \
+}
 //------------------------------------------------------------------------------
 // Macros specific to MOS_VP_SUBCOMP_DEBUG sub-comp
 //------------------------------------------------------------------------------
@@ -292,10 +300,12 @@ protected:
 #define __VPHAL_RNDR_SCOREBOARD_CONTROL                                 "SCOREBOARD Control"
 #define __VPHAL_RNDR_CMFC_CONTROL                                       "CMFC Control"
 #define __VPHAL_ENABLE_1K_1DLUT                                         "Enable 1K 1DLUT"
+#define __VPHAL_FORCE_3DLUT_INTERPOLATION                               "VPHAL Force 3DLUT Interpolation"
 #define __VPHAL_VEBOX_HDR_MODE                                          "VeboxHDRMode"
 #define __VPHAL_HDR_ENABLE_QUALITY_TUNING                               "VPHAL HDR Enable Quality Tuning"
 #define __VPHAL_HDR_ENABLE_KERNEL_DUMP                                  "VPHAL HDR Enable Kernel Dump"
 #define __VPHAL_HDR_H2S_RGB_TM                                          "VPHAL H2S TM RGB Based"
+#define __VPHAL_HDR_3DLUT_CPU_PATH                                      "HDR 3DLut Table Use CPU Caculate"
 
 // Compression
 #define __VPHAL_MMC_ENABLE                                              "VP MMC In Use"

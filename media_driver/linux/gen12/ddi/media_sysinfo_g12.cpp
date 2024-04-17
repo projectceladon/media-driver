@@ -383,6 +383,12 @@ static bool adlsGt1Device4683 = DeviceInfoFactory<GfxDeviceInfo>::
 static bool adlsGt1Device4688 = DeviceInfoFactory<GfxDeviceInfo>::
     RegisterDevice(0x4688, &adlsGt1Info);
 
+static bool adlsGt1Device468A = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0x468A, &adlsGt1Info);
+
+static bool adlsGt1Device468B = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0x468B, &adlsGt1Info);
+
 static bool adlsGt1Device4690 = DeviceInfoFactory<GfxDeviceInfo>::
     RegisterDevice(0x4690, &adlsGt1Info);
 
@@ -515,6 +521,19 @@ static bool rplpGt2DeviceA721 = DeviceInfoFactory<GfxDeviceInfo>::
 
 static bool rplpGt2DeviceA7A9 = DeviceInfoFactory<GfxDeviceInfo>::
     RegisterDevice(0xA7A9, &adlpGt2Info);
+
+static bool rplGt2DeviceA7AA = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA7AA, &adlpGt2Info);
+
+static bool rplGt2DeviceA7AB = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA7AB, &adlpGt2Info);
+
+static bool rplGt2DeviceA7AC = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA7AC, &adlpGt2Info);
+
+static bool rplGt2DeviceA7AD = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0xA7AD, &adlpGt2Info);
+
 #endif
 
 #ifdef IGFX_GEN12_ADLN_SUPPORTED
@@ -547,6 +566,12 @@ static bool adlnGt1Device46D1 = DeviceInfoFactory<GfxDeviceInfo>::
 
 static bool adlnGt1Device46D2 = DeviceInfoFactory<GfxDeviceInfo>::
     RegisterDevice(0x46D2, &adlnGt1Info);
+
+static bool twlGt1Device46D3 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0x46D3, &adlnGt1Info);
+
+static bool twlGt1Device46D4 = DeviceInfoFactory<GfxDeviceInfo>::
+    RegisterDevice(0x46D4, &adlnGt1Info);
 #endif 
 
 

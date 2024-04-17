@@ -29,6 +29,8 @@
 #include "encode_utils.h"
 #include "encode_av1_reference_frames.h"
 #include "codec_def_encode_av1.h"
+#include "codechal_debug.h"
+#include "encode_av1_vdenc_pipeline.h"
 
 namespace encode
 {
@@ -51,7 +53,71 @@ Av1ReferenceFrames::~Av1ReferenceFrames()
 
     EncodeFreeDataList(m_refList, CODEC_AV1_NUM_UNCOMPRESSED_SURFACE);
 }
+#if USE_CODECHAL_DEBUG_TOOL
+MOS_STATUS Av1ReferenceFrames::DumpInput(Av1VdencPipeline *pipeline)
+{
+    ENCODE_FUNC_CALL();
 
+    CodechalDebugInterface *debugInterface = pipeline->GetDebugInterface();
+    ENCODE_CHK_NULL_RETURN(debugInterface);
+
+    std::stringstream pipeIdxStrStream("");
+    pipeIdxStrStream << "_" << (int)pipeline->GetCurrentPipe();
+    std::string surfacePassName = "Pass" + std::to_string((uint32_t)pipeline->GetCurrentPass());
+    surfacePassName += pipeIdxStrStream.str() + "_input";
+
+    if (m_refFrameFlags == 0)
+    {
+        ENCODE_VERBOSEMESSAGE("Ref list is empty!.Only keyframe is expected.");
+        return MOS_STATUS_SUCCESS;
+    }
+    //Dump surface
+    {
+        std::string reflagName;
+        for (auto i = 0; i < av1NumInterRefFrames; i++)
+        {
+            if (m_refFrameFlags & (AV1_ENCODE_GET_REF_FALG(i)))
+            {
+                switch (i+1) {
+                case lastFrame:
+                    reflagName = "_LastRefSurf";
+                    break;
+                case last2Frame:
+                    reflagName = "_Last2RefSurf";
+                    break;
+                case last3Frame:
+                    reflagName = "_Last3RefSurf";
+                    break;
+                case bwdRefFrame:
+                    reflagName = "_BWDRefSurf";
+                    break;
+                case goldenFrame:
+                    reflagName = "_GoldenRefSurf";
+                    break;
+                case altRef2Frame:
+                    reflagName = "_Alt2RefSurf";
+                    break;
+                case altRefFrame:
+                    reflagName = "_AltRefSurf";
+                    break;
+                default:
+                    reflagName = "";
+                    break;
+                }
+                if (reflagName == "")
+                {
+                    continue;
+                }
+                ENCODE_CHK_STATUS_RETURN(debugInterface->DumpYUVSurface(
+                    m_currRefPic[i],
+                    CodechalDbgAttr::attrReferenceSurfaces,
+                    (surfacePassName + reflagName).data()));
+            }
+        }
+    }
+    return MOS_STATUS_SUCCESS;
+}
+#endif
 static bool MmcEnabled(MOS_MEMCOMP_STATE state)
 {
     return state == MOS_MEMCOMP_RC || state == MOS_MEMCOMP_MC;
@@ -382,7 +448,24 @@ int32_t Av1ReferenceFrames::GetRelativeDist(int32_t a, int32_t b) const
     diff = (diff & (m - 1)) - (diff & m);
     return diff;
 }
-
+inline void ConsolidateRefFlag(uint8_t &refFlag, const PCODEC_AV1_ENCODE_PICTURE_PARAMS picParams)
+{
+    ENCODE_CHK_NULL_NO_STATUS_RETURN(picParams);
+    //consilidate the reference flag, becasue two reference frame may have the same index
+    for (auto i = 0; i < av1NumInterRefFrames; i++)
+    {
+        auto basedFrameIdx = picParams->RefFrameList[picParams->ref_frame_idx[i]].FrameIdx;
+        for (auto ii = i + 1; ii < av1NumInterRefFrames; ii++)
+        {
+            if ((refFlag & AV1_ENCODE_GET_REF_FALG(i)) &&
+                (basedFrameIdx == picParams->RefFrameList[picParams->ref_frame_idx[ii]].FrameIdx))
+            {
+                // find same frame index for different ref frame type, skip larger ref frame type
+                refFlag &= ~(AV1_ENCODE_GET_REF_FALG(ii));
+            }
+        }
+    }
+}
 MOS_STATUS Av1ReferenceFrames::GetFwdBwdRefNum(uint8_t &fwdRefNum, uint8_t &bwdRefNum) const
 {
     ENCODE_FUNC_CALL();
@@ -397,6 +480,8 @@ MOS_STATUS Av1ReferenceFrames::GetFwdBwdRefNum(uint8_t &fwdRefNum, uint8_t &bwdR
 
     fwdRefNum = 0;
     bwdRefNum = 0;
+
+    ConsolidateRefFlag(ref_frame_ctrl_l0, picParams);
 
     for (auto i = 0; i < av1NumInterRefFrames; i++)
     {
@@ -419,24 +504,7 @@ MOS_STATUS Av1ReferenceFrames::GetFwdBwdRefNum(uint8_t &fwdRefNum, uint8_t &bwdR
     return MOS_STATUS_SUCCESS;
 }
 
-inline void ConsolidateRefFlag(uint8_t& refFlag, const PCODEC_AV1_ENCODE_PICTURE_PARAMS picParams)
-{
-    ENCODE_CHK_NULL_NO_STATUS_RETURN(picParams);
-    //consilidate the reference flag, becasue two reference frame may have the same index
-    for (auto i = 0; i < av1NumInterRefFrames; i++)
-    {
-        auto basedFrameIdx = picParams->RefFrameList[picParams->ref_frame_idx[i]].FrameIdx;
-        for (auto ii = i + 1; ii < av1NumInterRefFrames; ii++)
-        {
-            if ((refFlag & AV1_ENCODE_GET_REF_FALG(i)) &&
-                (basedFrameIdx == picParams->RefFrameList[picParams->ref_frame_idx[ii]].FrameIdx))
-            {
-                // find same frame index for different ref frame type, skip larger ref frame type
-                refFlag &= ~(AV1_ENCODE_GET_REF_FALG(ii));
-            }
-        }
-    }
-}
+
 
 MOS_STATUS Av1ReferenceFrames::SetPostCdefAsEncRef(bool flag)
 {
@@ -582,6 +650,26 @@ void Av1ReferenceFrames::GetRefFramePOC(int32_t (&refsPOCList)[15], int32_t cons
     }
 }
 
+int32_t Av1ReferenceFrames::GetFrameDisplayOrder()
+{
+    const auto picParams = m_basicFeature->m_av1PicParams;
+
+    int32_t displayOrder = 0;
+    if (picParams->PicFlags.fields.frame_type == keyFrame)
+    {
+        displayOrder = m_frameOut;
+    }
+    else
+    {
+        auto dist = GetRelativeDist(m_currRefList->m_orderHint, m_prevFrameOffset);
+        displayOrder = m_prevFrameDisplayerOrder + dist;
+    }
+    m_prevFrameOffset = m_currRefList->m_orderHint;
+    m_prevFrameDisplayerOrder = displayOrder;
+    m_frameOut++;
+    return displayOrder;
+}
+
 bool Av1ReferenceFrames::CheckSegmentForPrimeFrame()
 {
     ENCODE_FUNC_CALL();
@@ -673,7 +761,8 @@ MHW_SETPAR_DECL_SRC(VDENC_PIPE_BUF_ADDR_STATE, Av1ReferenceFrames)
 
     if (m_basicFeature->m_pictureCodingType != I_TYPE && picParams->primary_ref_frame != av1PrimaryRefNone)
     {
-        uint8_t frameIdx = picParams->RefFrameList[picParams->primary_ref_frame].FrameIdx;
+        uint8_t frameIdx = picParams->RefFrameList[picParams->ref_frame_idx[picParams->primary_ref_frame]].FrameIdx;
+
         uint8_t idxForTempMV = m_refList[frameIdx]->ucScalingIdx;
 
         params.colMvTempBuffer[0] = trackedBuf->GetBuffer(BufferType::mvTemporalBuffer, idxForTempMV);
@@ -707,7 +796,8 @@ MHW_SETPAR_DECL_SRC(VDENC_CMD2, Av1ReferenceFrames)
     ENCODE_CHK_NULL_RETURN(picParams);
 
     const auto frame_type = static_cast<Av1FrameType>(picParams->PicFlags.fields.frame_type);
-    params.pictureType = (frame_type == keyFrame) ? 0 : (m_lowDelay ? (m_PFrame ? 1 : 3) : 2);
+    params.pictureType = (frame_type == keyFrame)
+        ? AV1_I_FRAME : (m_lowDelay ? (m_PFrame ? AV1_P_FRAME : AV1_GPB_FRAME) : AV1_B_FRAME);
 
     if (AV1_KEY_OR_INRA_FRAME(frame_type))
     {
@@ -754,6 +844,72 @@ MHW_SETPAR_DECL_SRC(VDENC_CMD2, Av1ReferenceFrames)
     params.frameIdxL0Ref2 = frameIdxForL0L1[2];
     params.frameIdxL1Ref0 = frameIdxForL0L1[3];
 
+    if (params.pictureType == AV1_P_FRAME)
+    {
+        if (params.numRefL0 == 1)
+        {
+            params.av1RefId[0][0] = lastFrame;
+        }
+        else if (params.numRefL0 == 2)
+        {
+            params.av1RefId[0][0] = lastFrame;
+            params.av1RefId[0][1] = goldenFrame;
+        }
+        else
+        {
+            params.av1RefId[0][0] = lastFrame;
+            params.av1RefId[0][1] = goldenFrame;
+            params.av1RefId[0][2] = altRefFrame;
+        }
+    }
+    else if (params.pictureType == AV1_GPB_FRAME)
+    {
+        params.numRefL1 = params.numRefL0;
+
+        if (params.numRefL0 == 1)
+        {
+            params.av1RefId[0][0] = bwdRefFrame;
+            params.av1RefId[1][0] = altRefFrame;
+        }
+        else if (params.numRefL0 == 2)
+        {
+            params.av1RefId[0][0] = lastFrame;
+            params.av1RefId[0][1] = last2Frame;
+            params.av1RefId[1][0] = bwdRefFrame;
+            params.av1RefId[1][1] = altRef2Frame;
+        }
+        else
+        {
+            params.av1RefId[0][0] = lastFrame;
+            params.av1RefId[0][1] = last2Frame;
+            params.av1RefId[0][2] = last3Frame;
+            params.av1RefId[1][0] = bwdRefFrame;
+            params.av1RefId[1][1] = altRef2Frame;
+            params.av1RefId[1][2] = altRefFrame;
+        }
+    }
+    else if (params.pictureType == AV1_B_FRAME)
+    {
+        if (params.numRefL0 == 1)
+        {
+            params.av1RefId[0][0] = lastFrame;
+            params.av1RefId[1][0] = bwdRefFrame;
+        }
+        else if (params.numRefL0 == 2)
+        {
+            params.av1RefId[0][0] = lastFrame;
+            params.av1RefId[0][1] = last2Frame;
+            params.av1RefId[1][0] = bwdRefFrame;
+        }
+        else
+        {
+            params.av1RefId[0][0] = lastFrame;
+            params.av1RefId[0][1] = last2Frame;
+            params.av1RefId[0][2] = last3Frame;
+            params.av1RefId[1][0] = bwdRefFrame;
+        }
+    }
+
     CODEC_Ref_Frame_Ctrl_AV1 refCtrlL0 = m_basicFeature->m_av1PicParams->ref_frame_ctrl_l0;
     CODEC_Ref_Frame_Ctrl_AV1 refCtrlL1 = m_basicFeature->m_av1PicParams->ref_frame_ctrl_l1;
     if (m_basicFeature->m_enableNonDefaultMapping)
@@ -773,6 +929,10 @@ MHW_SETPAR_DECL_SRC(VDENC_CMD2, Av1ReferenceFrames)
 
 MHW_SETPAR_DECL_SRC(AVP_PIC_STATE, Av1ReferenceFrames)
 {
+    ENCODE_FUNC_CALL();
+
+    params.postCdefReconPixelStreamoutEn = m_encUsePostCdefAsRef ? true : false;
+
     params.refFrameRes[intraFrame]    = CAT2SHORTS(m_currRefList->m_frameWidth - 1, m_currRefList->m_frameHeight - 1);
     params.refScaleFactor[intraFrame] = CAT2SHORTS(m_av1ScalingFactor, m_av1ScalingFactor);
     params.refOrderHints[intraFrame]  = m_currRefList->m_orderHint;

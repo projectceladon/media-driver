@@ -91,6 +91,15 @@
 #define CODECHAL_ENCODE_CHK_COND_RETURN(_expr, _message, ...)                           \
     MOS_CHK_COND_RETURN(MOS_COMPONENT_CODEC, MOS_CODEC_SUBCOMP_ENCODE,_expr,_message, ##__VA_ARGS__)
 
+#define CODECHAL_ENCODE_CHK_NULL_WITH_DESTROY_RETURN(_ptr, destroyFunction) \
+    MOS_CHK_COND_WITH_DESTROY_RETURN_VALUE(MOS_COMPONENT_CODEC, MOS_CODEC_SUBCOMP_ENCODE, (nullptr == _ptr), destroyFunction, MOS_STATUS_NULL_POINTER, "error nullptr!")
+
+#define CODECHAL_ENCODE_CHK_STATUS_WITH_DESTROY_RETURN(_stmt, destroyFunction)                                                                                  \
+{                                                                                                                                                               \
+    MOS_STATUS sts = (MOS_STATUS)(_stmt);                                                                                                                       \
+    MOS_CHK_COND_WITH_DESTROY_RETURN_VALUE(MOS_COMPONENT_CODEC, MOS_CODEC_SUBCOMP_ENCODE, (MOS_STATUS_SUCCESS != sts), destroyFunction, sts, "error status!")   \
+}
+
 // User Feature Report Writeout
 #define CodecHalEncode_WriteKey64(key, value, mosCtx)\
 {\
@@ -941,6 +950,9 @@ struct EncodeStatusReport
 
     FRAME_STATS_INFO *pFrmStatsInfo;
     BLOCK_STATS_INFO *pBlkStatsInfo;
+
+    uint32_t                        reserved[4];            //!< align with apo path hal structure EncodeStatusReportData
+
 };
 
 //!
@@ -1325,7 +1337,7 @@ public:
     MEDIA_SYSTEM_INFO               *m_gtSystemInfo = nullptr;                      //!< GT system infomation
     MOS_GPU_NODE                    m_videoGpuNode = MOS_GPU_NODE_MAX;              //!< GPU node of video
     MOS_GPU_CONTEXT                 m_videoContext = MOS_GPU_CONTEXT_INVALID_HANDLE;              //!< GPU context of video
-    MOS_GPU_CONTEXT                 m_videoContextExt[4];                           //!< Extand GPU context
+    MOS_GPU_CONTEXT                 m_videoContextExt[4] = {};                           //!< Extand GPU context
     MOS_GPU_CONTEXT                 m_renderContext = MOS_GPU_CONTEXT_INVALID_HANDLE;             //!< GPU context of render
     bool                            m_pakEnabled = false;                           //!< flag to indicate if PAK is enabled
     bool                            m_encEnabled = false;                           //!< flag to indicate if ENC is enabled
@@ -1368,7 +1380,7 @@ public:
     MOS_RESOURCE                    m_resMbCodeSurface = {};           //!< Pointer to MOS_SURFACE of MbCode surface
     MOS_RESOURCE                    m_resMvDataSurface = {};           //!< Pointer to MOS_SURFACE of MvData surface
     uint32_t                        m_mbDataBufferSize = 0;
-    HwCounter                       m_regHwCount[CODECHAL_ENCODE_STATUS_NUM + 1];    //!< HW count register value
+    HwCounter                       m_regHwCount[CODECHAL_ENCODE_STATUS_NUM + 1] = {};    //!< HW count register value
 
     CODEC_PICTURE                   m_currOriginalPic = {};       //!< Raw.
     CODEC_PICTURE                   m_currReconstructedPic = {};  //!< Recon.
@@ -1486,7 +1498,7 @@ public:
 
     // CmdGen HuC FW for HEVC/VP9 VDEnc
     MOS_RESOURCE                    m_resVdencCmdInitializerDmemBuffer = {};   //!< Resource of vdenc command initializer DMEM buffer
-    MOS_RESOURCE                    m_resVdencCmdInitializerDataBuffer[2];   //!< Resource of vdenc command initializer data buffer
+    MOS_RESOURCE                    m_resVdencCmdInitializerDataBuffer[2] = {};   //!< Resource of vdenc command initializer data buffer
 
     // VDEnc params
     bool                            m_vdencEnabled = false;               //!< Vdenc enabled flag
@@ -1521,11 +1533,11 @@ public:
     uint32_t                        m_mvDataSize = 0;               //!< MV data size
     uint32_t                        m_mvBottomFieldOffset = 0;      //!< MV data offset frame/TopField - zero, BottomField - nonzero
     MOS_RESOURCE                    m_resDistortionBuffer = {};          //!< MBEnc Distortion Buffer
-    MOS_RESOURCE                    m_resMadDataBuffer[CODECHAL_ENCODE_MAX_NUM_MAD_BUFFERS]; //!< Buffers to store Mean of Absolute Differences
+    MOS_RESOURCE                    m_resMadDataBuffer[CODECHAL_ENCODE_MAX_NUM_MAD_BUFFERS] = {}; //!< Buffers to store Mean of Absolute Differences
     bool                            m_madEnabled = false;                                    //!< Mad enabled flag
 
     bool                            m_arbitraryNumMbsInSlice = false;                        //!< Flag to indicate if the sliceMapSurface needs to be programmed or not
-    MOS_SURFACE                     m_sliceMapSurface[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM];  //!< Slice map surface
+    MOS_SURFACE                     m_sliceMapSurface[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM] = {};  //!< Slice map surface
     uint32_t                        m_sliceMapBottomFieldOffset = 0;                         //!< Slice map bottom field offset
 
     // VDENC and PAK Data Buffer
@@ -1537,7 +1549,7 @@ public:
     PMOS_RESOURCE                   m_resVdencModeTimerBuffer = nullptr;           //!< Resource of Vdenc mode timer buffer
 
     // VDEnc StreamIn Buffer
-    MOS_RESOURCE                    m_resVdencStreamInBuffer[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM];  //!< Resources of Vdenc stream in buffer
+    MOS_RESOURCE                    m_resVdencStreamInBuffer[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM] = {};  //!< Resources of Vdenc stream in buffer
 
     // Maximum number of slices allowed by video spec
     uint32_t                        m_maxNumSlicesAllowed = 0;          //!< Max number of slices allowed
@@ -1552,7 +1564,7 @@ public:
     // PAK Scratch Buffers
     MOS_RESOURCE                    m_resDeblockingFilterRowStoreScratchBuffer = {};                 //!< Handle of deblock row store surface
     MOS_RESOURCE                    m_resMPCRowStoreScratchBuffer = {};                              //!< Handle of mpc row store surface
-    MOS_RESOURCE                    m_resStreamOutBuffer[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM];  //!< Handle of streamout data surface
+    MOS_RESOURCE                    m_resStreamOutBuffer[CODECHAL_ENCODE_RECYCLED_BUFFER_NUM] = {};  //!< Handle of streamout data surface
 
     // Scaling
     MHW_KERNEL_STATE                m_scaling4xKernelStates[CODEC_NUM_FIELDS_PER_FRAME];  //!< Scaling 4x Kernel States
@@ -1561,7 +1573,7 @@ public:
     ScalingBindingTable             m_scaling2xBindingTable = {};                        //!< Scaling 2x Binding Table
     uint32_t                        m_scalingCurbeSize = 0;                               //!< Scaling curbe size
     bool                            m_interlacedFieldDisabled = false;                    //!< interlaced field disabled flag
-    CodechalEncodeBbuf              m_scalingBBUF[CODECHAL_ENCODE_VME_BBUF_NUM];          //!< This Batch Buffer is used for scaling kernel.
+    CodechalEncodeBbuf              m_scalingBBUF[CODECHAL_ENCODE_VME_BBUF_NUM] = {};     //!< This Batch Buffer is used for scaling kernel.
     uint32_t                        m_scaledBottomFieldOffset = 0;                        //!< Scaled Bottom Field Offset
     uint32_t                        m_scaled16xBottomFieldOffset = 0;                     //!< Scaled 16x Bottom Field Offset
     uint32_t                        m_scaled32xBottomFieldOffset = 0;                     //!< Scaled 32x Bottom Field Offset

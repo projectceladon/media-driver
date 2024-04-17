@@ -148,7 +148,7 @@ PDDI_MEDIA_SURFACE MediaLibvaCommonNext::ReplaceSurfaceWithNewFormat(PDDI_MEDIA_
     // If cant find
     if (i == surface->pMediaCtx->pSurfaceHeap->uiAllocatedHeapElements)
     {
-        MosUtilities::MosLockMutex(&mediaCtx->SurfaceMutex);
+        MosUtilities::MosUnlockMutex(&mediaCtx->SurfaceMutex);
         MOS_FreeMemory(dstSurface);
         return nullptr;
     }
@@ -452,7 +452,7 @@ int32_t MediaLibvaCommonNext::GetGpuPriority(
             if (updateSessionPriority)
             {
                 *updatePriority = true;
-                if (priorityValue >= 0 && priorityValue <= CONTEXT_PRIORITY_MAX)
+                if (priorityValue <= CONTEXT_PRIORITY_MAX)
                 {
                     *priority = priorityValue - CONTEXT_PRIORITY_MAX / 2;
                 }

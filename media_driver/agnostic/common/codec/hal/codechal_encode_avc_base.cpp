@@ -2250,7 +2250,7 @@ MOS_STATUS CodechalEncodeAvcBase::AllocateEncResources()
     {
         if (m_hmeKernel)
         {
-            m_hmeKernel->AllocateResources();
+            CODECHAL_ENCODE_CHK_STATUS_RETURN(m_hmeKernel->AllocateResources());
         }
         else
         {
@@ -3247,10 +3247,6 @@ MOS_STATUS CodechalEncodeAvcBase::SetSliceStructs()
         if ((picParams->pic_init_qp_minus26 + 26 + slcParams->slice_qp_delta) > CODECHAL_ENCODE_AVC_MAX_SLICE_QP)
         {
             slcParams->slice_qp_delta = CODECHAL_ENCODE_AVC_MAX_SLICE_QP - (picParams->pic_init_qp_minus26 + 26);
-        }
-        else
-        {
-            slcParams->slice_qp_delta = slcParams->slice_qp_delta;
         }
         slcParams->redundant_pic_cnt                  = 0;
         slcParams->sp_for_switch_flag                 = 0;

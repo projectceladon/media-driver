@@ -107,7 +107,7 @@ void VpRenderKernelObj::OcaDumpKernelInfo(MOS_COMMAND_BUFFER &cmdBuffer, MOS_CON
 }
 
 // Only for Adv kernels.
-MOS_STATUS VpRenderKernelObj::SetWalkerSetting(KERNEL_THREAD_SPACE& threadSpace, bool bSyncFlag)
+MOS_STATUS VpRenderKernelObj::SetWalkerSetting(KERNEL_THREAD_SPACE &threadSpace, bool bSyncFlag, bool flushL1)
 {
     VP_FUNC_CALL();
     VP_RENDER_CHK_STATUS_RETURN(MOS_STATUS_UNIMPLEMENTED);
@@ -139,7 +139,7 @@ MOS_STATUS VpRenderKernelObj::SetKernelConfigs(
 
     VP_RENDER_CHK_STATUS_RETURN(SetSamplerStates(samplerStateGroup));
 
-    VP_RENDER_CHK_STATUS_RETURN(SetWalkerSetting(kernelParams.kernelThreadSpace, kernelParams.syncFlag));
+    VP_RENDER_CHK_STATUS_RETURN(SetWalkerSetting(kernelParams.kernelThreadSpace, kernelParams.syncFlag,kernelParams.flushL1));
 
     return MOS_STATUS_SUCCESS;
 }
@@ -587,7 +587,7 @@ void VpRenderKernelObj::DumpSurface(VP_SURFACE* pSurface, PCCHAR fileName)
         sPath,
         MAX_PATH,
         sizeof(sPath),
-        "c:\\dump\\f[%08I64x]_%s_w[%d]_h[%d]_p[%d].%s",
+        "c:\\dump\\f[%08d]_%s_w[%d]_h[%d]_p[%d].%s",
         1,
         fileName,
         pSurface->osSurface->dwWidth,
@@ -621,7 +621,11 @@ void VpRenderKernelObj::DumpSurface(VP_SURFACE* pSurface, PCCHAR fileName)
         MOS_FreeMemory(pDst);
     }
 
-    m_allocator->UnLock(&pSurface->osSurface->OsResource);
+    MOS_STATUS status = m_allocator->UnLock(&pSurface->osSurface->OsResource);
+    if (MOS_FAILED(status))
+    {
+        VP_RENDER_ASSERTMESSAGE("Unlock resource failed!");
+    }
 #endif
 }
 

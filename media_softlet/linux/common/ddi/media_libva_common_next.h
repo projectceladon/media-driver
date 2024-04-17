@@ -32,7 +32,8 @@
 #include <va/va_backend.h>
 #include <semaphore.h>
 #include "GmmLib.h"
-#include "mos_bufmgr.h"
+#include "mos_bufmgr_api.h"
+#include "mos_defs_specific.h"
 
 #define DDI_MEDIA_MAX_SURFACE_NUMBER_CONTEXT       127
 #define DDI_MEDIA_MAX_INSTANCE_NUMBER              0x0FFFFFFF
@@ -172,7 +173,7 @@ typedef struct _DDI_MEDIA_SURFACE_DESCRIPTOR
     bool       bIsGralloc;                            // buffer allocated by Gralloc
     void      *pPrivateData;                          // brief reserved for passing private data
     GMM_RESCREATE_PARAMS GmmParam;                    // GMM Params for Gralloc buffer
-    uint64_t   modifier;                              // used for VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2
+    uint64_t   modifier;                              // used for VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2 or VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_3
 } DDI_MEDIA_SURFACE_DESCRIPTOR,*PDDI_MEDIA_SURFACE_DESCRIPTOR;
 
 typedef union _DDI_MEDIA_SURFACE_STATUS_REPORT

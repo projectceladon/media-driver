@@ -188,6 +188,7 @@ namespace mi
         bool                    bInvalidateTextureCache       = false;
         bool                    bGenericMediaStateClear       = false;
         bool                    bIndirectStatePointersDisable = false;
+        bool                    bUnTypedDataPortCacheFlush    = false;
         bool                    bHdcPipelineFlush             = false;
         bool                    bKernelFenceEnabled           = false;
         bool                    bPPCFlush                     = false;
@@ -195,7 +196,8 @@ namespace mi
 
     struct _MHW_PAR_T(MI_BATCH_BUFFER_START)
     {
-        PMOS_RESOURCE               presResource = nullptr;
+        PMOS_RESOURCE               presResource           = nullptr;
+        bool                        secondLevelBatchBuffer = true;
     };
 
     struct _MHW_PAR_T(MI_CONDITIONAL_BATCH_BUFFER_END)

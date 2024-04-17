@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2011-2022, Intel Corporation
+* Copyright (c) 2011-2024, Intel Corporation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -38,6 +38,7 @@ CodechalHwInterface::CodechalHwInterface(
     // Basic intialization
     m_osInterface = osInterface;
 
+    MOS_ZeroMemory(&m_platform, sizeof(PLATFORM));
     m_osInterface->pfnGetPlatform(m_osInterface, &m_platform);
 
     m_skuTable = m_osInterface->pfnGetSkuTable(m_osInterface);
@@ -56,6 +57,16 @@ CodechalHwInterface::CodechalHwInterface(
     m_sfcInterface = mhwInterfaces->m_sfcInterface;
     m_miInterface = mhwInterfaces->m_miInterface;
     m_renderInterface = mhwInterfaces->m_renderInterface;
+    // Prevent double free
+    mhwInterfaces->m_cpInterface = nullptr;
+    mhwInterfaces->m_mfxInterface = nullptr;
+    mhwInterfaces->m_hcpInterface = nullptr;
+    mhwInterfaces->m_hucInterface = nullptr;
+    mhwInterfaces->m_vdencInterface = nullptr;
+    mhwInterfaces->m_veboxInterface = nullptr;
+    mhwInterfaces->m_sfcInterface   = nullptr;
+    mhwInterfaces->m_miInterface    = nullptr;
+    mhwInterfaces->m_renderInterface = nullptr;
 
     m_stateHeapSettings = MHW_STATE_HEAP_SETTINGS();
     m_disableScalability = disableScalability;

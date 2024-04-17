@@ -182,8 +182,7 @@ MOS_STATUS MosUtilities::MosWriteOneUserFeatureGroupToXML(MOS_USER_FEATURE_VALUE
         sOutBuf,
         sizeof(sOutBuf),
         sizeof(sOutBuf),
-        "  </Group>\n",
-        UserFeatureFilter.pcGroup);
+        "  </Group>\n");
     eStatus = MosAppendFileFromPtr(
         s_xmlFilePath,
         sOutBuf,
@@ -236,6 +235,10 @@ MOS_STATUS MosUtilities::MosGenerateUserFeatureKeyXML(MOS_CONTEXT_HANDLE mosCtx)
     {
         UserFeatureFilter.pcGroup = FilterGroups[uiIndex];
         eStatus = MosWriteOneUserFeatureGroupToXML(UserFeatureFilter);
+        if (eStatus!= MOS_STATUS_SUCCESS)
+        {
+            MOS_OS_ASSERTMESSAGE("Failed to Write One User FeatureGroup To XML");
+        }
     }
 
     // User Feature Key Header End

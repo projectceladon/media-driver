@@ -20,12 +20,14 @@
 
 if(${Common_Encode_Supported} STREQUAL "yes")
 set(TMP_SOURCES_
+    ${CMAKE_CURRENT_LIST_DIR}/encode_check_huc_load_packet.cpp
     ${CMAKE_CURRENT_LIST_DIR}/encode_huc.cpp
     ${CMAKE_CURRENT_LIST_DIR}/encode_packet_utilities.cpp
     ${CMAKE_CURRENT_LIST_DIR}/encode_preenc_packet.cpp
 )
 
 set(TMP_HEADERS_
+    ${CMAKE_CURRENT_LIST_DIR}/encode_check_huc_load_packet.h
     ${CMAKE_CURRENT_LIST_DIR}/encode_huc.h
     ${CMAKE_CURRENT_LIST_DIR}/encode_packet_utilities.h
     ${CMAKE_CURRENT_LIST_DIR}/encode_preenc_packet.h
@@ -52,4 +54,5 @@ set(SOFTLET_ENCODE_COMMON_PRIVATE_INCLUDE_DIRS_
     ${SOFTLET_ENCODE_COMMON_PRIVATE_INCLUDE_DIRS_}
     ${CMAKE_CURRENT_LIST_DIR}
 )
+
 media_add_curr_to_include_path()

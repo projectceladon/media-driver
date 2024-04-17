@@ -40,7 +40,7 @@
 #include <sys/types.h>
 #include <sys/sem.h>
 #include <sys/mman.h>
-//#include "mos_compat.h" // libc variative definitions: backtrace
+#include "mos_compat.h" // libc variative definitions: backtrace
 #include "mos_user_setting.h"
 #include "mos_utilities_specific.h"
 #include "mos_utilities.h"
@@ -51,11 +51,13 @@ int32_t g_mosMemAllocCounter         = 0;
 int32_t g_mosMemAllocFakeCounter     = 0;
 int32_t g_mosMemAllocCounterGfx      = 0;
 uint8_t g_mosUltFlag                 = 0;
+int32_t g_mosMemAllocIndex           = 0;
 
 int32_t *MosUtilities::m_mosMemAllocCounter       = &g_mosMemAllocCounter;
 int32_t *MosUtilities::m_mosMemAllocFakeCounter   = &g_mosMemAllocFakeCounter;
 int32_t *MosUtilities::m_mosMemAllocCounterGfx    = &g_mosMemAllocCounterGfx;
 uint8_t *MosUtilities::m_mosUltFlag               = &g_mosUltFlag;
+int32_t *MosUtilities::m_mosMemAllocIndex         = &g_mosMemAllocIndex;
 
 const char           *MosUtilitiesSpecificNext::m_szUserFeatureFile     = USER_FEATURE_FILE;
 MOS_PUF_KEYLIST      MosUtilitiesSpecificNext::m_ufKeyList              = nullptr;
@@ -64,6 +66,8 @@ MOS_PUF_KEYLIST      MosUtilitiesSpecificNext::m_ufKeyList              = nullpt
 int32_t g_mosMemoryFailSimulateAllocCounter = 0;
 int32_t *MosUtilities::m_mosAllocMemoryFailSimulateAllocCounter = &g_mosMemoryFailSimulateAllocCounter;
 #endif
+
+static bool s_skipToReportReg = false;
 
 double MosUtilities::MosGetTime()
 {
@@ -1003,7 +1007,25 @@ MOS_STATUS MosUtilitiesSpecificNext::UserFeatureDumpDataToFile(const char *szFil
     MOS_PUF_KEYLIST   pKeyTmp;
     int32_t           j;
 
+   // For release version: writes to the file if it exists,
+// skips if it does not exist
+// For other version: always writes to the file
+
+#if(_RELEASE)
+    File = fopen(szFileName, "r");
+    if (File == NULL)
+    {
+        return MOS_STATUS_SUCCESS;
+    }
+    else
+    {
+        fclose(File);
+        File = fopen(szFileName, "w+");
+    }
+#else
     File = fopen(szFileName, "w+");
+#endif
+
     if ( !File )
     {
         return MOS_STATUS_USER_FEATURE_KEY_WRITE_FAILED;
@@ -1526,12 +1548,15 @@ MOS_STATUS MosUtilities::MosInitializeReg(RegBufferMap &regBufferMap)
     std::ifstream regStream;
     try
     {
-        //regStream.open(USER_FEATURE_FILE_NEXT);
-	regStream.open("/etc/igfx_user_feature_next.txt");
+        regStream.open(USER_FEATURE_FILE_NEXT);
         if (regStream.good())
         {
             std::string id       = "";
 
+            static const char *disableReportRegKeyList[] = {
+                "INTEL MEDIA ALLOC MODE"
+            };
+            static const uint32_t disableReportRegKeyListCount = sizeof(disableReportRegKeyList) / sizeof(disableReportRegKeyList[0]);
             while(!regStream.eof())
             {
                 std::string line = "";
@@ -1566,8 +1591,22 @@ MOS_STATUS MosUtilities::MosInitializeReg(RegBufferMap &regBufferMap)
                     {
                         std::string name = line.substr(0,pos);
                         std::string value = line.substr(pos+1);
-                        auto        &keys  = regBufferMap[id];
-                        keys[name]       = value;
+                        if (name.size() > 0 && value.size() > 0)
+                        {
+                            auto &keys = regBufferMap[id];
+                            keys[name] = value;
+                            if (s_skipToReportReg == false && id == USER_SETTING_CONFIG_PATH)
+                            {
+                                for (uint32_t i = 0; i < disableReportRegKeyListCount; i++)
+                                {
+                                    if (strcmp(name.c_str(), disableReportRegKeyList[i]) == 0)
+                                    {
+                                        s_skipToReportReg = true;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1587,6 +1626,12 @@ MOS_STATUS MosUtilities::MosInitializeReg(RegBufferMap &regBufferMap)
 MOS_STATUS MosUtilities::MosUninitializeReg(RegBufferMap &regBufferMap)
 {
     MOS_STATUS status = MOS_STATUS_SUCCESS;
+
+    if (s_skipToReportReg)
+    {
+        return MOS_STATUS_SUCCESS;
+    }
+
     if (regBufferMap.size() == 0)
     {
         return MOS_STATUS_SUCCESS;
@@ -1604,8 +1649,24 @@ MOS_STATUS MosUtilities::MosUninitializeReg(RegBufferMap &regBufferMap)
     std::ofstream regStream;
     try
     {
-        //regStream.open(USER_FEATURE_FILE_NEXT, std::ios::out | std::ios::trunc);
-	regStream.open("/etc/igfx_user_feature_next.txt", std::ios::out | std::ios::trunc);
+// For release version: writes to the file if it exists,
+// skips if it does not exist
+// For other version: always writes to the file
+#if(_RELEASE)
+        std::ifstream regFile(USER_FEATURE_FILE_NEXT);
+        if (regFile.good())
+        {
+            regFile.close();
+            regStream.open(USER_FEATURE_FILE_NEXT, std::ios::out | std::ios::trunc);
+        }
+        else
+        {
+            regFile.close();
+            return status;
+        }
+#else
+        regStream.open(USER_FEATURE_FILE_NEXT, std::ios::out | std::ios::trunc);
+#endif
         if (regStream.good())
         {
             for(auto pair: regBufferMap)
@@ -1743,6 +1804,33 @@ MOS_STATUS MosUtilities::MosGetRegValue(
     }
 
     return status;
+}
+
+MOS_STATUS MosUtilities::MosPrintCPUAllocateMemory(int32_t event_id, int32_t level, int32_t param_id_1, int64_t value_1, int32_t param_id_2, int64_t value_2,
+    const char *funName, const char *fileName, int32_t line)
+{
+#if (_RELEASE_INTERNAL)
+    if (MOS_IS_MEMORY_FOOT_PRINT_ENABLED())
+    {
+        MosAtomicIncrement(m_mosMemAllocIndex);
+        MT_LOG3(event_id, level, param_id_1, value_1, MT_MEMORY_INDEX, *MosUtilities::m_mosMemAllocIndex, param_id_2, value_2);
+    }
+
+#endif
+    return MOS_STATUS_SUCCESS;
+}
+
+MOS_STATUS MosUtilities::MosPrintCPUDestroyMemory(int32_t event_id, int32_t level, int32_t param_id_1, int64_t value_1, 
+    const char *funName, const char *fileName, int32_t line)
+{
+#if (_RELEASE_INTERNAL)
+    if (MOS_IS_MEMORY_FOOT_PRINT_ENABLED())
+    {
+        MosAtomicDecrement(m_mosMemAllocIndex);
+        MT_LOG2(event_id, level, param_id_1, value_1, MT_MEMORY_INDEX, *MosUtilities::m_mosMemAllocIndex);
+    }
+#endif
+    return MOS_STATUS_SUCCESS;
 }
 
 MOS_STATUS MosUtilities::MosSetRegValue(
@@ -1961,23 +2049,6 @@ MOS_STATUS MosUtilities::MosReadApoMosEnabledUserFeature(uint32_t &userfeatureVa
     MOS_USER_FEATURE_VALUE_DATA userFeatureData     = {};
     MOS_UNUSED(path);
 
-    //If apo mos enabled, to check if media solo is enabled. Disable apo mos if media solo is enabled.
-#if MOS_MEDIASOLO_SUPPORTED
-    eStatus = MosUtilities::MosUserFeatureReadValueID(
-            nullptr,
-            __MEDIA_USER_FEATURE_VALUE_MEDIASOLO_ENABLE_ID,
-            &userFeatureData,
-            (MOS_CONTEXT_HANDLE) nullptr);
-
-    //If media solo is enabled, disable apogeios.
-    if (eStatus == MOS_STATUS_SUCCESS && userFeatureData.i32Data != 0)
-    {
-        // This error case can be hit if the user feature key does not exist.
-        MOS_OS_NORMALMESSAGE("Solo is enabled, disable apo mos");
-        userfeatureValue = 0;
-        return MOS_STATUS_SUCCESS;
-    }
-#endif
 
     uint32_t enableApoMos = 0;
     eStatus = ReadUserSetting(
@@ -2138,7 +2209,7 @@ PMOS_MUTEX MosUtilities::MosCreateMutex(uint32_t spinCount)
     return pMutex;
 }
 
-MOS_STATUS MosUtilities::MosDestroyMutex(PMOS_MUTEX pMutex)
+MOS_STATUS MosUtilities::MosDestroyMutex(PMOS_MUTEX &pMutex)
 {
     MOS_STATUS eStatus = MOS_STATUS_SUCCESS;
 
@@ -2148,7 +2219,7 @@ MOS_STATUS MosUtilities::MosDestroyMutex(PMOS_MUTEX pMutex)
         {
             eStatus = MOS_STATUS_UNKNOWN;
         }
-        MOS_FreeMemory(pMutex);
+        MOS_FreeMemAndSetNull(pMutex);
     }
 
     return eStatus;
@@ -2202,10 +2273,9 @@ PMOS_SEMAPHORE MosUtilities::MosCreateSemaphore(
 }
 
 MOS_STATUS MosUtilities::MosDestroySemaphore(
-    PMOS_SEMAPHORE              pSemaphore)
+    PMOS_SEMAPHORE              &pSemaphore)
 {
-    MOS_SafeFreeMemory(pSemaphore);
-
+    MOS_FreeMemAndSetNull(pSemaphore);
     return MOS_STATUS_SUCCESS;
 }
 

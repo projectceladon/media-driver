@@ -192,6 +192,11 @@ namespace encode {
             m_statusReportData[submitIndex].currRefList        = inputParameters->currRefList;
             m_statusReportData[submitIndex].numberTilesInFrame = inputParameters->numberTilesInFrame;
 
+            m_statusReportData[submitIndex].av1EnableFrameOBU            = inputParameters->av1EnableFrameObu;
+            m_statusReportData[submitIndex].av1FrameHdrOBUSizeByteOffset = inputParameters->av1FrameHdrOBUSizeByteOffset;
+            m_statusReportData[submitIndex].frameWidth                   = inputParameters->frameWidth;
+            m_statusReportData[submitIndex].frameHeight                  = inputParameters->frameHeight;
+
             uint64_t pairIndex = GetIdForCodecFuncToFuncIdPairs(inputParameters->codecFunction);
             if (pairIndex >= m_maxCodecFuncNum)
             {
@@ -301,6 +306,9 @@ namespace encode {
         EncodeStatusRcs *encodeStatusRcs,
         bool completed)
     {
+        ENCODE_CHK_NULL_RETURN(statusReportData);
+        ENCODE_CHK_NULL_RETURN(encodeStatusRcs);
+
         if (statusReportData->func != CODECHAL_ENCODE_ENC_ID &&
             statusReportData->func != CODECHAL_ENCODE_FEI_ENC_ID &&
             !completed)
@@ -370,6 +378,11 @@ namespace encode {
 
         // Need add GPU Hang check here
         UpdateCodecStatus(statusReportData, encodeStatusRcs, completed);
+
+        if ((statusReportData->codecStatus == CODECHAL_STATUS_ERROR) && encodeStatusMfx && (encodeStatusMfx->lookaheadStatus.targetFrameSize != 0))
+        {
+            statusReportData->codecStatus = CODECHAL_STATUS_SUCCESSFUL;
+        }
 
         // The frame is completed, notify the observers
         if (statusReportData->codecStatus == CODECHAL_STATUS_SUCCESSFUL)

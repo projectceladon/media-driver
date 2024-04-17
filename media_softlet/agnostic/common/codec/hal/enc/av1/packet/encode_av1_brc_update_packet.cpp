@@ -30,6 +30,9 @@
 #include "encode_av1_brc.h"
 #include "encode_av1_vdenc_packet.h"
 #include "encode_av1_vdenc_lpla_enc.h"
+#if _MEDIA_RESERVED
+#include "encode_av1_scc.h"
+#endif
 
 namespace encode
 {
@@ -272,6 +275,14 @@ namespace encode
         /*----Group4----*/
         slbData.avpPicStateOffset = (uint16_t)constructedCmdBuf.iOffset;
         ENCODE_CHK_STATUS_RETURN(AddAvpPicStateBaseOnTile(constructedCmdBuf, slbData));
+
+        /*----Group5----*/
+        if (m_basicFeature->m_av1PicParams->PicFlags.fields.PaletteModeEnable)
+        {
+            slbData.vdencTileSliceStateOffset = (uint16_t)constructedCmdBuf.iOffset;
+            ENCODE_CHK_STATUS_RETURN(AddVdencTileSliceBaseOnTile(constructedCmdBuf, slbData));
+        }
+
         slbData.slbSize = (uint16_t)constructedCmdBuf.iOffset - slbData.avpSegmentStateOffset;
 
         RUN_FEATURE_INTERFACE_NO_RETURN(Av1Brc, Av1FeatureIDs::av1BrcFeature, SetSLBData, slbData);
@@ -297,8 +308,15 @@ namespace encode
         constructedCmdBuf.pCmdBase = constructedCmdBuf.pCmdPtr = (uint32_t *)batchbufferAddr;
         constructedCmdBuf.iRemaining                           = MOS_ALIGN_CEIL(m_hwInterface->m_vdencReadBatchBufferSize, CODECHAL_PAGE_SIZE);
 
+        auto brcFeature = dynamic_cast<Av1Brc *>(m_featureManager->GetFeature(Av1FeatureIDs::av1BrcFeature));
+        ENCODE_CHK_NULL_RETURN(brcFeature);
+        auto slbData = brcFeature->GetSLBData();
+
         ENCODE_CHK_STATUS_RETURN(AddAllCmds_AVP_PAK_INSERT_OBJECT(&constructedCmdBuf));
         ENCODE_CHK_STATUS_RETURN(AddBBEnd(m_miItf, constructedCmdBuf));
+
+        slbData.pakInsertSlbSize = (uint16_t)constructedCmdBuf.iOffset;
+        RUN_FEATURE_INTERFACE_NO_RETURN(Av1Brc, Av1FeatureIDs::av1BrcFeature, SetSLBData, slbData);
 
         return MOS_STATUS_SUCCESS;
     }
@@ -319,6 +337,9 @@ namespace encode
             {
                 RUN_FEATURE_INTERFACE_RETURN(Av1EncodeTile, Av1FeatureIDs::encodeTile, SetCurrentTile, tileRow, tileCol, m_pipeline);
                 RUN_FEATURE_INTERFACE_NO_RETURN(Av1EncodeTile, Av1FeatureIDs::encodeTile, IsFirstTileInGroup, firstTileInGroup, tileGroupIdx);
+#if _MEDIA_RESERVED
+                RUN_FEATURE_INTERFACE_RETURN(Av1Scc, Av1FeatureIDs::av1Scc, UpdateIBCStatusForCurrentTile);
+#endif
                 if (firstTileInGroup)
                 {
                     SETPAR_AND_ADDCMD(AVP_PIC_STATE, m_avpItf, &cmdBuffer);
@@ -339,6 +360,45 @@ namespace encode
                 break;
             }
         }
+
+        // Add MI_NOOPs to align with CODECHAL_CACHELINE_SIZE
+        uint32_t size = (MOS_ALIGN_CEIL(cmdBuffer.iOffset, CODECHAL_CACHELINE_SIZE) - cmdBuffer.iOffset) / sizeof(uint32_t);
+        for (uint32_t i = 0; i < size; i++)
+            ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_NOOP)(&cmdBuffer));
+
+        return MOS_STATUS_SUCCESS;
+    }
+
+    MOS_STATUS Av1BrcUpdatePkt::AddVdencTileSliceBaseOnTile(MOS_COMMAND_BUFFER& cmdBuffer, SlbData& slbData)
+    {
+        ENCODE_FUNC_CALL();
+
+        uint16_t numTileColumns = 1;
+        uint16_t numTileRows = 1;
+        RUN_FEATURE_INTERFACE_RETURN(Av1EncodeTile, Av1FeatureIDs::encodeTile, GetTileRowColumns, numTileRows, numTileColumns);
+        slbData.tileNum = numTileRows * numTileColumns;
+
+        auto& par = m_vdencItf->MHW_GETPAR_F(VDENC_HEVC_VP9_TILE_SLICE_STATE)();
+        par = {};
+
+        for (uint32_t tileRow = 0; tileRow < numTileRows; tileRow++)
+        {
+            for (uint32_t tileCol = 0; tileCol < numTileColumns; tileCol++)
+            {
+                RUN_FEATURE_INTERFACE_RETURN(Av1EncodeTile, Av1FeatureIDs::encodeTile, SetCurrentTile, tileRow, tileCol, m_pipeline);
+                auto tileIdx = tileRow * numTileColumns + tileCol;
+
+                m_basicFeature->m_vdencTileSliceStart[tileIdx] = cmdBuffer.iOffset;
+                SETPAR_AND_ADDCMD(VDENC_HEVC_VP9_TILE_SLICE_STATE, m_vdencItf, &cmdBuffer);
+                ENCODE_CHK_STATUS_RETURN(AddBBEnd(m_miItf, cmdBuffer));
+
+                // Add MI_NOOPs to align with CODECHAL_CACHELINE_SIZE
+                uint32_t size = (MOS_ALIGN_CEIL(cmdBuffer.iOffset, CODECHAL_CACHELINE_SIZE) - cmdBuffer.iOffset) / sizeof(uint32_t);
+                for (uint32_t i = 0; i < size; i++)
+                    ENCODE_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_NOOP)(&cmdBuffer));
+            }
+        }
+
         return MOS_STATUS_SUCCESS;
     }
 
@@ -396,14 +456,14 @@ namespace encode
             uint32_t nalNum = 0;
             for (uint32_t i = 0; i < MAX_NUM_OBU_TYPES && m_basicFeature->m_nalUnitParams[i]->uiSize > 0; i++)
             {
-                nalNum = i;
+                nalNum++;
             }
 
             params.bsBuffer             = &m_basicFeature->m_bsBuffer;
             params.endOfHeaderInsertion = false;
 
             // Support multiple packed header buffer
-            for (uint32_t i = 0; i <= nalNum; i++)
+            for (uint32_t i = 0; i < nalNum; i++)
             {
                 uint32_t nalUnitSize   = m_basicFeature->m_nalUnitParams[i]->uiSize;
                 uint32_t nalUnitOffset = m_basicFeature->m_nalUnitParams[i]->uiOffset;
@@ -414,7 +474,7 @@ namespace encode
                 {
                     params.bitSize    = nalUnitSize * 8;
                     params.offset     = nalUnitOffset;
-                    params.lastHeader = !tgOBUValid && (i == nalNum);
+                    params.lastHeader = !tgOBUValid && (i+1 == nalNum);
 
                     m_avpItf->MHW_ADDCMD_F(AVP_PAK_INSERT_OBJECT)(cmdBuffer);
                     m_osInterface->pfnAddCommand(cmdBuffer, GetExtraData(), GetExtraSize());
@@ -442,7 +502,7 @@ namespace encode
 
         ENCODE_CHK_STATUS_RETURN(DumpRegion(0, "_BrcHistory", true, hucRegionDumpUpdate, 6080));
         ENCODE_CHK_STATUS_RETURN(DumpRegion(1, "_VdencStats", true, hucRegionDumpUpdate, 48*4));
-        ENCODE_CHK_STATUS_RETURN(DumpRegion(3, "_InputSLBB", true, hucRegionDumpUpdate, 300*4));
+        ENCODE_CHK_STATUS_RETURN(DumpRegion(3, "_InputSLBB", true, hucRegionDumpUpdate, 600*4));
         ENCODE_CHK_STATUS_RETURN(DumpRegion(5, "_ConstData", true, hucRegionDumpUpdate, MOS_ALIGN_CEIL(m_vdencBrcConstDataBufferSize, CODECHAL_PAGE_SIZE)));
         ENCODE_CHK_STATUS_RETURN(DumpRegion(7, "_PakMmio", true, hucRegionDumpUpdate, 16*4));
         ENCODE_CHK_STATUS_RETURN(DumpRegion(8, "_InputPakInsert", true, hucRegionDumpUpdate, 100));
@@ -457,7 +517,7 @@ namespace encode
 
         ENCODE_CHK_STATUS_RETURN(DumpRegion(0, "_BrcHistory", false, hucRegionDumpUpdate, 6080));
         ENCODE_CHK_STATUS_RETURN(DumpRegion(4, "_BrcData", false, hucRegionDumpUpdate, 32));
-        ENCODE_CHK_STATUS_RETURN(DumpRegion(6, "_OutputSLBB", false, hucRegionDumpUpdate, 300 * 4));
+        ENCODE_CHK_STATUS_RETURN(DumpRegion(6, "_OutputSLBB", false, hucRegionDumpUpdate, 600 * 4));
         ENCODE_CHK_STATUS_RETURN(DumpRegion(9, "_OutputPakInsert", false, hucRegionDumpUpdate, 100));
         ENCODE_CHK_STATUS_RETURN(DumpRegion(11, "_OutputCdfTable", false, hucRegionDumpUpdate, MOS_ALIGN_CEIL(m_basicFeature->m_cdfMaxNumBytes, CODECHAL_CACHELINE_SIZE)));
 

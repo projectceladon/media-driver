@@ -68,12 +68,6 @@ public:
         m_indexofSfc              = 0;
         m_numofSfc                = 1;
 
-        if (osItf == nullptr)
-        {
-            MHW_ASSERTMESSAGE("Invalid Input Parameter: m_osInterface is nullptr");
-            return;
-        }
-
         // Get Memory control object directly from MOS.
         // If any override is needed, something like pfnOverrideMemoryObjectCtrl() / pfnComposeSurfaceCacheabilityControl()
         // will need to be implemented.
@@ -335,11 +329,24 @@ public:
 
         // Skip calculation if no changes to AVS parameters
         if (srcFormat == pAvsParams->Format &&
-            fScaleX == pAvsParams->fScaleX &&
-            fScaleY == pAvsParams->fScaleY)
+            fScaleX == pAvsParams->fScaleX  &&
+            fScaleY == pAvsParams->fScaleY  &&
+            bUse8x8Filter == pAvsParams->bUse8x8Filter)
         {
             MHW_NORMALMESSAGE("Skip calculation since no changes to AVS parameters. srcFormat %d, fScaleX %f, fScaleY %f",
                 srcFormat, fScaleX, fScaleY);
+
+            SetSfcAVSLumaTable(
+                srcFormat,
+                pLumaTable->LumaTable,
+                piYCoefsX,
+                piYCoefsY,
+                bUse8x8Filter);
+
+            SetSfcAVSChromaTable(
+                pChromaTable->ChromaTable,
+                piUVCoefsX,
+                piUVCoefsY);
             return MOS_STATUS_SUCCESS;
         }
 

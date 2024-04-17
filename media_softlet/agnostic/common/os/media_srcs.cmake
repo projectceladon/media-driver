@@ -27,7 +27,6 @@ set(TMP_SOURCES_
     ${CMAKE_CURRENT_LIST_DIR}/mos_graphicsresource_next.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mos_os_next.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mos_utilities_inner.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/mos_gpucontext_next.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mos_gpucontextmgr_next.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mos_cmdbufmgr_next.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mos_commandbuffer_next.cpp
@@ -37,6 +36,8 @@ set(TMP_SOURCES_
     ${CMAKE_CURRENT_LIST_DIR}/mos_os.cpp
     ${CMAKE_CURRENT_LIST_DIR}/mos_oca_rtlog_mgr.cpp
     ${CMAKE_CURRENT_LIST_DIR}/memory_policy_manager.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mos_oca_rtlog_mgr_base.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/mos_cache_manager.cpp
 )
 
 set(TMP_HEADERS_
@@ -57,6 +58,8 @@ set(TMP_HEADERS_
     ${CMAKE_CURRENT_LIST_DIR}/mos_os_mock_adaptor.h
     ${CMAKE_CURRENT_LIST_DIR}/mos_oca_rtlog_mgr.h
     ${CMAKE_CURRENT_LIST_DIR}/memory_policy_manager.h
+    ${CMAKE_CURRENT_LIST_DIR}/mos_oca_rtlog_mgr_base.h
+    ${CMAKE_CURRENT_LIST_DIR}/mos_cache_manager.h
 )
 
 set(TMP_MOS_HAL_SHARED_SOURCES_

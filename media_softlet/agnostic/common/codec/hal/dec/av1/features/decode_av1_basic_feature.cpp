@@ -34,16 +34,10 @@ namespace decode
     {
         for (uint8_t i = 0; i < av1DefaultCdfTableNum; i++)
         {
-            if (!m_allocator->ResourceIsNull(&m_tmpCdfBuffers[i]->OsResource))
-            {
-                m_allocator->Destroy(m_tmpCdfBuffers[i]);
-            }
-
             if (!m_allocator->ResourceIsNull(&m_defaultCdfBuffers[i]->OsResource))
             {
                 m_allocator->Destroy(m_defaultCdfBuffers[i]);
             }
-
         }
         if (m_usingDummyWl == true)
         {
@@ -110,6 +104,11 @@ namespace decode
         m_av1PicParams  = static_cast<CodecAv1PicParams*>(decodeParams->m_picParams);
         DECODE_CHK_NULL(m_av1PicParams);
 
+        if (decodeParams->m_destSurface->OsResource.Format == Format_P010)
+        {
+            m_bitDepth = 10;
+        }
+
         // Do error detection and concealment
         DECODE_CHK_STATUS(ErrorDetectAndConceal());
 
@@ -170,12 +169,28 @@ namespace decode
         return MOS_STATUS_SUCCESS;
     }
 
+    MOS_STATUS Av1BasicFeature::CheckBitdepth()
+    {
+        DECODE_FUNC_CALL();
+
+        if ((m_av1PicParams->m_bitDepthIdx == 0 && m_bitDepth != 8) ||
+            (m_av1PicParams->m_bitDepthIdx == 1 && m_bitDepth != 10))
+        {
+            DECODE_ASSERTMESSAGE("Bit depth not align!");
+            return MOS_STATUS_INVALID_PARAMETER;
+        }
+
+        return MOS_STATUS_SUCCESS;
+    }
+
     MOS_STATUS Av1BasicFeature::ErrorDetectAndConceal()
     {
         DECODE_FUNC_CALL()
         DECODE_CHK_NULL(m_av1PicParams);
 
         DECODE_CHK_STATUS(CheckProfileAndSubsampling());
+
+        DECODE_CHK_STATUS(CheckBitdepth());
 
         // Frame Width/Frame Height, valid range is [15, 16383]
         if (m_av1PicParams->m_frameWidthMinus1 < 15 || m_av1PicParams->m_frameHeightMinus1 < 15)
@@ -371,7 +386,10 @@ namespace decode
         // LRU Luma Size cannot < Superblock Size. If Superblock Size is 128x128, LRU Luma Size cannot be 64x64.
         if (m_av1PicParams->m_seqInfoFlags.m_fields.m_use128x128Superblock)
         {
-            if (m_av1PicParams->m_loopRestorationFlags.m_fields.m_lrUnitShift == 0)
+            if (m_av1PicParams->m_loopRestorationFlags.m_fields.m_lrUnitShift == 0 &&
+                (m_av1PicParams->m_loopRestorationFlags.m_fields.m_yframeRestorationType ||
+                    m_av1PicParams->m_loopRestorationFlags.m_fields.m_cbframeRestorationType ||
+                    m_av1PicParams->m_loopRestorationFlags.m_fields.m_crframeRestorationType))
             {
                 DECODE_ASSERTMESSAGE("Superblock use Conflict with AV1 Spec!");
                 m_av1PicParams->m_loopRestorationFlags.m_value = 0;
@@ -852,20 +870,16 @@ namespace decode
         {
             for (uint8_t index = 0; index < av1DefaultCdfTableNum; index++)
             {
-                m_tmpCdfBuffers[index] = m_allocator->AllocateBuffer(
+                m_defaultCdfBuffers[index] = m_allocator->AllocateBuffer(
                     MOS_ALIGN_CEIL(m_cdfMaxNumBytes, CODECHAL_PAGE_SIZE), "TempCdfTableBuffer",
                     resourceInternalRead, lockableVideoMem);
-                DECODE_CHK_NULL(m_tmpCdfBuffers[index]);
+                DECODE_CHK_NULL(m_defaultCdfBuffers[index]);
 
-                auto data = (uint16_t *)m_allocator->LockResourceForWrite(&m_tmpCdfBuffers[index]->OsResource);
+                auto data = (uint16_t *)m_allocator->LockResourceForWrite(&m_defaultCdfBuffers[index]->OsResource);
                 DECODE_CHK_NULL(data);
 
                 // reset all CDF tables to default values
                 DECODE_CHK_STATUS(InitDefaultFrameContextBuffer(data, index));
-                m_defaultCdfBuffers[index] = m_allocator->AllocateBuffer(
-                    MOS_ALIGN_CEIL(m_cdfMaxNumBytes, CODECHAL_PAGE_SIZE), "m_defaultCdfBuffers",
-                    resourceInternalRead, notLockableVideoMem);
-                DECODE_CHK_NULL(m_defaultCdfBuffers[index]);
             }
 
             m_defaultFcInitialized = true;//set only once, won't set again

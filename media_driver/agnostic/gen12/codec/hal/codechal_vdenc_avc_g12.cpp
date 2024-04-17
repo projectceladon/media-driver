@@ -621,7 +621,7 @@ CodechalVdencAvcStateG12::CodechalVdencAvcStateG12(
 
     m_vdencBrcInitDmemBufferSize   = sizeof(BrcInitDmem);
     m_vdencBrcUpdateDmemBufferSize = sizeof(BrcUpdateDmem);
-    m_vdencBrcNumOfSliceOffset = MEDIA_IS_WA(m_waTable, Wa_22010554215) ? 0 : CODECHAL_OFFSETOF(BrcUpdateDmem, NumOfSlice);
+    m_vdencBrcNumOfSliceOffset     = (m_waTable && MEDIA_IS_WA(m_waTable, Wa_22010554215)) ? 0 : CODECHAL_OFFSETOF(BrcUpdateDmem, NumOfSlice);
 
     // One Gen12, avc vdenc ref index need to be one on one mapping
     m_oneOnOneMapping = true;
@@ -771,6 +771,10 @@ MOS_STATUS CodechalVdencAvcStateG12::SetPictureStructs()
         {
             CODECHAL_ENCODE_ASSERTMESSAGE("ROI/DirtyROI disabled for TCBRC\n");
             m_avcPicParam->NumDirtyROI = m_avcPicParam->NumROI = 0;
+        }
+        if (m_avcSeqParam->FramesPer100Sec == 0)
+        {
+            return MOS_STATUS_INVALID_PARAMETER;
         }
         m_avcPicParam->TargetFrameSize = uint32_t(m_avcSeqParam->TargetBitRate * (100. / 8) / m_avcSeqParam->FramesPer100Sec);
     }
@@ -1562,6 +1566,25 @@ MOS_STATUS CodechalVdencAvcStateG12::InitMmcState()
     m_mmcState = MOS_New(CodechalMmcEncodeAvcG12, m_hwInterface, this);
     CODECHAL_ENCODE_CHK_NULL_RETURN(m_mmcState);
 #endif
+    return MOS_STATUS_SUCCESS;
+}
+
+MOS_STATUS CodechalVdencAvcStateG12::CheckResChangeAndCsc()
+{
+    CODECHAL_ENCODE_FUNCTION_ENTER;
+
+    if (m_cscDsState && m_rawSurface.Format == Format_A8R8G8B8)
+    {
+        uint64_t alignedSize = MOS_MAX((uint64_t)m_picWidthInMb * CODECHAL_MACROBLOCK_WIDTH * 4, (uint64_t)m_rawSurface.dwPitch) *
+                               ((uint64_t)m_picHeightInMb * CODECHAL_MACROBLOCK_HEIGHT);
+
+        if (m_rawSurface.OsResource.iSize < alignedSize)
+        {
+            CODECHAL_ENCODE_CHK_STATUS_RETURN(m_cscDsState->SurfaceNeedsExtraCopy());
+        }
+    }
+
+    CODECHAL_ENCODE_CHK_STATUS_RETURN(CodechalEncoderState::CheckResChangeAndCsc());
     return MOS_STATUS_SUCCESS;
 }
 

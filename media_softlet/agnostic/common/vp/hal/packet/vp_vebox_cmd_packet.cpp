@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2018-2022, Intel Corporation
+* Copyright (c) 2018-2023, Intel Corporation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -67,6 +67,14 @@ MOS_STATUS VpVeboxCmdPacket::SetupSurfaceStates(
     pVeboxSurfaceStateCmdParams->bDIEnable     = m_PacketCaps.bDI;
     pVeboxSurfaceStateCmdParams->b3DlutEnable  = m_PacketCaps.bHDR3DLUT;  // Need to consider cappipe
 
+    if (pVeboxSurfaceStateCmdParams->pSurfOutput &&
+        pVeboxSurfaceStateCmdParams->pSurfOutput->osSurface &&
+        pVeboxSurfaceStateCmdParams->pSurfOutput->osSurface->OsResource.bUncompressedWriteNeeded)
+    {
+        VP_RENDER_NORMALMESSAGE("Force compression as RC for bUncompressedWriteNeeded being true");
+        pVeboxSurfaceStateCmdParams->pSurfOutput->osSurface->CompressionMode = MOS_MMC_RC;
+    }
+
     UpdateCpPrepareResources();
     return MOS_STATUS_SUCCESS;
 }
@@ -76,7 +84,7 @@ void VpVeboxCmdPacket::UpdateCpPrepareResources()
     VP_FUNC_CALL();
 
     VpVeboxRenderData *pRenderData = GetLastExecRenderData();
-    VP_RENDER_ASSERT(pRenderData);
+    VP_PUBLIC_CHK_NULL_NO_STATUS_RETURN(pRenderData);
     // For 3DLut usage, it update in CpPrepareResources() for kernel usage, should
     // reupdate here. For other feature usage, it already update in vp_pipeline
     if (pRenderData->HDR3DLUT.is3DLutTableUpdatedByKernel == true)
@@ -234,6 +242,12 @@ MOS_STATUS VpVeboxCmdPacket::SetupVeboxState(mhw::vebox::VEBOX_STATE_PAR& veboxS
     VP_RENDER_CHK_STATUS_RETURN(SetupDNTableForHVS(veboxStateCmdParams));
 
     veboxStateCmdParams.bCmBuffer = false;
+
+    MHW_VEBOX_IECP_PARAMS& veboxIecpParams = pRenderData->GetIECPParams();
+    // CCM for CSC needs HDR state
+    pVeboxMode->Hdr1DLutEnable |= veboxIecpParams.bCcmCscEnable;
+    // Only fp16 output needs CCM for CSC
+    pVeboxMode->Fp16ModeEnable |= veboxIecpParams.bCcmCscEnable;
 
     return MOS_STATUS_SUCCESS;
 }
@@ -400,6 +414,35 @@ MOS_STATUS VpVeboxCmdPacket::SetSfcMmcParams()
     VP_PUBLIC_CHK_NULL_RETURN(m_renderTarget->osSurface);
     VP_PUBLIC_CHK_NULL_RETURN(m_mmc);
 
+    // Decompress resource if surfaces need write from a un-align offset
+    if ((m_renderTarget->osSurface->CompressionMode != MOS_MMC_DISABLED) && m_sfcRender->IsSFCUncompressedWriteNeeded(m_renderTarget))
+    {
+        MOS_STATUS eStatus = MOS_STATUS_SUCCESS;
+        MOS_SURFACE details = {};
+
+        eStatus = m_osInterface->pfnGetResourceInfo(m_osInterface, &m_renderTarget->osSurface->OsResource, &details);
+
+        if (eStatus != MOS_STATUS_SUCCESS)
+        {
+            VP_RENDER_ASSERTMESSAGE("Get SFC target surface resource info failed.");
+        }
+
+        if (!m_renderTarget->osSurface->OsResource.bUncompressedWriteNeeded)
+        {
+            eStatus = m_osInterface->pfnDecompResource(m_osInterface, &m_renderTarget->osSurface->OsResource);
+
+            if (eStatus != MOS_STATUS_SUCCESS)
+            {
+                VP_RENDER_ASSERTMESSAGE("inplace decompression failed for sfc target.");
+            }
+            else
+            {
+                VP_RENDER_NORMALMESSAGE("inplace decompression enabled for sfc target RECT is not compression block align.");
+                m_renderTarget->osSurface->OsResource.bUncompressedWriteNeeded = 1;
+            }
+        }
+    }
+
     VP_PUBLIC_CHK_STATUS_RETURN(m_sfcRender->SetMmcParams(m_renderTarget->osSurface,
                                                         IsFormatMMCSupported(m_renderTarget->osSurface->Format),
                                                         m_mmc->IsMmcEnabled()));
@@ -493,7 +536,7 @@ MOS_STATUS VpVeboxCmdPacket::SetVeboxBeCSCParams(PVEBOX_CSC_PARAMS cscParams)
     VP_RENDER_CHK_NULL_RETURN(cscParams);
 
     VpVeboxRenderData* pRenderData = GetLastExecRenderData();
-    VP_RENDER_ASSERT(pRenderData);
+    VP_RENDER_CHK_NULL_RETURN(pRenderData);
 
     pRenderData->IECP.BeCSC.bBeCSCEnabled = cscParams->bCSCEnabled;
 
@@ -521,6 +564,12 @@ MOS_STATUS VpVeboxCmdPacket::SetVeboxBeCSCParams(PVEBOX_CSC_PARAMS cscParams)
         veboxIecpParams.pfCscCoeff     = m_fCscCoeff;
         veboxIecpParams.pfCscInOffset  = m_fCscInOffset;
         veboxIecpParams.pfCscOutOffset = m_fCscOutOffset;
+        if ((cscParams->outputFormat == Format_A16B16G16R16F) || (cscParams->outputFormat == Format_A16R16G16B16F))
+        {
+            // Use CCM to do CSC for FP16 VEBOX output
+            veboxIecpParams.bCSCEnable    = false;
+            veboxIecpParams.bCcmCscEnable = true;
+        }
     }
 
     VP_RENDER_CHK_STATUS_RETURN(SetVeboxOutputAlphaParams(cscParams));
@@ -536,7 +585,7 @@ MOS_STATUS VpVeboxCmdPacket::SetVeboxOutputAlphaParams(PVEBOX_CSC_PARAMS cscPara
     VP_RENDER_CHK_NULL_RETURN(cscParams);
 
     VpVeboxRenderData* pRenderData = GetLastExecRenderData();
-    VP_RENDER_ASSERT(pRenderData);
+    VP_RENDER_CHK_NULL_RETURN(pRenderData);
 
     MHW_VEBOX_IECP_PARAMS& veboxIecpParams = pRenderData->GetIECPParams();
 
@@ -617,7 +666,7 @@ MOS_STATUS VpVeboxCmdPacket::SetVeboxChromasitingParams(PVEBOX_CSC_PARAMS cscPar
     VP_RENDER_CHK_NULL_RETURN(cscParams);
 
     VpVeboxRenderData* pRenderData = GetLastExecRenderData();
-    VP_RENDER_ASSERT(pRenderData);
+    VP_RENDER_CHK_NULL_RETURN(pRenderData);
 
     MHW_VEBOX_CHROMA_SAMPLING& veboxChromaSamplingParams = pRenderData->GetChromaSubSamplingParams();
 
@@ -1007,6 +1056,7 @@ MOS_STATUS VpVeboxCmdPacket::SetHdrParams(PVEBOX_HDR_PARAMS hdrParams)
     VP_PUBLIC_CHK_NULL_RETURN(m_hwInterface->m_osInterface);
     VP_PUBLIC_CHK_NULL_RETURN(hdrParams);
     VP_RENDER_ASSERT(pRenderData);
+
     MHW_VEBOX_GAMUT_PARAMS &mhwVeboxGamutParams = pRenderData->GetGamutParams();
     pOsInterface                       = m_hwInterface->m_osInterface;
     pRenderData->HDR3DLUT.bHdr3DLut    = true;
@@ -1017,7 +1067,7 @@ MOS_STATUS VpVeboxCmdPacket::SetHdrParams(PVEBOX_HDR_PARAMS hdrParams)
     pRenderData->HDR3DLUT.uiMaxDisplayLum      = hdrParams->uiMaxDisplayLum;
     pRenderData->HDR3DLUT.uiMaxContentLevelLum = hdrParams->uiMaxContentLevelLum;
     pRenderData->HDR3DLUT.hdrMode              = hdrParams->hdrMode;
-    pRenderData->HDR3DLUT.uiLutSize            = 65;
+    pRenderData->HDR3DLUT.uiLutSize            = hdrParams->lutSize;
 
     VP_RENDER_CHK_STATUS_RETURN(ValidateHDR3DLutParameters(pRenderData->HDR3DLUT.is3DLutTableFilled));
 
@@ -1039,10 +1089,20 @@ MOS_STATUS VpVeboxCmdPacket::SetHdrParams(PVEBOX_HDR_PARAMS hdrParams)
         mhwVeboxGamutParams.uiMaxCLL = 0;
     }
 
+    MHW_VEBOX_IECP_PARAMS &mhwVeboxIecpParams = pRenderData->GetIECPParams();
+    mhwVeboxIecpParams.s3DLutParams.bActive   = true;
+
     //Report
     if (m_hwInterface->m_reporting)
     {
-        m_hwInterface->m_reporting->GetFeatures().hdrMode = (pRenderData->HDR3DLUT.hdrMode == VPHAL_HDR_MODE_H2H) ? VPHAL_HDR_MODE_H2H_VEBOX_3DLUT : VPHAL_HDR_MODE_TONE_MAPPING_VEBOX_3DLUT;
+        if (pRenderData->HDR3DLUT.uiLutSize == LUT33_SEG_SIZE)
+        {
+            m_hwInterface->m_reporting->GetFeatures().hdrMode = (pRenderData->HDR3DLUT.hdrMode == VPHAL_HDR_MODE_H2H) ? VPHAL_HDR_MODE_H2H_VEBOX_3DLUT33 : VPHAL_HDR_MODE_TONE_MAPPING_VEBOX_3DLUT33;
+        }
+        else
+        {
+            m_hwInterface->m_reporting->GetFeatures().hdrMode = (pRenderData->HDR3DLUT.hdrMode == VPHAL_HDR_MODE_H2H) ? VPHAL_HDR_MODE_H2H_VEBOX_3DLUT : VPHAL_HDR_MODE_TONE_MAPPING_VEBOX_3DLUT;
+        }
     }
 
     return MOS_STATUS_SUCCESS;
@@ -1547,6 +1607,7 @@ MOS_STATUS VpVeboxCmdPacket::PrepareVeboxCmd(
     VP_RENDER_CHK_NULL_RETURN(pOsInterface);
     VP_RENDER_CHK_NULL_RETURN(m_currentSurface);
     VP_RENDER_CHK_NULL_RETURN(m_currentSurface->osSurface);
+    VP_RENDER_CHK_NULL_RETURN(pRenderData);
 
     // Set initial state
     iRemaining = CmdBuffer->iRemaining;
@@ -1885,6 +1946,10 @@ MOS_STATUS VpVeboxCmdPacket::RenderVeboxCmd(
 
         VP_RENDER_CHK_STATUS_RETURN(pRenderHal->pRenderHalPltInterface->AddPerfCollectEndCmd(pRenderHal, pOsInterface, pCmdBufferInUse));
 
+#if (_DEBUG || _RELEASE_INTERNAL)
+        VP_RENDER_CHK_STATUS_RETURN(StallBatchBuffer(pCmdBufferInUse));
+#endif
+
         HalOcaInterfaceNext::On1stLevelBBEnd(*pCmdBufferInUse, *pOsInterface);
 
         if (pOsInterface->bNoParsingAssistanceInKmd)
@@ -1906,18 +1971,15 @@ MOS_STATUS VpVeboxCmdPacket::RenderVeboxCmd(
     if (bMultipipe)
     {
         scalability->SetCurrentPipeIndex(inputPipe);
-        VP_RENDER_CHK_STATUS_RETURN(ReportUserSetting(m_userSettingPtr, __MEDIA_USER_FEATURE_VALUE_ENABLE_VEBOX_SCALABILITY_MODE, true, MediaUserSetting::Group::Device));
     }
-    else
-    {
-        VP_RENDER_CHK_STATUS_RETURN(ReportUserSetting(m_userSettingPtr, __MEDIA_USER_FEATURE_VALUE_ENABLE_VEBOX_SCALABILITY_MODE, false, MediaUserSetting::Group::Device));
-    }
+
+    auto report                             = (VpFeatureReport *)(m_hwInterface->m_reporting);
+    report->GetFeatures().VeboxScalability  = bMultipipe;
 
     MT_LOG2(MT_VP_HAL_RENDER_VE, MT_NORMAL, MT_VP_MHW_VE_SCALABILITY_EN, bMultipipe, MT_VP_MHW_VE_SCALABILITY_USE_SFC, m_IsSfcUsed);
 
     return eStatus;
 }
-
 
 void VpVeboxCmdPacket::AddCommonOcaMessage(PMOS_COMMAND_BUFFER pCmdBufferInUse, MOS_CONTEXT_HANDLE pOsContext, PMOS_INTERFACE pOsInterface, PRENDERHAL_INTERFACE pRenderHal, PMHW_MI_MMIOREGISTERS pMmioRegisters)
 {
@@ -2058,7 +2120,7 @@ MOS_STATUS VpVeboxCmdPacket::SendVecsStatusTag(
     params.pOsResource       = gpuStatusBuffer;;
     params.dwResourceOffset  = pOsInterface->pfnGetGpuStatusTagOffset(pOsInterface, MOS_GPU_CONTEXT_VEBOX);
     params.dwDataDW1         = pOsInterface->pfnGetGpuStatusTag(pOsInterface, MOS_GPU_CONTEXT_VEBOX);
-    m_miItf->MHW_ADDCMD_F(MI_FLUSH_DW)(pCmdBuffer);
+    VP_RENDER_CHK_STATUS_RETURN(m_miItf->MHW_ADDCMD_F(MI_FLUSH_DW)(pCmdBuffer));
 
     // Increase buffer tag for next usage
     pOsInterface->pfnIncrementGpuStatusTag(pOsInterface, MOS_GPU_CONTEXT_VEBOX);
@@ -2134,13 +2196,15 @@ MOS_STATUS VpVeboxCmdPacket::DumpVeboxStateHeap()
         &kernelResource,
         counter,
         0,
-        VPHAL_DUMP_TYPE_VEBOX_DRIVERHEAP);
+        VPHAL_DUMP_TYPE_VEBOX_DRIVERHEAP,
+        VPHAL_SURF_DUMP_DDI_VP_BLT);
 
     VP_SURFACE_DUMP(debuginterface,
         &kernelResource,
         counter,
         0,
-        VPHAL_DUMP_TYPE_VEBOX_KERNELHEAP);
+        VPHAL_DUMP_TYPE_VEBOX_KERNELHEAP,
+        VPHAL_SURF_DUMP_DDI_VP_BLT);
 
     counter++;
 #endif
@@ -2296,7 +2360,10 @@ MOS_STATUS VpVeboxCmdPacket::SetUpdatedExecuteResource(
     VP_SURFACE_SETTING                  &surfSetting)
 {
     VP_FUNC_CALL();
-
+    VP_RENDER_CHK_NULL_RETURN(inputSurface);
+    VP_RENDER_CHK_NULL_RETURN(outputSurface);
+    VP_RENDER_CHK_NULL_RETURN(inputSurface->osSurface);
+    VP_RENDER_CHK_NULL_RETURN(outputSurface->osSurface);
     m_allocator->UpdateResourceUsageType(&inputSurface->osSurface->OsResource, MOS_HW_RESOURCE_USAGE_VP_INPUT_PICTURE_FF);
     m_allocator->UpdateResourceUsageType(&outputSurface->osSurface->OsResource, MOS_HW_RESOURCE_USAGE_VP_OUTPUT_PICTURE_FF);
 
@@ -2984,7 +3051,6 @@ MOS_STATUS VpVeboxCmdPacket::VeboxSetPerfTagNv12()
                         *pPerfTag = VPHAL_NV12_DN_422CP;
                         break;
                     case Format_RGB32:
-                        *pPerfTag = VPHAL_NV12_DN_RGB32CP;
                     case Format_A8R8G8B8:
                     case Format_A8B8G8R8:
                         *pPerfTag = VPHAL_NV12_DN_RGB32CP;
@@ -2999,6 +3065,8 @@ MOS_STATUS VpVeboxCmdPacket::VeboxSetPerfTagNv12()
                     case Format_Y8:
                     case Format_Y16S:
                     case Format_Y16U:
+                    case Format_A16B16G16R16F:
+                    case Format_A16R16G16B16F:
                         *pPerfTag = VPHAL_NONE;
                         break;
                     default:
@@ -3029,6 +3097,7 @@ MOS_STATUS VpVeboxCmdPacket::VeboxSetPerfTagNv12()
                         break;
                     case Format_RGB32:
                         *pPerfTag = VPHAL_NV12_RGB32CP;
+                        break;
                     case Format_A8R8G8B8:
                     case Format_A8B8G8R8:
                     case Format_R10G10B10A2:
@@ -3045,6 +3114,8 @@ MOS_STATUS VpVeboxCmdPacket::VeboxSetPerfTagNv12()
                     case Format_Y8:
                     case Format_Y16S:
                     case Format_Y16U:
+                    case Format_A16B16G16R16F:
+                    case Format_A16R16G16B16F:
                         *pPerfTag = VPHAL_NONE;
                         break;
                     default:
@@ -3137,6 +3208,8 @@ MOS_STATUS VpVeboxCmdPacket::VeboxSetPerfTagPaFormat()
                     case Format_Y8:
                     case Format_Y16S:
                     case Format_Y16U:
+                    case Format_A16B16G16R16F:
+                    case Format_A16R16G16B16F:
                         *pPerfTag = VPHAL_NONE;
                         break;
                     default:
@@ -3184,6 +3257,8 @@ MOS_STATUS VpVeboxCmdPacket::VeboxSetPerfTagPaFormat()
                     case Format_Y8:
                     case Format_Y16S:
                     case Format_Y16U:
+                    case Format_A16B16G16R16F:
+                    case Format_A16R16G16B16F:
                         *pPerfTag = VPHAL_NONE;
                         break;
                     default:

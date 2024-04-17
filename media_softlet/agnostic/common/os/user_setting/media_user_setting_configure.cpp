@@ -150,15 +150,16 @@ MOS_STATUS Configure::Read(Value &value,
         std::string path = GetReadPath(def, option);
         UFKEY_NEXT  key  = {};
 
-        status = MosUtilities::MosOpenRegKey(m_rootKey, path, KEY_READ, &key, m_regBufferMap);
+        m_mutexLock.Lock();
 
+        status = MosUtilities::MosOpenRegKey(m_rootKey, path, KEY_READ, &key, m_regBufferMap);
         if (status == MOS_STATUS_SUCCESS)
         {
-            m_mutexLock.Lock();
             status = MosUtilities::MosGetRegValue(key, valueName, defaultType, value, m_regBufferMap);
-            m_mutexLock.Unlock();
             MosUtilities::MosCloseRegKey(key);
         }
+
+        m_mutexLock.Unlock();
     }
 
     //Second, if 1st failed, read envionment variable. External user setting does not set env varaible now.
@@ -251,6 +252,10 @@ std::string Configure::GetReadPath(
     if (option == MEDIA_USER_SETTING_INTERNAL)
     {
         return def->GetSubPath();
+    }
+    else if (option == MEDIA_USER_SETTING_INTERNAL_REPORT)
+    {
+        return m_statedReportPath;
     }
     else
     {

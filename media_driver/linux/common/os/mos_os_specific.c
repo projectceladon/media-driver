@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2009-2022, Intel Corporation
+* Copyright (c) 2009-2023, Intel Corporation
 *
 * Permission is hereby granted, free of charge, to any person obtaining a
 * copy of this software and associated documentation files (the "Software"),
@@ -216,6 +216,7 @@ int32_t Linux_GetCommandBuffer(
 {
     int32_t                bResult  = false;
     MOS_LINUX_BO           *cmd_bo = nullptr;
+    struct mos_drm_bo_alloc alloc;
 
     if ( pOsContext == nullptr ||
          pCmdBuffer == nullptr)
@@ -226,7 +227,11 @@ int32_t Linux_GetCommandBuffer(
     }
 
     // Allocate the command buffer from GEM
-    cmd_bo = mos_bo_alloc(pOsContext->bufmgr,"MOS CmdBuf",iSize,4096, MOS_MEMPOOL_SYSTEMMEMORY);     // Align to page boundary
+    alloc.name = "MOS CmdBuf";
+    alloc.size = iSize;
+    alloc.alignment = 4096;
+    alloc.ext.mem_type = MOS_MEMPOOL_SYSTEMMEMORY;
+    cmd_bo = mos_bo_alloc(pOsContext->bufmgr, &alloc);     // Align to page boundary
     if (cmd_bo == nullptr)
     {
         MOS_OS_ASSERTMESSAGE("Allocation of command buffer failed.");
@@ -870,6 +875,7 @@ MOS_STATUS Linux_InitGPUStatus(
 {
     MOS_LINUX_BO    *bo     = nullptr;
     MOS_STATUS      eStatus = MOS_STATUS_SUCCESS;
+    struct mos_drm_bo_alloc alloc;
 
     if (pOsContext == nullptr)
     {
@@ -888,7 +894,11 @@ MOS_STATUS Linux_InitGPUStatus(
     }
 
     // Allocate the command buffer from GEM
-    bo = mos_bo_alloc(pOsContext->bufmgr,"GPU Status Buffer", sizeof(MOS_GPU_STATUS_DATA)  * MOS_GPU_CONTEXT_MAX, 4096, MOS_MEMPOOL_SYSTEMMEMORY);     // Align to page boundary
+    alloc.name = "GPU Status Buffer";
+    alloc.size = sizeof(MOS_GPU_STATUS_DATA)  * MOS_GPU_CONTEXT_MAX;
+    alloc.alignment = 4096;
+    alloc.ext.mem_type = MOS_MEMPOOL_SYSTEMMEMORY;
+    bo = mos_bo_alloc(pOsContext->bufmgr, &alloc);     // Align to page boundary
     if (bo == nullptr)
     {
         MOS_OS_ASSERTMESSAGE("Allocation of GPU Status Buffer failed.");
@@ -1656,6 +1666,8 @@ MOS_STATUS Mos_Specific_SetGpuContextHandle(
 {
     MOS_OS_FUNCTION_ENTER;
 
+    if (Mos_Solo_IsEnabled(nullptr)) return MOS_STATUS_SUCCESS;
+
     MOS_OS_CHK_NULL_RETURN(pOsInterface);
     MOS_OS_CHK_NULL_RETURN(pOsInterface->osContextPtr);
 
@@ -2214,7 +2226,6 @@ MOS_STATUS Mos_Specific_AllocateResource(
     void *               ptr;
     int32_t              iSize = 0;
     int32_t              iPitch = 0;
-    unsigned long        ulPitch = 0;
     MOS_STATUS           eStatus;
     MOS_LINUX_BO *       bo = nullptr;
     MOS_TILE_TYPE        tileformat;
@@ -2321,7 +2332,7 @@ MOS_STATUS Mos_Specific_AllocateResource(
     }
 
     caller              = nullptr;
-    tileformat_linux    = I915_TILING_NONE;
+    tileformat_linux    = TILING_NONE;
     iAlignedHeight      = iHeight = pParams->dwHeight;
     eStatus             = MOS_STATUS_SUCCESS;
     resourceType        = RESOURCE_2D;
@@ -2410,7 +2421,7 @@ MOS_STATUS Mos_Specific_AllocateResource(
     switch(tileformat)
     {
         case MOS_TILE_Y:
-            tileformat_linux               = I915_TILING_Y;
+            tileformat_linux               = TILING_Y;
             if (pParams->bIsCompressible                                             && 
                 MEDIA_IS_SKU(&pOsInterface->pOsContext->m_skuTable, FtrE2ECompression) &&
                 MEDIA_IS_SKU(&pOsInterface->pOsContext->m_skuTable, FtrCompressibleSurfaceDefault))
@@ -2440,11 +2451,11 @@ MOS_STATUS Mos_Specific_AllocateResource(
             break;
         case MOS_TILE_X:
             GmmParams.Flags.Info.TiledX    = true;
-            tileformat_linux               = I915_TILING_X;
+            tileformat_linux               = TILING_X;
             break;
         default:
             GmmParams.Flags.Info.Linear    = true;
-            tileformat_linux               = I915_TILING_NONE;
+            tileformat_linux               = TILING_NONE;
     }
     GmmParams.Flags.Info.LocalOnly = MEDIA_IS_SKU(&pOsInterface->pOsContext->m_skuTable, FtrLocalMemory);
 
@@ -2456,19 +2467,19 @@ MOS_STATUS Mos_Specific_AllocateResource(
     {
         case GMM_TILED_X:
             tileformat = MOS_TILE_X;
-            tileformat_linux               = I915_TILING_X;
+            tileformat_linux               = TILING_X;
             break;
         case GMM_TILED_Y:
             tileformat = MOS_TILE_Y;
-            tileformat_linux               = I915_TILING_Y;
+            tileformat_linux               = TILING_Y;
             break;
         case GMM_NOT_TILED:
             tileformat = MOS_TILE_LINEAR;
-            tileformat_linux               = I915_TILING_NONE;
+            tileformat_linux               = TILING_NONE;
             break;
         default:
             tileformat = MOS_TILE_Y;
-            tileformat_linux               = I915_TILING_Y;
+            tileformat_linux               = TILING_Y;
             break;
     }
 
@@ -2493,14 +2504,27 @@ MOS_STATUS Mos_Specific_AllocateResource(
     mem_type = MemoryPolicyManager::UpdateMemoryPolicy(&memPolicyPar);
 
     // Only Linear and Y TILE supported
-    if( tileformat_linux == I915_TILING_NONE )
+    if( tileformat_linux == TILING_NONE )
     {
-        bo = mos_bo_alloc(pOsInterface->pOsContext->bufmgr, bufname, iSize, 4096, mem_type);
+        struct mos_drm_bo_alloc alloc;
+        alloc.name = bufname;
+        alloc.size = iSize;
+        alloc.alignment = 4096;
+        alloc.ext.mem_type = mem_type;
+        bo = mos_bo_alloc(pOsInterface->pOsContext->bufmgr, &alloc);
     }
     else
     {
-        bo = mos_bo_alloc_tiled(pOsInterface->pOsContext->bufmgr, bufname, iPitch, iSize/iPitch, 1, &tileformat_linux, &ulPitch, 0, mem_type);
-        iPitch = (int32_t)ulPitch;
+        struct mos_drm_bo_alloc_tiled alloc_tiled;
+        alloc_tiled.name = bufname;
+        alloc_tiled.x = iPitch;
+        alloc_tiled.y = iSize/iPitch;
+        alloc_tiled.cpp = 1;
+        alloc_tiled.ext.tiling_mode = tileformat_linux;
+        alloc_tiled.ext.mem_type = mem_type;
+
+        bo = mos_bo_alloc_tiled(pOsInterface->pOsContext->bufmgr, &alloc_tiled);
+        iPitch = (int32_t)alloc_tiled.pitch;;
     }
 
     pOsResource->bMapped = false;
@@ -3296,8 +3320,6 @@ MOS_STATUS Mos_Specific_MediaCopyResource2D(
     PMOS_RESOURCE         outputOsResource,
     uint32_t              copyWidth,
     uint32_t              copyHeight,
-    uint32_t              copyInputOffset,
-    uint32_t              copyOutputOffset,
     uint32_t              bpp,
     bool                  bOutputCompressed)
 {
@@ -3313,7 +3335,7 @@ MOS_STATUS Mos_Specific_MediaCopyResource2D(
     if (osInterface->apoMosEnabled)
     {
         return MosInterface::MediaCopyResource2D(osInterface->osStreamState, inputOsResource, outputOsResource,
-            copyWidth, copyHeight, copyInputOffset, copyOutputOffset, bpp, bOutputCompressed);
+            copyWidth, copyHeight, bpp, bOutputCompressed);
     }
 
     pContext = osInterface->pOsContext;
@@ -3322,12 +3344,72 @@ MOS_STATUS Mos_Specific_MediaCopyResource2D(
         outputOsResource && outputOsResource->bo && outputOsResource->pGmmResInfo)
     {
         // Double Buffer Copy can support any tile status surface with/without compression
-        pContext->pfnMediaMemoryCopy2D(pContext, inputOsResource, outputOsResource, copyWidth, copyHeight, copyInputOffset, copyOutputOffset, bpp, bOutputCompressed);
+        pContext->pfnMediaMemoryCopy2D(pContext, inputOsResource, outputOsResource, copyWidth, copyHeight, 0, 0, bpp, bOutputCompressed);
     }
 
     eStatus = MOS_STATUS_SUCCESS;
 
 finish:
+    return eStatus;
+}
+
+//!
+//! \brief    Copy mono picture
+//! \details  This is the copy function dedicated to mono picture copy
+//! \param    PMOS_INTERFACE pOsInterface
+//!           [in] pointer to OS Interface structure
+//! \param    PMOS_RESOURCE inputOsResource
+//!           [in] Input Resource object
+//! \param    PMOS_RESOURCE outputOsResource
+//!           [out] output Resource object
+//! \param    [in] copyWidth
+//!            The 2D surface Width
+//! \param    [in] copyHeight
+//!            The 2D surface height
+//! \param    [in] copyInputOffset
+//!            The offset of copied surface from
+//! \param    [in] copyOutputOffset
+//!            The offset of copied to
+//! \param    [in] bOutputCompressed
+//!            true means apply compression on output surface, else output uncompressed surface
+//! \return   MOS_STATUS
+//!           MOS_STATUS_SUCCESS if successful
+//!
+MOS_STATUS Mos_Specific_MonoSurfaceCopy(
+    PMOS_INTERFACE osInterface,
+    PMOS_RESOURCE  inputOsResource,
+    PMOS_RESOURCE  outputOsResource,
+    uint32_t       copyWidth,
+    uint32_t       copyHeight,
+    uint32_t       copyInputOffset,
+    uint32_t       copyOutputOffset,
+    bool           bOutputCompressed)
+{
+    MOS_STATUS              eStatus = MOS_STATUS_UNKNOWN;
+    MOS_OS_CONTEXT          *pContext = nullptr;
+
+    //---------------------------------------
+    MOS_OS_CHK_NULL_RETURN(osInterface);
+    MOS_OS_CHK_NULL_RETURN(inputOsResource);
+    MOS_OS_CHK_NULL_RETURN(outputOsResource);
+    //---------------------------------------
+    
+    if (osInterface->apoMosEnabled)
+    {
+        return MosInterface::MonoSurfaceCopy(osInterface->osStreamState, inputOsResource, outputOsResource, copyWidth, copyHeight, copyInputOffset, copyOutputOffset, bOutputCompressed);
+    }
+
+    pContext = osInterface->pOsContext;
+
+    if (inputOsResource && inputOsResource->bo && inputOsResource->pGmmResInfo &&
+        outputOsResource && outputOsResource->bo && outputOsResource->pGmmResInfo)
+    {
+        // Double Buffer Copy can support any tile status surface with/without compression
+        pContext->pfnMediaMemoryCopy2D(pContext, inputOsResource, outputOsResource, copyWidth, copyHeight, 0, 0, 16, bOutputCompressed);
+    }
+
+    eStatus = MOS_STATUS_SUCCESS;
+
     return eStatus;
 }
 
@@ -4030,7 +4112,12 @@ MOS_LINUX_BO * Mos_GetNopCommandBuffer_Linux(
         return nullptr;
     }
 
-    bo = mos_bo_alloc(pOsInterface->pOsContext->bufmgr, "NOP_CMD_BO", 4096, 4096, MOS_MEMPOOL_SYSTEMMEMORY);
+    struct mos_drm_bo_alloc alloc;
+    alloc.name = "NOP_CMD_BO";
+    alloc.size = 4096;
+    alloc.alignment = 4096;
+    alloc.ext.mem_type = MOS_MEMPOOL_SYSTEMMEMORY;
+    bo = mos_bo_alloc(pOsInterface->pOsContext->bufmgr, &alloc);
     if(bo == nullptr)
     {
         return nullptr;
@@ -4065,7 +4152,12 @@ MOS_LINUX_BO * Mos_GetBadCommandBuffer_Linux(
         return nullptr;
     }
 
-    bo = mos_bo_alloc(pOsInterface->pOsContext->bufmgr, "BAD_CMD_BO", 4096, 4096, MOS_MEMPOOL_SYSTEMMEMORY);
+    struct mos_drm_bo_alloc alloc;
+    alloc.name = "BAD_CMD_BO";
+    alloc.size = 4096;
+    alloc.alignment = 4096;
+    alloc.ext.mem_type = MOS_MEMPOOL_SYSTEMMEMORY;
+    bo = mos_bo_alloc(pOsInterface->pOsContext->bufmgr, &alloc);
     if(bo == nullptr)
     {
         return nullptr;
@@ -4269,6 +4361,24 @@ uint64_t Mos_Specific_GetResourceGfxAddress(
         mos_bo_set_softpin(pResource->bo);
     }
     return pResource->bo->offset64;
+}
+
+//!
+//! \brief    Get Clear Color Address
+//! \details  The clear color address
+//! \param    PMOS_INTERFACE pOsInterface
+//!           [in] OS Interface
+//! \param    PMOS_RESOURCE pResource
+//!           [in] OS resource structure
+//! \return   uint64_t
+//!           The clear color address
+//!
+uint64_t Mos_Specific_GetResourceClearAddress(
+    PMOS_INTERFACE pOsInterface,
+    PMOS_RESOURCE  pResource)
+{
+    uint64_t ui64ClearColorAddress = 0;
+    return ui64ClearColorAddress;
 }
 
 //!
@@ -4675,6 +4785,7 @@ MOS_STATUS Mos_Specific_DestroyGpuContextByHandle(
     PMOS_INTERFACE        pOsInterface,
     GPU_CONTEXT_HANDLE    gpuContextHandle)
 {
+    if (Mos_Solo_IsEnabled(nullptr)) return MOS_STATUS_SUCCESS;
     if (pOsInterface && pOsInterface->apoMosEnabled)
     {
         return MosInterface::DestroyGpuContext(pOsInterface->osStreamState, gpuContextHandle);
@@ -7041,12 +7152,14 @@ MOS_STATUS Mos_Specific_InitInterface(
     pOsInterface->pfnSetDecompSyncRes                       = Mos_Specific_SetDecompSyncRes;
     pOsInterface->pfnDoubleBufferCopyResource               = Mos_Specific_DoubleBufferCopyResource;
     pOsInterface->pfnMediaCopyResource2D                    = Mos_Specific_MediaCopyResource2D;
+    pOsInterface->pfnMonoSurfaceCopy                        = Mos_Specific_MonoSurfaceCopy;
     pOsInterface->pfnGetMosContext                          = Mos_Specific_GetMosContext;
     pOsInterface->pfnUpdateResourceUsageType                = Mos_Specific_UpdateResourceUsageType;
     pOsInterface->pfnRegisterResource                       = Mos_Specific_RegisterResource;
     pOsInterface->pfnResetResourceAllocationIndex           = Mos_Specific_ResetResourceAllocationIndex;
     pOsInterface->pfnGetResourceAllocationIndex             = Mos_Specific_GetResourceAllocationIndex;
     pOsInterface->pfnGetResourceGfxAddress                  = Mos_Specific_GetResourceGfxAddress;
+    pOsInterface->pfnGetResourceClearAddress                = Mos_Specific_GetResourceClearAddress;
     pOsInterface->pfnGetCommandBuffer                       = Mos_Specific_GetCommandBuffer;
     pOsInterface->pfnResetCommandBuffer                     = Mos_Specific_ResetCommandBuffer;
     pOsInterface->pfnReturnCommandBuffer                    = Mos_Specific_ReturnCommandBuffer;
@@ -7303,6 +7416,7 @@ MOS_STATUS Mos_Specific_InitInterface(
 
     // enable it on Linux
     pOsInterface->bMediaReset         = true;
+    pOsInterface->trinityPath         = TRINITY_DISABLED;
     pOsInterface->umdMediaResetEnable = true;
 
     pMediaWatchdog = getenv("INTEL_MEDIA_RESET_WATCHDOG");
@@ -7316,6 +7430,17 @@ MOS_STATUS Mos_Specific_InitInterface(
         }
     }
 
+    // Check SKU table to detect if simulation environment (HAS) is enabled
+    pSkuTable = pOsInterface->pfnGetSkuTable(pOsInterface);
+    MOS_OS_CHK_NULL(pSkuTable);
+
+    // disable Media Reset for non-xe platform who has no media reset support on Linux
+    if(!MEDIA_IS_SKU(pSkuTable, FtrSWMediaReset))
+    {
+        pOsInterface->bMediaReset         = false;
+        pOsInterface->umdMediaResetEnable = false;
+    }
+
     // initialize MOS_CP interface
     pOsInterface->osCpInterface = Create_MosCpInterface(pOsInterface);
     if (pOsInterface->osCpInterface == nullptr)
@@ -7323,10 +7448,6 @@ MOS_STATUS Mos_Specific_InitInterface(
         MOS_OS_ASSERTMESSAGE("fail to create osCpInterface.");
         return MOS_STATUS_UNKNOWN;
     }
-
-    // Check SKU table to detect if simulation environment (HAS) is enabled
-    pSkuTable = pOsInterface->pfnGetSkuTable(pOsInterface);
-    MOS_OS_CHK_NULL(pSkuTable);
 
 #if (_DEBUG || _RELEASE_INTERNAL)
     // read the "Force VDBOX" user feature key
@@ -7409,11 +7530,11 @@ finish:
 MOS_TILE_TYPE LinuxToMosTileType(uint32_t type)
 {
     switch (type) {
-        case I915_TILING_NONE:
+        case TILING_NONE:
             return MOS_TILE_LINEAR;
-        case I915_TILING_X:
+        case TILING_X:
             return MOS_TILE_X;
-        case I915_TILING_Y:
+        case TILING_Y:
             return MOS_TILE_Y;
         default:
             return MOS_TILE_INVALID;

@@ -189,8 +189,9 @@ MOS_STATUS VpPlatformInterface::InitPolicyRules(VP_POLICY_RULES &rules)
         rules.sfcMultiPassSupport.scaling.enable = false;
     }
 
-    rules.isAvsSamplerSupported = false;
+    rules.isAvsSamplerSupported   = false;
     rules.isHDR3DLutKernelEnabled = true;
+    rules.is1K1DLutSurfaceInUse   = false;
 
     return MOS_STATUS_SUCCESS;
 }
@@ -240,7 +241,8 @@ void VpPlatformInterface::AddVpIsaKernelEntryToList(
     const uint32_t *kernelBin,
     uint32_t        kernelBinSize,
     std::string     postfix,
-    DelayLoadedKernelType delayKernelType)
+    DelayLoadedKernelType delayKernelType,
+    uint32_t              payloadOffset)
 {
     VP_FUNC_CALL();
 
@@ -249,6 +251,7 @@ void VpPlatformInterface::AddVpIsaKernelEntryToList(
     tmpEntry.kernelBinSize = kernelBinSize;
     tmpEntry.postfix       = postfix;
     tmpEntry.kernelType    = delayKernelType;
+    tmpEntry.payloadOffset = payloadOffset;
 
     if (delayKernelType == KernelNone)
     {
@@ -327,7 +330,7 @@ MOS_STATUS VpPlatformInterface::InitVpRenderHwCaps()
         // Init CM kernel form VP ISA Kernel Binary List
         for (auto &curKernelEntry : m_vpIsaKernelBinaryList)
         {
-            VP_PUBLIC_CHK_STATUS_RETURN(InitVpCmKernels(curKernelEntry.kernelBin, curKernelEntry.kernelBinSize, curKernelEntry.postfix));
+            VP_PUBLIC_CHK_STATUS_RETURN(InitVpCmKernels(curKernelEntry.kernelBin, curKernelEntry.kernelBinSize, curKernelEntry.postfix, curKernelEntry.payloadOffset));
         }
     }
 
@@ -362,7 +365,8 @@ MOS_STATUS VpPlatformInterface::InitVpNativeAdvKernels(
 MOS_STATUS VpPlatformInterface::InitVpCmKernels(
     const uint32_t *cisaCode,
     uint32_t        cisaCodeSize,
-    std::string     postfix)
+    std::string     postfix,
+    uint32_t        payloadOffset)
 {
     VP_FUNC_CALL();
     VP_RENDER_CHK_NULL_RETURN(cisaCode);
@@ -395,20 +399,30 @@ MOS_STATUS VpPlatformInterface::InitVpCmKernels(
 
     if (!isaFile->readFile())
     {
+        MOS_Delete(isaFile);
         return MOS_STATUS_INVALID_PARAMETER;
     }
 
     vISA::Header *header = isaFile->getHeader();
-    VP_PUBLIC_CHK_NULL_RETURN(header);
+    if(!header)
+    {
+        MOS_Delete(isaFile);
+        VP_PUBLIC_CHK_STATUS_RETURN(MOS_STATUS_NULL_POINTER);
+    }
 
     for (uint32_t i = 0; i < header->getNumKernels(); i++)
     {
         vISA::Kernel *kernel = header->getKernelInfo()[i];
 
-        VP_PUBLIC_CHK_NULL_RETURN(kernel);
+        if(!kernel)
+        {
+            MOS_Delete(isaFile);
+            VP_PUBLIC_CHK_STATUS_RETURN(MOS_STATUS_NULL_POINTER);
+        }
 
         if (kernel->getName() == nullptr || kernel->getNameLen() < 1 || kernel->getNameLen() > 256)
         {
+            MOS_Delete(isaFile);
             VP_PUBLIC_CHK_STATUS_RETURN(MOS_STATUS_INVALID_PARAMETER);
         }
 
@@ -435,18 +449,27 @@ MOS_STATUS VpPlatformInterface::InitVpCmKernels(
         vpKernel.SetKernelBinSize(genBinary->getBinarySize());
 
         vISA::KernelBody *kernelBody = isaFile->getKernelsData().at(i);
-        VP_PUBLIC_CHK_NULL_RETURN(kernelBody);
+        if(!kernelBody)
+        {
+            MOS_Delete(isaFile);
+            VP_PUBLIC_CHK_STATUS_RETURN(MOS_STATUS_NULL_POINTER);
+        }
 
         if (kernelBody->getNumInputs() > CM_MAX_ARGS_PER_KERNEL)
         {
-            return MOS_STATUS_INVALID_PARAMETER;
+            MOS_Delete(isaFile);
+            VP_PUBLIC_CHK_STATUS_RETURN(MOS_STATUS_INVALID_PARAMETER);
         }
 
         for (uint32_t j = 0; j < kernelBody->getNumInputs(); j++)
         {
             KRN_ARG          kernelArg = {};
             vISA::InputInfo *inputInfo = kernelBody->getInputInfo()[j];
-            VP_PUBLIC_CHK_NULL_RETURN(inputInfo);
+            if (!inputInfo)
+            {
+                MOS_Delete(isaFile);
+                VP_PUBLIC_CHK_STATUS_RETURN(MOS_STATUS_NULL_POINTER);
+            }
             uint8_t          kind      = inputInfo->getKind();
 
             if (kind == 0x2)  // compiler value for surface
@@ -486,12 +509,14 @@ MOS_STATUS VpPlatformInterface::InitVpCmKernels(
                 // IMP_PSEUDO_INPUT = 0x80 is pseudo input. All inputs after this
                 // will be ignored by CMRT without checking and payload copied.
                 // This resizes the argument count to achieve this.
-                return MOS_STATUS_UNIMPLEMENTED;
+                MOS_Delete(isaFile);
+                VP_PUBLIC_CHK_STATUS_RETURN(MOS_STATUS_UNIMPLEMENTED);
             }
 
             kernelArg.uIndex           = j;
             kernelArg.eArgKind         = (KRN_ARG_KIND)kind;
-            kernelArg.uOffsetInPayload = inputInfo->getOffset() - CM_PAYLOAD_OFFSET;
+            kernelArg.uOffsetInPayload = inputInfo->getOffset() - payloadOffset;
+
             kernelArg.uSize            = inputInfo->getSize();
 
             vpKernel.AddKernelArg(kernelArg);
@@ -527,7 +552,9 @@ MOS_STATUS VpPlatformInterface::GetKernelParam(VpKernelID kernlId, RENDERHAL_KER
 {
     VP_FUNC_CALL();
 
-    VP_PUBLIC_CHK_STATUS_RETURN(GetKernelConfig().GetKernelParam(kernlId, param));
+    VpKernelConfig *vpKernelConfig = GetKernelConfig();
+    VP_PUBLIC_CHK_NULL_RETURN(vpKernelConfig);
+    VP_PUBLIC_CHK_STATUS_RETURN(vpKernelConfig->GetKernelParam(kernlId, param));
     return MOS_STATUS_SUCCESS;
 }
 
@@ -556,7 +583,7 @@ MOS_STATUS VpPlatformInterface::InitializeDelayedKernels(DelayLoadedKernelType t
         {
             if (it->kernelType == type)
             {
-                VP_PUBLIC_CHK_STATUS_RETURN(InitVpCmKernels(it->kernelBin, it->kernelBinSize, it->postfix));
+                VP_PUBLIC_CHK_STATUS_RETURN(InitVpCmKernels(it->kernelBin, it->kernelBinSize, it->postfix, it->payloadOffset));
                 m_vpDelayLoadedBinaryList.erase(it);
             }
             else
@@ -647,4 +674,65 @@ void VpPlatformInterface::DisableRender()
     // media sfc interface should come to here.
     VP_PUBLIC_NORMALMESSAGE("Disable Render.");
     m_isRenderDisabled = true;
+}
+
+//for L0 use only
+MOS_STATUS VpRenderKernel::SetKernelExeEnv(KRN_EXECUTE_ENV &exeEnv)
+{
+    VP_FUNC_CALL();
+    m_kernelExeEnv = exeEnv;
+    return MOS_STATUS_SUCCESS;
+}
+
+//for L0 use only
+MOS_STATUS VpRenderKernel::AddKernelBti(KRN_BTI &bti)
+{
+    VP_FUNC_CALL();
+    m_kernelBtis.emplace(bti.uIndex, bti.uBTI);
+    return MOS_STATUS_SUCCESS;
+}
+
+//for L0 use only
+MOS_STATUS VpRenderKernel::SetKernelCurbeSize(uint32_t size)
+{
+    VP_FUNC_CALL();
+
+    m_curbeSize = size;
+    return MOS_STATUS_SUCCESS;
+}
+
+//for L0 use only
+void VpPlatformInterface::InitVpDelayedNativeAdvKernel(
+    const uint32_t  *kernelBin,
+    uint32_t         kernelBinSize,
+    KRN_ARG         *kernelArgs,
+    uint32_t         kernelArgSize,
+    uint32_t         kernelCurbeSize,
+    KRN_EXECUTE_ENV &kernelExeEnv,
+    KRN_BTI         *kernelBtis,
+    uint32_t         kernelBtiSize,
+    std::string      kernelName)
+{
+    VP_FUNC_CALL();
+
+    VpRenderKernel vpKernel;
+
+    vpKernel.SetKernelBinPointer((void *)kernelBin);
+    vpKernel.SetKernelName(kernelName);
+    vpKernel.SetKernelBinOffset(0x0);
+    vpKernel.SetKernelBinSize(kernelBinSize);
+    vpKernel.SetKernelExeEnv(kernelExeEnv);
+    vpKernel.SetKernelCurbeSize(kernelCurbeSize);
+
+    for (uint32_t i = 0; i < kernelArgSize; ++i)
+    {
+        vpKernel.AddKernelArg(kernelArgs[i]);
+    }
+
+    for (uint32_t i = 0; i < kernelBtiSize; ++i)
+    {
+        vpKernel.AddKernelBti(kernelBtis[i]);
+    }
+
+    m_kernelPool.insert(std::make_pair(vpKernel.GetKernelName(), vpKernel));
 }

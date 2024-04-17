@@ -115,7 +115,7 @@ namespace decode {
     MOS_STATUS AvcBasicFeature::ErrorDetectAndConceal()
     {
         /*
-         *Only check the invlid syntax instead of return error to skip decoding since this invalid syntax will not cause critical issue
+         *Only check the invalid syntax instead of return error to skip decoding since this invalid syntax will not cause critical issue
          * */
         DECODE_FUNC_CALL();
         DECODE_CHK_NULL(m_avcPicParams);
@@ -336,17 +336,20 @@ namespace decode {
 
         DECODE_CHK_STATUS(m_refFrames.UpdatePicture(*m_avcPicParams));
 
-        if (m_osInterface->pfnIsMismatchOrderProgrammingSupported())
+        if (!m_isSecondField)
         {
-            for (auto &refFrameIdx : m_refFrameIndexList)
+            if (m_osInterface->pfnIsMismatchOrderProgrammingSupported())
             {
-                DECODE_CHK_STATUS(m_mvBuffers.ActiveCurBuffer(refFrameIdx));
+                for (auto &refFrameIdx : m_refFrameIndexList)
+                {
+                    DECODE_CHK_STATUS(m_mvBuffers.ActiveCurBuffer(refFrameIdx));
+                }
+                DECODE_CHK_STATUS(m_mvBuffers.ActiveCurBuffer(m_avcPicParams->CurrPic.FrameIdx));
             }
-            DECODE_CHK_STATUS(m_mvBuffers.ActiveCurBuffer(m_avcPicParams->CurrPic.FrameIdx));
-        }
-        else
-        {
-            DECODE_CHK_STATUS(m_mvBuffers.UpdatePicture(m_avcPicParams->CurrPic.FrameIdx, m_refFrameIndexList, m_fixedFrameIdx));
+            else
+            {
+                DECODE_CHK_STATUS(m_mvBuffers.UpdatePicture(m_avcPicParams->CurrPic.FrameIdx, m_refFrameIndexList, m_fixedFrameIdx));
+            }
         }
 
         return MOS_STATUS_SUCCESS;

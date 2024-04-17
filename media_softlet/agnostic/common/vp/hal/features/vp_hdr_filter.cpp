@@ -57,6 +57,17 @@ MOS_STATUS VpHdrFilter::Destroy()
     return MOS_STATUS_SUCCESS;
 }
 
+void _RENDER_HDR_3DLUT_CAL_PARAMS::Init()
+{
+    maxDisplayLum      = 0;      
+    maxContentLevelLum = 0;
+    hdrMode            = VPHAL_HDR_MODE_NONE;
+    kernelId           = kernelCombinedFc;
+    threadWidth        = 0;
+    threadHeight       = 0;
+    kernelArgs.clear();
+}
+
 MOS_STATUS VpHdrFilter::SetExecuteEngineCaps(
         SwFilterPipe    *executedPipe,
         VP_EXECUTE_CAPS vpExecuteCaps)
@@ -77,7 +88,7 @@ MOS_STATUS VpHdrFilter::CalculateEngineParams(
     if (vpExecuteCaps.bVebox)
     {
         // create a filter Param buffer
-        MOS_ZeroMemory(&m_veboxHdrParams, sizeof(PVEBOX_HDR_PARAMS));
+        MOS_ZeroMemory(&m_veboxHdrParams, sizeof(VEBOX_HDR_PARAMS));
         m_veboxHdrParams.uiMaxDisplayLum      = hdrParams.uiMaxDisplayLum;
         m_veboxHdrParams.uiMaxContentLevelLum = hdrParams.uiMaxContentLevelLum;
         m_veboxHdrParams.hdrMode              = hdrParams.hdrMode;
@@ -85,18 +96,19 @@ MOS_STATUS VpHdrFilter::CalculateEngineParams(
         m_veboxHdrParams.dstColorSpace        = hdrParams.dstColorSpace;
         m_veboxHdrParams.dstFormat            = hdrParams.formatOutput;
         m_veboxHdrParams.stage                = hdrParams.stage;
+        m_veboxHdrParams.lutSize              = hdrParams.lutSize;
     }
     else if (vpExecuteCaps.bRender && HDR_STAGE_3DLUT_KERNEL == hdrParams.stage)
     {
         // create a filter Param buffer
-        MOS_ZeroMemory(&m_renderHdr3DLutParams, sizeof(RENDER_HDR_3DLUT_CAL_PARAMS));
+        m_renderHdr3DLutParams.Init();
         m_renderHdr3DLutParams.maxDisplayLum       = hdrParams.uiMaxDisplayLum;
         m_renderHdr3DLutParams.maxContentLevelLum  = hdrParams.uiMaxContentLevelLum;
         m_renderHdr3DLutParams.hdrMode             = hdrParams.hdrMode;
         m_renderHdr3DLutParams.kernelId            = (VpKernelID)kernelHdr3DLutCalc;
 
-        m_renderHdr3DLutParams.threadWidth  = LUT65_SEG_SIZE;
-        m_renderHdr3DLutParams.threadHeight = LUT65_SEG_SIZE;
+        m_renderHdr3DLutParams.threadWidth  = hdrParams.lutSize;
+        m_renderHdr3DLutParams.threadHeight = hdrParams.lutSize;
 
         KRN_ARG krnArg  = {};
         krnArg.uIndex   = 0;

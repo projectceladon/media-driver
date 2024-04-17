@@ -151,6 +151,24 @@ public:
     //!
     virtual MOS_STATUS AuxCopy(PMOS_RESOURCE src, PMOS_RESOURCE dst);
 
+    //!
+    //! \brief    Is AIL force opition.
+    //! \details  Is AIL force opition.
+    //! \return   bool
+    //!           Return true if support, otherwise return false.
+    virtual bool IsAILForceOption()
+    {
+        return false;
+    }
+
+    virtual PMOS_INTERFACE GetMosInterface();
+
+#if (_DEBUG || _RELEASE_INTERNAL)
+    virtual void SetRegkeyReport(bool flag)
+    {
+        m_bRegReport = flag;
+    }
+#endif
 
 protected:
 
@@ -224,7 +242,7 @@ protected:
     //! \return   MOS_STATUS
     //!           Return MOS_STATUS_SUCCESS if support, otherwise return unspoort.
     //!
-    MOS_STATUS CopyEnigneSelect(MCPY_METHOD preferMethod, MCPY_ENGINE& mcpyEngine, MCPY_ENGINE_CAPS& caps);
+    virtual MOS_STATUS CopyEnigneSelect(MCPY_METHOD preferMethod, MCPY_ENGINE &mcpyEngine, MCPY_ENGINE_CAPS &caps);
 
     //!
     //! \brief    use blt engie to do surface copy.
@@ -265,17 +283,21 @@ protected:
     virtual MOS_STATUS MediaVeboxCopy(PMOS_RESOURCE src, PMOS_RESOURCE dst)
     {return MOS_STATUS_SUCCESS;}
 
-public:
-    PMOS_INTERFACE        m_osInterface    = nullptr;
-    bool                  m_allowCPBltCopy = false;  // allow cp call media copy only for output clear cases.
-#if (_DEBUG || _RELEASE_INTERNAL)
-    CommonSurfaceDumper  *m_surfaceDumper  = nullptr;
-    int                  m_MCPYForceMode   = 0;
-#endif
+    MOS_STATUS CheckResourceSizeValidForCopy(const MOS_SURFACE &res, const MCPY_ENGINE method);
+    MOS_STATUS ValidateResource(const MOS_SURFACE &src, const MOS_SURFACE &dst, MCPY_ENGINE method);
 
+public:
+    PMOS_INTERFACE       m_osInterface    = nullptr;
+    bool                 m_allowCPBltCopy = false;  // allow cp call media copy only for output clear cases.
 
 protected:
-    PMOS_MUTEX           m_inUseGPUMutex = nullptr; // Mutex for in-use GPU context
+    PMOS_MUTEX           m_inUseGPUMutex        = nullptr; // Mutex for in-use GPU context
+#if (_DEBUG || _RELEASE_INTERNAL)
+    CommonSurfaceDumper *m_surfaceDumper        = nullptr;
+    int                  m_MCPYForceMode        = 0;
+    bool                 m_enableVeCopySmallRes = false;
+    bool                 m_bRegReport           = true;
+#endif
 MEDIA_CLASS_DEFINE_END(MediaCopyBaseState)
 };
 #endif

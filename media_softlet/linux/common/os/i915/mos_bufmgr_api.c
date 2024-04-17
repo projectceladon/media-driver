@@ -48,10 +48,10 @@
  */
 
 struct mos_linux_bo *
-mos_bo_alloc(struct mos_bufmgr *bufmgr, const char *name,
-           unsigned long size, unsigned int alignment, int mem_type, unsigned int pat_index, bool cpu_cacheable)
+mos_bo_alloc(struct mos_bufmgr *bufmgr,
+            struct mos_drm_bo_alloc *alloc)
 {
-    if(!bufmgr)
+    if(!bufmgr || !alloc)
     {
         MOS_OS_CRITICALMESSAGE("Input null ptr\n");
         return nullptr;
@@ -59,28 +59,7 @@ mos_bo_alloc(struct mos_bufmgr *bufmgr, const char *name,
 
     if (bufmgr->bo_alloc)
     {
-        return bufmgr->bo_alloc(bufmgr, name, size, alignment, mem_type, pat_index, cpu_cacheable);
-    }
-    else
-    {
-        MOS_OS_CRITICALMESSAGE("Unsupported\n");
-        return nullptr;
-    }
-}
-
-struct mos_linux_bo *
-mos_bo_alloc_for_render(struct mos_bufmgr *bufmgr, const char *name,
-                  unsigned long size, unsigned int alignment, int mem_type, unsigned int pat_index, bool cpu_cacheable)
-{
-    if(!bufmgr)
-    {
-        MOS_OS_CRITICALMESSAGE("Input null ptr\n");
-        return nullptr;
-    }
-
-    if (bufmgr->bo_alloc_for_render)
-    {
-        return bufmgr->bo_alloc_for_render(bufmgr, name, size, alignment, mem_type, pat_index, cpu_cacheable);
+        return bufmgr->bo_alloc(bufmgr, alloc);
     }
     else
     {
@@ -91,13 +70,9 @@ mos_bo_alloc_for_render(struct mos_bufmgr *bufmgr, const char *name,
 
 struct mos_linux_bo *
 mos_bo_alloc_userptr(struct mos_bufmgr *bufmgr,
-               const char *name, void *addr,
-               uint32_t tiling_mode,
-               uint32_t stride,
-               unsigned long size,
-               unsigned long flags)
+               struct mos_drm_bo_alloc_userptr *alloc_uptr)
 {
-    if(!bufmgr)
+    if(!bufmgr || !alloc_uptr)
     {
         MOS_OS_CRITICALMESSAGE("Input null ptr\n");
         return nullptr;
@@ -105,8 +80,7 @@ mos_bo_alloc_userptr(struct mos_bufmgr *bufmgr,
 
     if (bufmgr->bo_alloc_userptr)
     {
-        return bufmgr->bo_alloc_userptr(bufmgr, name, addr, tiling_mode,
-                        stride, size, flags);
+        return bufmgr->bo_alloc_userptr(bufmgr, alloc_uptr);
     }
     else
     {
@@ -116,12 +90,10 @@ mos_bo_alloc_userptr(struct mos_bufmgr *bufmgr,
 }
 
 struct mos_linux_bo *
-mos_bo_alloc_tiled(struct mos_bufmgr *bufmgr, const char *name,
-                        int x, int y, int cpp, uint32_t *tiling_mode,
-                        unsigned long *pitch, unsigned long flags,
-                        int mem_type, unsigned int pat_index, bool cpu_cacheable)
+mos_bo_alloc_tiled(struct mos_bufmgr *bufmgr,
+            struct mos_drm_bo_alloc_tiled *alloc_tiled)
 {
-    if(!bufmgr)
+    if(!bufmgr || !alloc_tiled)
     {
         MOS_OS_CRITICALMESSAGE("Input null ptr\n");
         return nullptr;
@@ -129,8 +101,7 @@ mos_bo_alloc_tiled(struct mos_bufmgr *bufmgr, const char *name,
 
     if (bufmgr->bo_alloc_tiled)
     {
-        return bufmgr->bo_alloc_tiled(bufmgr, name, x, y, cpp,
-                      tiling_mode, pitch, flags, mem_type, pat_index, cpu_cacheable);
+        return bufmgr->bo_alloc_tiled(bufmgr, alloc_tiled);
     }
     else
     {
@@ -339,7 +310,7 @@ mos_bo_set_tiling(struct mos_linux_bo *bo, uint32_t * tiling_mode,
         MOS_OS_CRITICALMESSAGE("Unsupported\n");
     }
 
-    *tiling_mode = I915_TILING_NONE;
+    *tiling_mode = TILING_NONE;
     return -EPERM;
 }
 
@@ -362,7 +333,7 @@ mos_bo_get_tiling(struct mos_linux_bo *bo, uint32_t * tiling_mode,
         MOS_OS_CRITICALMESSAGE("Unsupported\n");
     }
 
-    *tiling_mode = I915_TILING_NONE;
+    *tiling_mode = TILING_NONE;
     *swizzle_mode = I915_BIT_6_SWIZZLE_NONE;
     return -EPERM;
 }
@@ -1233,6 +1204,25 @@ mos_bufmgr_get_devid(struct mos_bufmgr *bufmgr)
     }
 }
 
+void
+mos_bufmgr_realloc_cache(struct mos_bufmgr *bufmgr, uint8_t alloc_mode)
+{
+    if(!bufmgr)
+    {
+        MOS_OS_CRITICALMESSAGE("Input null ptr\n");
+        return;
+    }
+
+    if (bufmgr->realloc_cache)
+    {
+        return bufmgr->realloc_cache(bufmgr, alloc_mode);
+    }
+    else
+    {
+        MOS_OS_CRITICALMESSAGE("Unsupported\n");
+    }
+}
+
 int
 mos_query_engines_count(struct mos_bufmgr *bufmgr,
                       unsigned int *nengine)
@@ -1331,6 +1321,42 @@ mos_query_device_blob(struct mos_bufmgr *bufmgr, MEDIA_SYSTEM_INFO* gfx_info)
     if (bufmgr->query_device_blob)
     {
         return bufmgr->query_device_blob(bufmgr, gfx_info);
+    }
+    else
+    {
+        MOS_OS_CRITICALMESSAGE("Unsupported\n");
+        return -EPERM;
+    }
+}
+
+void
+mos_select_fixed_engine(struct mos_bufmgr *bufmgr,
+            void *engine_map,
+            uint32_t *nengine,
+            uint32_t fixed_instance_mask)
+{
+    if (bufmgr && bufmgr->select_fixed_engine)
+    {
+        return bufmgr->select_fixed_engine(bufmgr,
+                    engine_map,
+                    nengine,
+                    fixed_instance_mask);
+    }
+
+}
+
+int
+mos_get_driver_info(struct mos_bufmgr *bufmgr, struct LinuxDriverInfo *drvInfo)
+{
+    if(!bufmgr)
+    {
+        MOS_OS_CRITICALMESSAGE("Input null ptr\n");
+        return -EINVAL;
+    }
+
+    if (bufmgr->get_driver_info)
+    {
+        return bufmgr->get_driver_info(bufmgr, drvInfo);
     }
     else
     {

@@ -46,6 +46,7 @@ struct VP_KERNEL_BINARY_ENTRY
     uint32_t              kernelBinSize = 0;
     std::string           postfix       = "";
     DelayLoadedKernelType kernelType    = KernelNone;
+    uint32_t              payloadOffset = 0;
 };
 
 struct VP_KERNEL_BINARY
@@ -112,6 +113,29 @@ public:
         return m_kernelArgs;
     }
 
+
+    //for L0 use only
+    uint32_t &GetCurbeSize()
+    {
+        return m_curbeSize;
+    }
+
+    MOS_STATUS SetKernelExeEnv(KRN_EXECUTE_ENV &exeEnv);
+
+    MOS_STATUS SetKernelCurbeSize(uint32_t size);
+
+    MOS_STATUS AddKernelBti(KRN_BTI &bti);
+
+    KERNEL_BTIS GetKernelBtis()
+    {
+        return m_kernelBtis;
+    }
+
+    KRN_EXECUTE_ENV &GetKernelExeEnv()
+    {
+        return m_kernelExeEnv;
+    }
+
 protected:
     // Compositing Kernel DLL/Search state
     const Kdll_RuleEntry        *m_kernelDllRules = nullptr;
@@ -121,12 +145,17 @@ protected:
     uint32_t                    m_kernelBinSize = 0;
     // CM Kernel Execution Code Offset
     uint32_t                    m_kernelBinOffset = 0;
-    // CM Kernel Arguments
+    // CM Kernel Arguments or L0 Kernel Arguments
     KERNEL_ARGS                 m_kernelArgs;
     std::string                 m_kernelName = {};
     // CM Compositing Kernel patch file buffer and size
     const void                  *m_fcPatchBin = nullptr;
     uint32_t                    m_fcPatchBinSize = 0;
+
+    //for L0 use only
+    uint32_t m_curbeSize = 0;
+    KERNEL_BTIS     m_kernelBtis;
+    KRN_EXECUTE_ENV m_kernelExeEnv = {};
 
 public:
     const static std::string          s_kernelNameNonAdvKernels;
@@ -147,7 +176,8 @@ public:
     virtual MOS_STATUS InitVpCmKernels(
         const uint32_t*       cisaCode,
         uint32_t              cisaCodeSize,
-        std::string           postfix = "");
+        std::string           postfix = "",
+        uint32_t              payloadOffset = CM_PAYLOAD_OFFSET);
 
     virtual MOS_STATUS InitVpNativeAdvKernels(
         std::string kernelName,
@@ -282,7 +312,16 @@ public:
         return m_miItf;
     }
 
-    virtual VpKernelConfig &GetKernelConfig() = 0;
+    virtual VpKernelConfig* GetKernelConfig()
+    {
+        return m_vpKernelConfig;
+    }
+
+    virtual MOS_STATUS SetKernelConfig(VpKernelConfig* vpKernelConfig)
+    {
+        m_vpKernelConfig = vpKernelConfig;
+        return MOS_STATUS_SUCCESS;
+    }
 
     MOS_STATUS GetKernelParam(VpKernelID kernlId, RENDERHAL_KERNEL_PARAM &param);
 
@@ -296,7 +335,8 @@ public:
         const uint32_t       *kernelBin,
         uint32_t              kernelBinSize,
         std::string           postfix         = "",
-        DelayLoadedKernelType delayKernelType = KernelNone);
+        DelayLoadedKernelType delayKernelType = KernelNone,
+        uint32_t              payloadOffset   = CM_PAYLOAD_OFFSET);
 
     virtual void AddVpNativeAdvKernelEntryToList(
                 const uint32_t *kernelBin,
@@ -307,6 +347,18 @@ public:
         const uint32_t *kernelBin,
         uint32_t        kernelBinSize,
         std::string     kernelName);
+
+    //for L0 kernel use only
+    virtual void InitVpDelayedNativeAdvKernel(
+        const uint32_t  *kernelBin,
+        uint32_t         kernelBinSize,
+        KRN_ARG         *kernelArgs,
+        uint32_t         kernelArgSize,
+        uint32_t         kernelCurbeSize,
+        KRN_EXECUTE_ENV& kernelExeEnv,
+        KRN_BTI         *kernelBtis,
+        uint32_t         kernelBtiSize,
+        std::string      kernelName);
 
     virtual void AddNativeAdvKernelToDelayedList(
         DelayLoadedKernelType kernelType,
@@ -336,6 +388,16 @@ public:
         return false;
     }
 
+    virtual bool IsDecompForInterlacedSurfWaEnabled()
+    {
+        return true;
+    }
+
+    virtual bool IsLegacyEuCountInUse()
+    {
+        return false;
+    }
+
     bool IsRenderDisabled()
     {
         return m_isRenderDisabled;
@@ -346,6 +408,7 @@ public:
 protected:
     PMOS_INTERFACE m_pOsInterface = nullptr;
     VP_KERNEL_BINARY m_vpKernelBinary = {};                 //!< vp kernels
+    VpKernelConfig  *m_vpKernelConfig = nullptr;
     KERNEL_POOL    m_kernelPool;
     void (*m_modifyKdllFunctionPointers)(PKdll_State) = nullptr;
     bool m_sfc2PassScalingEnabled = false;

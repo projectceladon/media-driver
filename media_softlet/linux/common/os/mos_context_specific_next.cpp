@@ -64,6 +64,7 @@ MOS_STATUS OsContextSpecificNext::Init(DDI_DEVICE_CONTEXT ddiDriverContext)
     uint32_t      iDeviceId = 0;
     MOS_STATUS    eStatus   = MOS_STATUS_SUCCESS;
     uint32_t      value     = 0;
+    uint32_t      mode      = 0;
     MediaUserSettingSharedPtr   userSettingPtr = nullptr;
 
     MOS_OS_FUNCTION_ENTER;
@@ -80,7 +81,7 @@ MOS_STATUS OsContextSpecificNext::Init(DDI_DEVICE_CONTEXT ddiDriverContext)
         MosUtilities::MosZeroMemory(&m_gtSystemInfo, sizeof(m_gtSystemInfo));
 
         if( nullptr == osDriverContext  ||
-            0 >= osDriverContext->fd )
+            0 > osDriverContext->fd )
         {
             MOS_OS_ASSERT(false);
             return MOS_STATUS_INVALID_HANDLE;
@@ -89,7 +90,7 @@ MOS_STATUS OsContextSpecificNext::Init(DDI_DEVICE_CONTEXT ddiDriverContext)
 
         userSettingPtr = MosInterface::MosGetUserSettingInstance(osDriverContext);
 
-        m_bufmgr = mos_bufmgr_gem_init(m_fd, BATCH_BUFFER_SIZE);
+        m_bufmgr = mos_bufmgr_gem_init(m_fd, BATCH_BUFFER_SIZE, &m_deviceType);
         if (nullptr == m_bufmgr)
         {
             MOS_OS_ASSERTMESSAGE("Not able to allocate buffer manager, fd=0x%d", m_fd);
@@ -117,10 +118,40 @@ MOS_STATUS OsContextSpecificNext::Init(DDI_DEVICE_CONTEXT ddiDriverContext)
             iDeviceId       = osDriverContext->iDeviceId;
         }
 
+        // replace platform/sku/wa/gtsysinfo for os context
+        if (Mos_Solo_IsEnabled(nullptr))
+        {
+            m_skuTable.reset();
+            m_waTable.reset();
+            Mos_Solo_SetPlatform(&m_platformInfo, (PMOS_CONTEXT)osDriverContext);
+            Mos_Solo_SetSkuwaGtInfo((PMOS_CONTEXT)osDriverContext, m_platformInfo, m_skuTable, m_waTable, m_gtSystemInfo, iDeviceId);
+        }
+
         if (eStatus != MOS_STATUS_SUCCESS)
         {
             MOS_OS_ASSERTMESSAGE("Fatal error - unsuccesfull Sku/Wa/GtSystemInfo initialization");
             return eStatus;
+        }
+
+        if (m_platformInfo.eProductFamily == IGFX_METEORLAKE ||
+            m_platformInfo.eProductFamily == IGFX_ARROWLAKE)
+        {
+            ReadUserSetting(
+                userSettingPtr,
+                value,
+                "INTEL MEDIA ALLOC MODE",
+                MediaUserSetting::Group::Device);
+
+            if (value)
+            {
+                mode = (value & 0x000000ff);
+            }
+
+            // Realloc cache only if it's not mode 0
+            if (mode)
+            {
+                mos_bufmgr_realloc_cache(m_bufmgr, mode);
+            }
         }
 
         ReadUserSetting(
@@ -154,7 +185,7 @@ MOS_STATUS OsContextSpecificNext::Init(DDI_DEVICE_CONTEXT ddiDriverContext)
 
         uint64_t isRecoverableContextEnabled = 0;
         MOS_LINUX_CONTEXT *intel_context = mos_context_create_ext(m_bufmgr, 0, false);
-        int ret = mos_get_context_param(intel_context, 0, I915_CONTEXT_PARAM_RECOVERABLE, &isRecoverableContextEnabled);
+        int ret = mos_get_context_param(intel_context, 0, DRM_CONTEXT_PARAM_RECOVERABLE, &isRecoverableContextEnabled);
         if (ret == -EINVAL)
         {
             isRecoverableContextEnabled = 1;
@@ -184,7 +215,7 @@ MOS_STATUS OsContextSpecificNext::Init(DDI_DEVICE_CONTEXT ddiDriverContext)
         GMM_WA_TABLE            gmmWaTable    = {};
         GMM_GT_SYSTEM_INFO      gmmGtInfo     = {};
         GMM_ADAPTER_BDF         gmmAdapterBDF = {};
-        eStatus = HWInfo_GetGmmInfo(m_fd, &gmmSkuTable, &gmmWaTable, &gmmGtInfo);
+        eStatus = HWInfo_GetGmmInfo(m_bufmgr, &gmmSkuTable, &gmmWaTable, &gmmGtInfo);
         if (MOS_STATUS_SUCCESS != eStatus)
         {
             MOS_OS_ASSERTMESSAGE("Fatal error - unsuccesfull Gmm Sku/Wa/GtSystemInfo initialization");
@@ -207,6 +238,14 @@ MOS_STATUS OsContextSpecificNext::Init(DDI_DEVICE_CONTEXT ddiDriverContext)
         gmmInitAgrs.pGtSysInfo        = &gmmGtInfo;
         gmmInitAgrs.FileDescriptor    = gmmAdapterBDF.Data;
         gmmInitAgrs.ClientType        = (GMM_CLIENT)GMM_LIBVA_LINUX;
+
+        // replace sku/wa/gtsysinfo for gmm client context
+        if (Mos_Solo_IsEnabled(nullptr))
+        {
+            gmmInitAgrs.pSkuTable         = &m_skuTable;
+            gmmInitAgrs.pWaTable          = &m_waTable;
+            gmmInitAgrs.pGtSysInfo        = &m_gtSystemInfo;
+        }
 
         GMM_STATUS status = InitializeGmm(&gmmInitAgrs, &gmmOutArgs);
         if (status != GMM_SUCCESS)

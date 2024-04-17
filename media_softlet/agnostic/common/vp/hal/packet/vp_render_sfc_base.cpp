@@ -238,10 +238,10 @@ MOS_STATUS SfcRenderBase::SetIefStateCscParams(
     {
         psfcStateParams->bCSCEnable = true;
         pIEFStateParams->bCSCEnable = true;
-        if (m_bVdboxToSfc && m_videoConfig.codecStandard == CODECHAL_JPEG)
+        if (m_bVdboxToSfc)
         {
             m_cscInputSwapNeeded = false;
-            if (m_videoConfig.jpeg.jpegChromaType == jpegRGB)
+            if (m_videoConfig.jpeg.jpegChromaType == jpegRGB && m_videoConfig.codecStandard == CODECHAL_JPEG)
             {
                 m_cscCoeff[0] = 1.000000000f;
                 m_cscCoeff[1] = 0.000000000f;
@@ -585,41 +585,6 @@ MOS_STATUS SfcRenderBase::SetupSfcState(PVP_SURFACE targetSurface)
     VP_RENDER_CHK_STATUS_RETURN(SetLineBuffer(m_renderData.sfcStateParams->pOsResIEFLineBuffer, m_IEFLineBufferSurfaceArray[m_scalabilityParams.curPipe]));
 
     VP_RENDER_CHK_STATUS_RETURN(SetupScalabilityParams());
-
-    // Decompress resource if surfaces need write from a un-align offset
-    if ((targetSurface->osSurface->CompressionMode != MOS_MMC_DISABLED)        &&
-        IsSFCUncompressedWriteNeeded(targetSurface))
-    {
-        MOS_STATUS eStatus = MOS_STATUS_SUCCESS;
-        MOS_SURFACE details = {};
-
-        eStatus = m_osInterface->pfnGetResourceInfo(m_osInterface, &targetSurface->osSurface->OsResource, &details);
-
-        if (eStatus != MOS_STATUS_SUCCESS)
-        {
-            VP_RENDER_ASSERTMESSAGE("Get SFC target surface resource info failed.");
-        }
-
-        if (!targetSurface->osSurface->OsResource.bUncompressedWriteNeeded)
-        {
-            eStatus = m_osInterface->pfnDecompResource(m_osInterface, &targetSurface->osSurface->OsResource);
-
-            if (eStatus != MOS_STATUS_SUCCESS)
-            {
-                VP_RENDER_ASSERTMESSAGE("inplace decompression failed for sfc target.");
-            }
-            else
-            {
-                VP_RENDER_NORMALMESSAGE("inplace decompression enabled for sfc target RECT is not compression block align.");
-                targetSurface->osSurface->OsResource.bUncompressedWriteNeeded = 1;
-            }
-        }
-    }
-
-    if (targetSurface->osSurface->OsResource.bUncompressedWriteNeeded)
-    {
-        m_renderData.sfcStateParams->MMCMode = MOS_MMC_RC;
-    }
 
     return eStatus;
 }
@@ -1563,7 +1528,6 @@ MOS_STATUS SfcRenderBase::AddSfcLock(
     VP_RENDER_CHK_NULL_RETURN(m_sfcItf);
 
     auto& params = m_sfcItf->MHW_GETPAR_F(SFC_LOCK)();
-    params = {};
     params = *sfcLockParams;
 
     // Send SFC_LOCK command to acquire SFC pipe for Vebox

@@ -109,8 +109,16 @@ MOS_STATUS MediaMemDeCompNext::MemoryDecompress(PMOS_RESOURCE targetResource)
             {
                 VPHAL_MEMORY_DECOMP_CHK_NULL_RETURN(m_renderMutex);
                 MosUtilities::MosLockMutex(m_renderMutex);
-                VPHAL_MEMORY_DECOMP_CHK_STATUS_RETURN(RenderDecompCMD(&targetSurface));
-                MosUtilities::MosUnlockMutex(m_renderMutex);
+                eStatus = RenderDecompCMD(&targetSurface);
+                if (eStatus != MOS_STATUS_SUCCESS)
+                {
+                    MosUtilities::MosUnlockMutex(m_renderMutex);
+                    VPHAL_MEMORY_DECOMP_CHK_STATUS_RETURN(eStatus);
+                }
+                else
+                {
+                    MosUtilities::MosUnlockMutex(m_renderMutex);
+                }
             }
         }
     }
@@ -120,7 +128,9 @@ MOS_STATUS MediaMemDeCompNext::MemoryDecompress(PMOS_RESOURCE targetResource)
 
 MOS_STATUS MediaMemDeCompNext::MediaMemoryCopy(PMOS_RESOURCE inputResource, PMOS_RESOURCE outputResource, bool outputCompressed)
 {
-    MOS_STATUS                          eStatus = MOS_STATUS_SUCCESS;
+    MOS_STATUS eStatus             = MOS_STATUS_SUCCESS;
+    bool       bValidInputSurface  = false;
+    bool       bValidOutputSurface = false;
 
     MHW_FUNCTION_ENTER;
 
@@ -232,6 +242,14 @@ MOS_STATUS MediaMemDeCompNext::MediaMemoryCopy(PMOS_RESOURCE inputResource, PMOS
         return eStatus;
     }
 
+    //Check whether surface is valid, or it will cause page fault
+    m_osInterface->pfnVerifyMosSurface(&sourceSurface, bValidInputSurface);
+    m_osInterface->pfnVerifyMosSurface(&targetSurface, bValidOutputSurface);
+    if (!bValidInputSurface || !bValidOutputSurface)
+    {
+        VPHAL_MEMORY_DECOMP_CHK_STATUS_RETURN(MOS_STATUS_INVALID_PARAMETER);
+    }
+
     //Get context before proceeding
     auto gpuContext = m_osInterface->CurrentGpuContextOrdinal;
 
@@ -255,9 +273,11 @@ MOS_STATUS MediaMemDeCompNext::MediaMemoryCopy(PMOS_RESOURCE inputResource, PMOS
     return eStatus;
 }
 
-MOS_STATUS MediaMemDeCompNext::MediaMemoryCopy2D(PMOS_RESOURCE inputResource, PMOS_RESOURCE outputResource, uint32_t copyWidth, uint32_t copyHeight, uint32_t copyInputOffset, uint32_t copyOutputOffset, uint32_t bpp, bool outputCompressed)
+MOS_STATUS MediaMemDeCompNext::MediaMemoryCopy2D(PMOS_RESOURCE inputResource, PMOS_RESOURCE outputResource, uint32_t copyPitch, uint32_t copyHeight, uint32_t copyInputOffset, uint32_t copyOutputOffset, uint32_t bpp, bool outputCompressed)
 {
-    MOS_STATUS                          eStatus = MOS_STATUS_SUCCESS;
+    MOS_STATUS eStatus             = MOS_STATUS_SUCCESS;
+    bool       bValidInputSurface  = false;
+    bool       bValidOutputSurface = false;
 
     MHW_FUNCTION_ENTER;
 
@@ -337,10 +357,20 @@ MOS_STATUS MediaMemDeCompNext::MediaMemoryCopy2D(PMOS_RESOURCE inputResource, PM
     sourceSurface.dwOffset = copyInputOffset;
     targetSurface.dwOffset = copyOutputOffset;
 
-    sourceSurface.dwWidth = copyWidth / pixelInByte;
+    sourceSurface.dwWidth = copyPitch / pixelInByte;
+    sourceSurface.dwPitch  = copyPitch;
     sourceSurface.dwHeight = copyHeight;
-    targetSurface.dwWidth = copyWidth / pixelInByte;
+    targetSurface.dwWidth = copyPitch / pixelInByte;
+    targetSurface.dwPitch  = copyPitch;
     targetSurface.dwHeight = copyHeight;
+
+    //Check whether surface is valid, or it will cause page fault
+    m_osInterface->pfnVerifyMosSurface(&sourceSurface, bValidInputSurface);
+    m_osInterface->pfnVerifyMosSurface(&targetSurface, bValidOutputSurface);
+    if (!bValidInputSurface || !bValidOutputSurface)
+    {
+        VPHAL_MEMORY_DECOMP_CHK_STATUS_RETURN(MOS_STATUS_INVALID_PARAMETER);
+    }
 
     // Sync for Vebox write
     m_osInterface->pfnSyncOnResource(
