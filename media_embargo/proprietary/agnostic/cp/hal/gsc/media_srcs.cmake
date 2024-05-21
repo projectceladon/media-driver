@@ -59,3 +59,4 @@ source_group("Content Protection\\HAL\\GSC" FILES ${TMP_SOURCES_} ${TMP_HEADERS_
 
 media_include_subdirectory(xe_lpm_plus)
 
+media_add_curr_to_include_path()

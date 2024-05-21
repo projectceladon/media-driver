@@ -41,3 +41,5 @@ set(CP_INTERFACE_DIRECTORIES_
     ${CP_INTERFACE_DIRECTORIES_}
     ${CMAKE_CURRENT_LIST_DIR}
 )
+
+media_add_curr_to_include_path()

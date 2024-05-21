@@ -53,3 +53,6 @@ set(CP_INTERFACE_DIRECTORIES_
 )
 
 source_group("Content Protection\\API\\inc" FILES ${TMP_SOURCES_} ${TMP_HEADERS_})
+
+
+media_add_curr_to_include_path()

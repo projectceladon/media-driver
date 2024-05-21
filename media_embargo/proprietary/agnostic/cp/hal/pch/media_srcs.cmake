@@ -45,3 +45,5 @@ set(COMMON_CP_DIRECTORIES_
 
 source_group("Content Protection\\HAL\\PCH" FILES ${TMP_SOURCES_})
 source_group("Content Protection\\HAL\\PCH\\inc" FILES ${TMP_HEADERS_})
+
+media_add_curr_to_include_path()

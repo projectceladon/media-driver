@@ -37,3 +37,5 @@ set(CP_INTERFACE_DIRECTORIES_
 )
 
 source_group( "MHW\\Content Protection" FILES ${TMP_HEADERS_} )
+
+media_add_curr_to_include_path()
