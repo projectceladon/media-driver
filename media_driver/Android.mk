@@ -1432,6 +1432,8 @@ LOCAL_SHARED_LIBRARIES := \
 LOCAL_CPPFLAGS = \
     -DDRV_I915 \
     -DOTC_GRALLOC \
+    -DLINUX \
+    -DANDROID \
     -fexceptions \
     -frtti \
     -std=c++14 \
@@ -1519,7 +1521,8 @@ LOCAL_CPPFLAGS = \
     -D__STDC_CONSTANT_MACROS \
     -D__STDC_LIMIT_MACROS \
     -D__VPHAL_SFC_SUPPORTED=1 \
-    -DiHD_drv_video_EXPORTS
+    -DiHD_drv_video_EXPORTS \
+    -D_DEBUG
 
 LOCAL_CONLYFLAGS = -x c++
 LOCAL_CFLAGS = $(LOCAL_CPPFLAGS)

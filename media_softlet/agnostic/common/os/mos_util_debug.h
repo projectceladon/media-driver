@@ -604,48 +604,60 @@ MEDIA_CLASS_DEFINE_END(MosUtilDebug)
 
 #define MOS_IS_MEMORY_FOOT_PRINT_ENABLED() MosUtilDebug::EnableMemoryFootPrint()
 
+#ifdef ANDROID
+#define MEDIA_DRIVER_LOG_TAG "media_driver_mos"
+#include <utils/Log.h>
+#define _MOS_ANDROID_LOG(LEVEL, ...) \
+    __android_log_print(LEVEL, MEDIA_DRIVER_LOG_TAG, ##__VA_ARGS__)
+#endif
 
 //!
 //! \def MOS_DEBUGMESSAGE(_compID, _subCompID, _message, ...)
 //!  Output DEBUG message \a _message with \_a _compID and \_a _subCompID info
 //!
 #define MOS_DEBUGMESSAGE(_level, _compID, _subCompID, _message, ...)                        \
-    MosUtilDebug::MosMessage(_level, _compID, _subCompID, MOS_FUNCTION, __LINE__, _message, ##__VA_ARGS__)
+    _MOS_ANDROID_LOG(ANDROID_LOG_DEBUG, "MOS_DEBUGMESSAGE, level: %d, compID: %d, _subCompID: %d, MOS_FUNCTION:%s, __LINE__: %d, _message: %s", _level, _compID, _subCompID, MOS_FUNCTION, __LINE__, _message, ##__VA_ARGS__)
+//MosUtilDebug::MosMessage(_level, _compID, _subCompID, MOS_FUNCTION, __LINE__, _message, ##__VA_ARGS__)
 
 //!
 //! \def MOS_DEBUGMESSAGE(_compID, _subCompID, _message, ...)
 //!  Output DEBUG message \a _message with \_a _compID and \_a _subCompID info
 //!
 #define MOS_DEBUGMESSAGE_NOLINE(_level, _compID, _subCompID, _message, ...)                 \
-    MosUtilDebug::MosMessage(_level, _compID, _subCompID, MOS_FUNCTION, -1, _message, ##__VA_ARGS__)
+    _MOS_ANDROID_LOG(ANDROID_LOG_DEBUG, "MOS_DEBUGMESSAGE, level: %d, compID: %d, _subCompID: %d, MOS_FUNCTION:%s, _message: %s", _level, _compID, _subCompID, MOS_FUNCTION, _message, ##__VA_ARGS__)
+//MosUtilDebug::MosMessage(_level, _compID, _subCompID, MOS_FUNCTION, -1, _message, ##__VA_ARGS__)
 
 //!
 //! \def MOS_FUNCTION_ENTER(_compID, _subCompID)
 //!  Output ENTRY message with \_a _compID and \_a _subCompID info
 //!
 #define MOS_FUNCTION_ENTER(_compID, _subCompID)                                             \
-    MOS_DEBUGMESSAGE_NOLINE(MOS_MESSAGE_LVL_FUNCTION_ENTRY, _compID, _subCompID, "")
+    _MOS_ANDROID_LOG(ANDROID_LOG_DEBUG, "MOS_DEBUGMESSAGE, compID: %d, _subCompID: %d,  function enter!", _compID, _subCompID)
+//MOS_DEBUGMESSAGE_NOLINE(MOS_MESSAGE_LVL_FUNCTION_ENTRY, _compID, _subCompID, "")
 
 //!
 //! \def MOS_FUNCTION_EXIT(_compID, _subCompID, hr)
 //!  Output EXIT message with \_a _compID and \_a _subCompID info and the result hr.
 //!
 #define MOS_FUNCTION_EXIT(_compID, _subCompID, eStatus)                                           \
-    MOS_DEBUGMESSAGE_NOLINE(MOS_MESSAGE_LVL_FUNCTION_EXIT, _compID, _subCompID, ": eStatus = 0x%x", eStatus)
+    _MOS_ANDROID_LOG(ANDROID_LOG_DEBUG, "MOS_DEBUGMESSAGE, compID: %d, _subCompID: %d,  function exit with status: %d", _compID, _subCompID, eStatus);
+//MOS_DEBUGMESSAGE_NOLINE(MOS_MESSAGE_LVL_FUNCTION_EXIT, _compID, _subCompID, ": eStatus = 0x%x", eStatus)
 
 //!
 //! \def MOS_FUNCTION_ENTER_VERBOSE(_compID, _subCompID)
 //!  Output VERBOSE ENTRY message with \_a _compID and \_a _subCompID info
 //!
 #define MOS_FUNCTION_ENTER_VERBOSE(_compID, _subCompID)                                     \
-    MOS_DEBUGMESSAGE(MOS_MESSAGE_LVL_FUNCTION_ENTRY_VERBOSE, _compID, _subCompID, "")
+    _MOS_ANDROID_LOG(ANDROID_LOG_DEBUG, "MOS_FUNCTION_ENTER_VERBOSE, compID: %d, _subCompID: %d", _compID, _subCompID)
+//MOS_DEBUGMESSAGE(MOS_MESSAGE_LVL_FUNCTION_ENTRY_VERBOSE, _compID, _subCompID, "")
 
 //!
 //! \def MOS_CRITICALMESSAGE(_compID, _subCompID, _message, ...)
 //!  Output DEBUG message \a _message with \_a _compID and \_a _subCompID info
 //!
 #define MOS_CRITICALMESSAGE(_compID, _subCompID, _message, ...)                             \
-    MOS_DEBUGMESSAGE(MOS_MESSAGE_LVL_CRITICAL, _compID, _subCompID, _message, ##__VA_ARGS__)
+    _MOS_ANDROID_LOG(ANDROID_LOG_ERROR, "MOS_CRITICALMESSAGE compID: %d, _subCompID: %d, _message: %s", _compID, _subCompID, _message, ##__VA_ARGS__)
+//MOS_DEBUGMESSAGE(MOS_MESSAGE_LVL_CRITICAL, _compID, _subCompID, _message, ##__VA_ARGS__)
 
 //!
 //! \def MOS_ASSERTMESSAGE(_compID, _subCompID, _message, ...)
@@ -661,14 +673,16 @@ MEDIA_CLASS_DEFINE_END(MosUtilDebug)
 //!  Output NORMAL message \a _message with \_a _compID and \_a _subCompID info
 //!
 #define MOS_NORMALMESSAGE(_compID, _subCompID, _message, ...)                               \
-    MOS_DEBUGMESSAGE(MOS_MESSAGE_LVL_NORMAL, _compID, _subCompID, _message, ##__VA_ARGS__)
+    _MOS_ANDROID_LOG(ANDROID_LOG_INFO, "MOS_NORMALMESSAGE compID: %d, _subCompID: %d, _message: %s", _compID, _subCompID, _message, ##__VA_ARGS__)
+//MOS_DEBUGMESSAGE(MOS_MESSAGE_LVL_NORMAL, _compID, _subCompID, _message, ##__VA_ARGS__)
 
 //!
 //! \def MOS_VERBOSEMESSAGE(_compID, _subCompID, _message, ...)
 //!  Output DEBUG message \a _message with \_a _compID and \_a _subCompID info
 //!
 #define MOS_VERBOSEMESSAGE(_compID, _subCompID, _message, ...)                              \
-    MOS_DEBUGMESSAGE(MOS_MESSAGE_LVL_VERBOSE, _compID, _subCompID, _message, ##__VA_ARGS__)
+    _MOS_ANDROID_LOG(ANDROID_LOG_DEBUG, "MOS_VERBOSEMESSAGE compID: %d, _subCompID: %d, _message: %s", _compID, _subCompID, _message, ##__VA_ARGS__)
+//MOS_DEBUGMESSAGE(MOS_MESSAGE_LVL_VERBOSE, _compID, _subCompID, _message, ##__VA_ARGS__)
 
 //!
 //! \def MOS_MEMNINJAMESSAGE(_compID, _subCompID, _message, ...)
