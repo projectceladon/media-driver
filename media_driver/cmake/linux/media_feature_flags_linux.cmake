@@ -191,4 +191,5 @@ endif()
 
 add_definitions(-D_MANUAL_SOFTLET_)
 
+bs_set_if_undefined(MEDIA_EXT_CMAKE  "${BS_DIR_MEDIA}/media_embargo/cmake")
 include(${MEDIA_EXT_CMAKE}/ext/linux/media_feature_flags_linux_ext.cmake OPTIONAL)

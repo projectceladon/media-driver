@@ -226,7 +226,7 @@ class DriverGeneator(Generator):
         cmd += ' -DBUILD_ALONG_WITH_CMRTLIB=1 -DBS_DIR_GMMLIB=' + path.join(wd, '../gmmlib/Source/GmmLib/')
         cmd += ' -DBS_DIR_COMMON=' + path.join(wd, '../gmmlib/Source/Common/')
         cmd += ' -DBS_DIR_INC=' + path.join(wd, '../gmmlib/Source/inc/')
-        cmd += ' -DBS_DIR_MEDIA=' + wd
+        #cmd += ' -DBS_DIR_MEDIA=' + wd
         cmd += (' -DSKIP_GMM_CHECK=ON'
                 ' -DGEN12=ON'
                 ' -DXe_M=ON'

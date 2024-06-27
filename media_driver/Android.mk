@@ -24,6 +24,70 @@ LOCAL_PATH:= $(call my-dir)
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
+    ../media_embargo/media_softlet/agnostic/Xe_M/Xe_M_base/cp/decode_cp_bitstream_m12.cpp \
+    ../media_embargo/media_softlet/proprietary/agnostic/Xe_M/m12_base/cp/huc_cp_streamout_packet_g12.cpp \
+    ../media_embargo/media_softlet/proprietary/agnostic/Xe_M/m12_base/cp/huc_streamout_interface_g12.cpp \
+    ../media_embargo/proprietary/agnostic/codec/hal/secure_decode/codechal_cenc_decode.cpp \
+    ../media_embargo/proprietary/agnostic/codec/hal/secure_decode/codechal_cenc_decode_avc.cpp \
+    ../media_embargo/proprietary/agnostic/codec/hal/secure_decode/codechal_cenc_decode_hevc.cpp \
+    ../media_embargo/proprietary/agnostic/codec/hal/secure_decode/codechal_secure_decode.cpp \
+    ../media_embargo/proprietary/agnostic/codec/hal/secure_decode/codechal_secure_decode_avc.cpp \
+    ../media_embargo/proprietary/agnostic/codec/hal/secure_decode/codechal_secure_decode_hevc.cpp \
+    ../media_embargo/proprietary/agnostic/codec/hal/secure_decode/codechal_secure_decode_vp9.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/cp_debug_ext.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/cp_hal_root_trust.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/gpu/cp_hal_gpu.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/gpu/cp_hal_gpu_legacy.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/gpu/gen11/cp_hal_gpu_g11.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/gpu/gen12/cp_hal_gpu_g12.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/gpu/gen8/cp_hal_gpu_g8.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/gpu/xe_lpm_plus/cp_hal_gpu_xe_lpm_plus.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/gsc/cp_hal_gsc.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/gsc/gen12/cp_hal_gsc_g12.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/gsc/xe_lpm_plus/cp_hal_gsc_xe_lpm_plus.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/hw/gen11/mhw_cp_g11.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/hw/gen11/mhw_cp_hwcmd_g11_X.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/hw/gen12/mhw_cp_g12.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/hw/gen8/mhw_cp_g8.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/hw/gen9/mhw_cp_g9.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/hw/mhw_cp.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/hw/mhw_cp_hwcmd_common.c \
+    ../media_embargo/proprietary/agnostic/cp/hal/hw/mhw_cp_hwcmd_next.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/hw/mhw_cp_next.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/hw/mhw_cp_unsupported.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/hw/xe_lpm_plus/mhw_cp_hwcmd_xe_lpm_plus_base.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/hw/xe_lpm_plus/mhw_cp_xe_lpm_plus.cpp \
+    ../media_embargo/proprietary/agnostic/cp/hal/pch/cp_hal_pch_unified.cpp \
+    ../media_embargo/proprietary/agnostic/cp/os/cp_os_services.cpp \
+    ../media_embargo/proprietary/agnostic/cp/shared/cp_pavpdevice.cpp \
+    ../media_embargo/proprietary/agnostic/cp/shared/cp_pavpdevice_new_sm.cpp \
+    ../media_embargo/proprietary/agnostic/cp/shared/cp_user_settings_mgr_ext.cpp \
+    ../media_embargo/proprietary/agnostic/os/user_setting_mgr/codechal_user_settings_mgr_ext.cpp \
+    ../media_embargo/proprietary/linux/codec/ddi/media_ddi_cenc_decode_avc.cpp \
+    ../media_embargo/proprietary/linux/codec/ddi/media_ddi_cenc_decode_hevc.cpp \
+    ../media_embargo/proprietary/linux/cp_next/ddi/cp_pavp_cryptosession_va.cpp \
+    ../media_embargo/proprietary/linux/cp_next/ddi/media_ddi_prot_content.cpp \
+    ../media_embargo/proprietary/linux/cp_next/ddi/media_libva_caps_cp.cpp \
+    ../media_embargo/proprietary/linux/cp_next/ddi/media_libva_cp.cpp \
+    ../media_embargo/proprietary/linux/cp_next/hal/pch/heci/CpHeciSession.cpp \
+    ../media_embargo/proprietary/linux/cp_next/interface/cp_interface_mtl/cp_hal_register_mtl.cpp \
+    ../media_embargo/proprietary/linux/cp_next/interface/gen12_adln/cp_register_adln.cpp \
+    ../media_embargo/proprietary/linux/cp_next/interface/gen12_adlp/cp_register_adlp.cpp \
+    ../media_embargo/proprietary/linux/cp_next/interface/gen12_adls/cp_register_adls.cpp \
+    ../media_embargo/proprietary/linux/cp_next/interface/gen12_rkl/cp_register_rkl.cpp \
+    ../media_embargo/proprietary/linux/cp_next/interface/public_platform/cp_register_legacy.cpp \
+    ../media_embargo/proprietary/linux/cp_next/os/cp_os_services_linux.cpp \
+    ../media_embargo/proprietary/linux/cp_next/os/i915childpxp/mos_pxp_sm.c \
+    ../media_embargo/proprietary/linux/cp_next/os/mos_os_cp_specific.cpp \
+    ../media_embargo/proprietary/linux/cp_next/shared/cp_interfaces_impl.cpp \
+    ../media_embargo/proprietary/linux/ddi/Xe_LPM_plus/media_extsku_wa_xe_lpm_plus.cpp \
+    ../media_embargo/proprietary/linux/ddi/gen12_adln/media_extsku_wa_g12_adln.cpp \
+    ../media_embargo/proprietary/linux/ddi/gen12_adlp/media_extsku_wa_g12_adlp.cpp \
+    ../media_embargo/proprietary/linux/ddi/gen12_rkl/media_extsku_wa_g12_rkl.cpp \
+    ../media_embargo/proprietary/linux/ddi/media_extsku_wa_g10.cpp \
+    ../media_embargo/proprietary/linux/ddi/media_extsku_wa_g11.cpp \
+    ../media_embargo/proprietary/linux/ddi/media_extsku_wa_g12.cpp \
+    ../media_embargo/proprietary/linux/ddi/media_extsku_wa_g9.cpp \
     ../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/av1/pipeline/decode_av1_pipeline_adapter_xe_lpm_plus.cpp \
     ../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/avc/pipeline/decode_avc_pipeline_adapter_xe_lpm_plus.cpp \
     ../media_softlet/agnostic/Xe_M_plus/Xe_LPM_plus/codec/hal/dec/hevc/pipeline/decode_hevc_pipeline_adapter_xe_lpm_plus.cpp \
@@ -226,7 +290,6 @@ LOCAL_SRC_FILES := \
     ../media_softlet/agnostic/common/codec/hal/dec/shared/features/decode_marker.cpp \
     ../media_softlet/agnostic/common/codec/hal/dec/shared/features/decode_predication.cpp \
     ../media_softlet/agnostic/common/codec/hal/dec/shared/hucItf/decode_huc_packet_creator.cpp \
-    ../media_softlet/agnostic/common/codec/hal/dec/shared/hucItf/huc_streamout_interface.cpp \
     ../media_softlet/agnostic/common/codec/hal/dec/shared/mmc/decode_mem_compression.cpp \
     ../media_softlet/agnostic/common/codec/hal/dec/shared/packet/decode_downsampling_packet.cpp \
     ../media_softlet/agnostic/common/codec/hal/dec/shared/packet/decode_huc.cpp \
@@ -559,10 +622,7 @@ LOCAL_SRC_FILES := \
     ../media_softlet/linux/common/codec/ddi/enc/ddi_encode_jpeg_specific.cpp \
     ../media_softlet/linux/common/codec/ddi/enc/ddi_encode_vp9_specific.cpp \
     ../media_softlet/linux/common/codec/ddi/enc/media_libvpx_vp9_next.cpp \
-    ../media_softlet/linux/common/codec/ddi/shared/create_codechal_setting.cpp \
     ../media_softlet/linux/common/codec/ddi/shared/ddi_codec_base_specific.cpp \
-    ../media_softlet/linux/common/cp/ddi/ddi_cp_caps_interface.cpp \
-    ../media_softlet/linux/common/cp/ddi/ddi_cp_interface_next.cpp \
     ../media_softlet/linux/common/cp/decodecp_interface.cpp \
     ../media_softlet/linux/common/ddi/ddi_media_functions.cpp \
     ../media_softlet/linux/common/ddi/media_capstable_specific.cpp \
@@ -607,6 +667,22 @@ LOCAL_SRC_FILES := \
     ../media_softlet/linux/xe_lpm_plus/ddi/caps_register_specific_xe_lpm_plus.cpp \
     ../media_softlet/media_interface/media_interfaces_arl/media_interfaces_arl.cpp \
     ../media_softlet/media_interface/media_interfaces_mtl/media_interfaces_mtl.cpp \
+    ../media_softlet_embargo/agnostic/common/cp/decode_cp_bitstream.cpp \
+    ../media_softlet_embargo/proprietary/agnostic/codec/hal/codechal_cenc_decode_avc_next.cpp \
+    ../media_softlet_embargo/proprietary/agnostic/codec/hal/codechal_cenc_decode_hevc_next.cpp \
+    ../media_softlet_embargo/proprietary/agnostic/codec/hal/codechal_cenc_decode_next.cpp \
+    ../media_softlet_embargo/proprietary/agnostic/common/cp/cp_ind_packet/cp_ind_packet.cpp \
+    ../media_softlet_embargo/proprietary/agnostic/common/cp/decodecp.cpp \
+    ../media_softlet_embargo/proprietary/agnostic/common/cp/huc_cp_streamout_packet/huc_cp_streamout_packet.cpp \
+    ../media_softlet_embargo/proprietary/agnostic/common/cp/huc_streamout_interface/huc_streamout_interface.cpp \
+    ../media_softlet_embargo/proprietary/linux/codec/ddi/create_codechal_setting.cpp \
+    ../media_softlet_embargo/proprietary/linux/cp/ddi/cp_pavp_cryptosession_va_next.cpp \
+    ../media_softlet_embargo/proprietary/linux/cp/ddi/ddi_cp_caps.cpp \
+    ../media_softlet_embargo/proprietary/linux/cp/ddi/ddi_cp_functions.cpp \
+    ../media_softlet_embargo/proprietary/linux/cp/ddi/ddi_cp_next.cpp \
+    ../media_softlet_embargo/proprietary/linux/cp/ddi/media_ddi_cenc_decode_avc_next.cpp \
+    ../media_softlet_embargo/proprietary/linux/cp/ddi/media_ddi_cenc_decode_hevc_next.cpp \
+    ../media_softlet_embargo/proprietary/linux/ddi/media_libva_register_ext.cpp \
     agnostic/Xe_M/Xe_HPM/codec/hal/codechal_decode_vc1_xe_hpm.cpp \
     agnostic/Xe_M/Xe_HPM/codec/hal/codechal_hw_xe_hpm.cpp \
     agnostic/Xe_M/Xe_HPM/codec/hal/codechal_kernel_olp_mdf_xe_hpm.cpp \
@@ -1410,7 +1486,6 @@ LOCAL_SRC_FILES := \
     media_softlet/agnostic/gen12_base/codec/hal/dec/av1/packet/decode_av1_tile_packet_g12_base.cpp \
     media_softlet/agnostic/gen12_base/codec/hal/dec/av1/pipeline/decode_av1_pipeline_g12_base.cpp \
     media_softlet/agnostic/gen12_base/codec/hal/dec/shared/hucitf/decode_huc_packet_creator_g12.cpp \
-    media_softlet/agnostic/gen12_base/codec/hal/dec/shared/hucitf/huc_streamout_interface_g12.cpp \
     media_softlet/agnostic/gen12_base/codec/hal/dec/shared/packet/decode_huc_copy_packet_g12.cpp \
     media_softlet/agnostic/gen12_base/codec/hal/dec/shared/packet/decode_huc_g12_base.cpp \
     media_softlet/agnostic/gen12_tgllp/vp/hal/platform_interface/vp_platform_interface_g12_tgllp.cpp \
@@ -1492,7 +1567,7 @@ LOCAL_CPPFLAGS = \
     -DIGFX_XE_HPG_CMFCPATCH_SUPPORTED \
     -DIGFX_XE_HPG_SUPPORTED \
     -DMEDIA_VERSION=\"24.1.5\" \
-    -DMEDIA_VERSION_DETAILS=\"cf8faf3e5\" \
+    -DMEDIA_VERSION_DETAILS=\"1c835ecc0\" \
     -DVEBOX_AUTO_DENOISE_SUPPORTED=1 \
     -DX11_FOUND \
     -D_AV1_DECODE_SUPPORTED \
@@ -1501,6 +1576,7 @@ LOCAL_CPPFLAGS = \
     -D_AVC_ENCODE_VDENC_SUPPORTED \
     -D_AVC_ENCODE_VME_SUPPORTED \
     -D_COMMON_ENCODE_SUPPORTED \
+    -D_CP_INCLUDED \
     -D_DECODE_PROCESSING_SUPPORTED \
     -D_HEVC_DECODE_SUPPORTED \
     -D_HEVC_ENCODE_VDENC_SUPPORTED \
@@ -1525,6 +1601,7 @@ LOCAL_CONLYFLAGS = -x c++
 LOCAL_CFLAGS = $(LOCAL_CPPFLAGS)
 
 LOCAL_C_INCLUDES  = \
+    $(LOCAL_PATH)/../media_softlet_embargo/agnostic/common/cp \
     $(LOCAL_PATH)/../Tools/MediaDriverTools/Android/build/media_driver \
     $(LOCAL_PATH)/../media_common/agnostic/common/os/user_setting \
     $(LOCAL_PATH)/../media_common/agnostic/common/os \
@@ -1575,6 +1652,9 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/agnostic/gen9/renderhal \
     $(LOCAL_PATH)/agnostic/gen9/vp/hal \
     $(LOCAL_PATH)/agnostic/gen9/vp/kernel \
+    $(LOCAL_PATH)/agnostic/gen9_cml/vp/kernel/tgp \
+    $(LOCAL_PATH)/agnostic/gen9_cml/vp/kernel \
+    $(LOCAL_PATH)/agnostic/gen9_cmpv/vp/kernel \
     $(LOCAL_PATH)/agnostic/gen9_bxt/codec/hal \
     $(LOCAL_PATH)/agnostic/gen9_bxt/codec/kernel \
     $(LOCAL_PATH)/agnostic/gen9_bxt/hw/vdbox \
@@ -1973,6 +2053,59 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/../media_softlet/linux/xe_lpm_plus_r0/decode/vp9/ddi \
     $(LOCAL_PATH)/../media_softlet/linux/Xe_M_plus/ddi \
     $(LOCAL_PATH)/../media_softlet/media_interface/media_interfaces_mtl \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/gpu/gen8 \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/gpu/gen11 \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/gpu/gen12 \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/gpu/xe_lpm_plus \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/gpu \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/hw/gen8 \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/hw/gen9 \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/hw/gen11 \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/hw/gen12 \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/hw/xe_lpm_plus \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/hw \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/pch/heci/inc \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/pch \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/gsc/gen12 \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/gsc/xe_lpm_plus \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/hal/gsc \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/os \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/shared \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/cp/service/IntelCpLSPCONSvc \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/codec/hal \
+    $(LOCAL_PATH)/../media_embargo/proprietary/agnostic/os/user_setting_mgr \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/codec/ddi \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/cp_next/hal/pch/heci \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/cp_next/ddi \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/cp_next/os/i915childpxp \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/cp_next/os \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/cp_next/shared \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/cp_next/interface/public_platform \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/cp_next/interface/gen12_rkl \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/cp_next/interface/gen12_adls \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/cp_next/interface/gen12_adlp \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/cp_next/interface/gen12_adln \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/cp_next/interface/cp_interface_mtl \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/ddi/gen12_adlp \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/ddi/gen12_adln \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/ddi/gen12_rkl \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/ddi \
+    $(LOCAL_PATH)/../media_embargo/proprietary/linux/ddi/Xe_LPM_plus \
+    $(LOCAL_PATH)/../media_embargo/media_softlet/proprietary/agnostic/Xe_M/m12_base/cp \
+    $(LOCAL_PATH)/../media_embargo/media_softlet/proprietary/agnostic/Xe_M \
+    $(LOCAL_PATH)/../media_common_embargo/proprietary/agnostic/cp/hal/hw \
+    $(LOCAL_PATH)/../media_common_embargo/proprietary/agnostic/cp/hal/shared \
+    $(LOCAL_PATH)/../media_common_embargo/proprietary/agnostic/cp/hal/gpu \
+    $(LOCAL_PATH)/../media_common_embargo/proprietary/agnostic/cp/hal \
+    $(LOCAL_PATH)/../media_common_embargo/proprietary/agnostic/cp/shared \
+    $(LOCAL_PATH)/../media_common_embargo/proprietary/agnostic/cp/api \
+    $(LOCAL_PATH)/../media_common_embargo/proprietary/linux/cp/ddi \
+    $(LOCAL_PATH)/../media_common_embargo/proprietary/linux/cp/os \
+    $(LOCAL_PATH)/../media_softlet_embargo/proprietary/agnostic/codec/hal \
+    $(LOCAL_PATH)/../media_softlet_embargo/proprietary/agnostic/common/cp/huc_cp_streamout_packet \
+    $(LOCAL_PATH)/../media_softlet_embargo/proprietary/agnostic/common/cp/cp_ind_packet \
+    $(LOCAL_PATH)/../media_softlet_embargo/proprietary/agnostic/common/cp \
+    $(LOCAL_PATH)/../media_softlet_embargo/proprietary/linux/cp/ddi \
     $(LOCAL_PATH)/../../gmmlib/Source/inc \
     $(LOCAL_PATH)/../../gmmlib/Source/inc/common \
     $(LOCAL_PATH)/../../gmmlib/Source/inc/platform/iAlm \
