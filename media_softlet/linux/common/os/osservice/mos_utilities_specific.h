@@ -46,8 +46,10 @@ class MosMutex;
 #define USER_FEATURE_KEY_EXTERNAL            "UFKEY_EXTERNAL\\"
 
 //user feature
-#if ANDROID_VERSION >= 800
-#define USER_FEATURE_FILE                   "/data/igfx_user_feature.txt"
+#ifdef ANDROID
+#define USER_FEATURE_FILE                   "/vendor/etc/igfx_user_feature.txt"
+#define USER_FEATURE_FILE_NEXT              "/vendor/etc/igfx_user_feature_next.txt"
+#define USER_FEATURE_FILE_REPORT            "/vendor/etc/igfx_user_feature_report.txt"
 #else
 #define USER_FEATURE_FILE                   "/etc/igfx_user_feature.txt"
 #define USER_FEATURE_FILE_NEXT              "/etc/igfx_user_feature_next.txt"
