@@ -1983,7 +1983,7 @@ LOCAL_C_INCLUDES  = \
 
 #LOCAL_CPP_FEATURES := rtti exceptions
 
-LOCAL_MODULE := i965_drv_video
+LOCAL_MODULE := iHD_drv_video
 LOCAL_PROPRIETARY_MODULE := true
 
 include $(BUILD_SHARED_LIBRARY)
