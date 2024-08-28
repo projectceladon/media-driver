@@ -968,7 +968,7 @@ MOS_STATUS CodechalVdencVp9StateG12::GetSystemPipeNumberCommon()
         &userFeatureData,
         m_osInterface->pOsContext);
 
-    bool disableScalability = m_hwInterface->IsDisableScalability();
+    bool disableScalability = true; // m_hwInterface->IsDisableScalability();
     if (statusKey == MOS_STATUS_SUCCESS)
     {
         disableScalability = userFeatureData.i32Data ? true : false;
