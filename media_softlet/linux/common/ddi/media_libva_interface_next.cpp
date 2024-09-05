@@ -3252,6 +3252,7 @@ VAStatus MediaLibvaInterfaceNext::CreateSurfaces2 (
 #endif
                     (attribList[i].value.value.i == VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR))
                 {
+		ALOGI("ANOOB CreateSurfaces2, VASurfaceAttribMemoryType %x", attribList[i].value.value.i);
                     memTypeFlag = attribList[i].value.value.i;
                     surfIsUserPtr = (attribList[i].value.value.i == VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR);
                 }
