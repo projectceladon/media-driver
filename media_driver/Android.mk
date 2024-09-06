@@ -572,7 +572,6 @@ LOCAL_SRC_FILES := \
     ../media_softlet/linux/common/ddi/media_libva_util_next.cpp \
     ../media_softlet/linux/common/media_interfaces/media_interfaces_next.cpp \
     ../media_softlet/linux/common/os/hwinfo_linux.cpp \
-    ../media_softlet/linux/common/os/i915/mos_bufmgr.c \
     ../media_softlet/linux/common/os/i915/mos_bufmgr_api.c \
     ../media_softlet/linux/common/os/i915/xf86drm.c \
     ../media_softlet/linux/common/os/i915/xf86drmHash.c \
@@ -1396,6 +1395,16 @@ LOCAL_SRC_FILES := \
     media_softlet/agnostic/m12/m12_0/shared/mediacopy/media_copy_m12_0.cpp \
     media_softlet/agnostic/m12/m12_0/vp/hal/feature_manager/vp_feature_manager_m12_0.cpp \
 
+
+ENABLE_PRODUCTION_KMD=ON
+
+ifneq ($(ENABLE_PRODUCTION_KMD), ON)
+    LOCAL_SRC_FILES += ../media_softlet/linux/common/os/i915/mos_bufmgr.c
+else
+    LOCAL_SRC_FILES += ../media_softlet/linux/common/os/i915_production/mos_bufmgr_prelim.cpp \
+                        ../media_softlet/linux/common/os/i915_production/mos_bufmgr.c
+endif
+
 LOCAL_SHARED_LIBRARIES := \
     libsync \
     libcutils \
@@ -1494,6 +1503,7 @@ LOCAL_CPPFLAGS = \
     -D__VPHAL_SFC_SUPPORTED=1 \
     -DiHD_drv_video_EXPORTS \
     -DGMM_LIB_DLL
+
 
 LOCAL_CONLYFLAGS = -x c++
 LOCAL_CFLAGS = $(LOCAL_CPPFLAGS)
