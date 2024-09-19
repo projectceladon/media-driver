@@ -37,6 +37,7 @@
 #endif
 
 #include <linux/fb.h>
+#include <xf86drm.h>
 
 #include "media_libva.h"
 
@@ -1565,6 +1566,33 @@ void DestroyMediaContextMutex(PDDI_MEDIA_CONTEXT mediaCtx)
     return;
 }
 
+static int DdiMedia_SelectIntelDevice()
+{
+    int intel_gpu_index = -1;
+    for (int i = 0; i < 16; ++i) {
+        char device_path[64];
+        sprintf(device_path, "/dev/dri/renderD%d", 128 + i);
+        int temp = open(device_path, O_RDWR | O_CLOEXEC);
+        if (temp == -1) {
+            continue;
+        }
+        drmVersionPtr version = drmGetVersion(temp);
+        if (version == nullptr) {
+            close(temp);
+            continue;
+        }
+        if (strncmp(version->name, "i915", strlen("i915")) == 0) {
+            intel_gpu_index = i;
+            drmFreeVersion(version);
+            close(temp);
+            break;
+        }
+        drmFreeVersion(version);
+        close(temp);
+    }
+    return intel_gpu_index;
+}
+
 VAStatus DdiMedia_GetDeviceFD (
     VADriverContextP ctx,
     int32_t         *pDevicefd
@@ -1578,7 +1606,14 @@ VAStatus DdiMedia_GetDeviceFD (
     if(pDRMState->fd < 0)
     {
         DDI_ASSERTMESSAGE("DDI:LIBVA Wrapper doesn't pass file descriptor for graphics adaptor, trying to open the graphics... ");
-        pDRMState->fd = DdiMediaUtil_OpenGraphicsAdaptor((char *)DEVICE_NAME);
+        int device_id = DdiMedia_SelectIntelDevice();
+        if (device_id < 0) {
+            DDI_ASSERTMESSAGE("DDI: Cannot find candidate DRM device, return failure");
+            return VA_STATUS_ERROR_INVALID_PARAMETER;
+        }
+        char device_name[64];
+        sprintf(device_name, "/dev/dri/renderD%d\n", device_id);
+        pDRMState->fd = DdiMediaUtil_OpenGraphicsAdaptor((char *)device_name);
         if (pDRMState->fd < 0) {
             DDI_ASSERTMESSAGE("DDI: Still failed to open the graphic adaptor, return failure");
             return VA_STATUS_ERROR_INVALID_PARAMETER;
