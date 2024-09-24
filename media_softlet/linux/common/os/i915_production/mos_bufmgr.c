@@ -933,7 +933,7 @@ static uint8_t mos_gem_get_lmem_region_count(struct mos_bufmgr_gem *bufmgr_gem)
 {
     assert(nullptr != bufmgr_gem);
 
-    if (BufmgrPrelim::IsPrelimSupported()) {
+    if (bufmgr_gem->prelim) {
         return bufmgr_gem->prelim->GetLmemRegionCount();
     }
 
@@ -973,7 +973,7 @@ mos_gem_bo_memzone_for_address(struct mos_bufmgr *bufmgr, uint64_t address)
     assert(nullptr != bufmgr);
     struct mos_bufmgr_gem *bufmgr_gem = (struct mos_bufmgr_gem *)bufmgr;
 
-    if (BufmgrPrelim::IsPrelimSupported()) {
+    if (bufmgr_gem->prelim) {
         return bufmgr_gem->prelim->GetMemzoneForAddress(address);
     }
     if (address >= MEMZONE_DEVICE_START)
@@ -1148,13 +1148,13 @@ retry:
             return nullptr;
 
         bo_gem->bo.size = bo_size;
-        bo_gem->mem_region = BufmgrPrelim::IsPrelimSupported() ?
+        bo_gem->mem_region = bufmgr_gem->prelim ?
                                 bufmgr_gem->prelim->GetSystemMemRegionId() :
                                 I915_MEMORY_CLASS_SYSTEM;
 
         if(bufmgr_gem->has_lmem &&
             (alloc->ext.mem_type == MOS_MEMPOOL_VIDEOMEMORY || alloc->ext.mem_type == MOS_MEMPOOL_DEVICEMEMORY)) {
-            if (BufmgrPrelim::IsPrelimSupported()) {
+            if (bufmgr_gem->prelim) {
                 uint32_t handle;
                 uint64_t size;
                 uint32_t region;
@@ -1783,7 +1783,7 @@ map_wc(struct mos_linux_bo *bo)
         memclear(mmap_arg);
         mmap_arg.handle = bo_gem->gem_handle;
         /* To indicate the uncached virtual mapping to KMD */
-        if (BufmgrPrelim::IsPrelimSupported()) {
+        if (bufmgr_gem->prelim) {
             bufmgr_gem->prelim->SetMmapOffset(bo_gem->mem_region, mmap_arg);
         } else if (bufmgr_gem->has_lmem) {
             mmap_arg.flags = I915_MMAP_OFFSET_FIXED;
@@ -1938,7 +1938,7 @@ drm_export int mos_gem_bo_map(struct mos_linux_bo *bo, int write_enable)
 
             memclear(mmap_arg);
             mmap_arg.handle = bo_gem->gem_handle;
-            if (BufmgrPrelim::IsPrelimSupported()) {
+            if (bufmgr_gem->prelim) {
                 bufmgr_gem->prelim->SetMmapOffset(bo_gem->mem_region, mmap_arg);
             } else if (bufmgr_gem->has_lmem) {
                 mmap_arg.flags = I915_MMAP_OFFSET_FIXED;
@@ -2062,7 +2062,7 @@ map_gtt(struct mos_linux_bo *bo)
 
             memclear(mmap_arg);
             mmap_arg.handle = bo_gem->gem_handle;
-            if (BufmgrPrelim::IsPrelimSupported()) {
+            if (bufmgr_gem->prelim) {
                 bufmgr_gem->prelim->SetMmapOffset(bo_gem->mem_region, mmap_arg);
             } else {
                 mmap_arg.flags = I915_MMAP_OFFSET_FIXED;
@@ -2448,7 +2448,7 @@ mos_bufmgr_gem_destroy(struct mos_bufmgr *bufmgr)
 
     mos_vma_heap_finish(&bufmgr_gem->vma_heap[MEMZONE_SYS]);
     mos_vma_heap_finish(&bufmgr_gem->vma_heap[MEMZONE_DEVICE]);
-    if (BufmgrPrelim::IsPrelimSupported()) {
+    if (bufmgr_gem->prelim) {
         bufmgr_gem->prelim->UninitVmaHeap(&bufmgr_gem->vma_heap[MEMZONE_PRIME]);
 
         BufmgrPrelim::DestroyPrelim(bufmgr_gem->prelim);
@@ -2530,7 +2530,7 @@ do_bo_emit_reloc(struct mos_linux_bo *bo, uint32_t offset,
     bo_gem->relocs[bo_gem->reloc_count].target_handle =
         target_bo_gem->gem_handle;
     bo_gem->relocs[bo_gem->reloc_count].read_domains = read_domains;
-    if (BufmgrPrelim::IsPrelimSupported()) {
+    if (bufmgr_gem->prelim) {
         // if reloc handle is batch buffer itself, cannot set write domain
         bo_gem->relocs[bo_gem->reloc_count].write_domain = (bo_gem->bo.handle == target_bo_gem->gem_handle ? 0 : write_domain);
     } else {
@@ -3312,7 +3312,7 @@ mos_gem_bo_check_mem_region_internal(struct mos_linux_bo *bo,
     struct mos_bo_gem *bo_gem = (struct mos_bo_gem *) bo;
     struct mos_bufmgr_gem *bufmgr_gem = (struct mos_bufmgr_gem *) bo->bufmgr;
 
-    if (BufmgrPrelim::IsPrelimSupported()) {
+    if (bufmgr_gem->prelim) {
         return bufmgr_gem->prelim->CheckMemRegion(bo_gem->mem_region, mem_type);
     }
 
@@ -3427,7 +3427,7 @@ mos_gem_bo_set_softpin(MOS_LINUX_BO *bo)
     if (!mos_gem_bo_is_softpin(bo))
     {
         uint64_t offset = 0;
-        if (BufmgrPrelim::IsPrelimSupported() && bo_gem->mem_region == MEMZONE_PRIME) {
+        if (bufmgr_gem->prelim && bo_gem->mem_region == MEMZONE_PRIME) {
             offset = mos_gem_bo_vma_alloc(bo->bufmgr, (enum mos_memory_zone)bo_gem->mem_region, bo->size, PAGE_SIZE_2M);
         } else {
             uint64_t alignment = (bufmgr_gem->softpin_va1Malign) ? PAGE_SIZE_1M : PAGE_SIZE_64K;
@@ -3509,7 +3509,7 @@ mos_gem_bo_create_from_prime(struct mos_bufmgr *bufmgr, int prime_fd, int size)
     bo_gem->has_error = false;
     bo_gem->reusable = false;
     bo_gem->use_48b_address_range = bufmgr_gem->bufmgr.bo_use_48b_address_range ? true : false;
-    if (BufmgrPrelim::IsPrelimSupported()) {
+    if (bufmgr_gem->prelim) {
         bo_gem->mem_region = MEMZONE_PRIME;
     }
 
@@ -4291,7 +4291,7 @@ mos_gem_get_memory_info(struct mos_bufmgr *bufmgr, char *info, uint32_t length)
         return -1;
     }
 
-    if (BufmgrPrelim::IsPrelimSupported()) {
+    if (bufmgr_gem->prelim) {
         return bufmgr_gem->prelim->GetMemoryInfo(bufmgr_gem->has_lmem, info, length);
     }
 #endif
@@ -4456,7 +4456,7 @@ mos_gem_context_create_shared(struct mos_bufmgr *bufmgr,
     if (ctx == nullptr || ctx->vm_id == INVALID_VM)
         return nullptr;
 
-    if (BufmgrPrelim::IsPrelimSupported()) {
+    if (bufmgr_gem->prelim) {
         bufmgr_gem->prelim->WaDisableSingleTimeline(bufmgr_gem->has_lmem, flags);
     }
 
@@ -4517,7 +4517,7 @@ static int mos_bufmgr_query_engines_count(struct mos_bufmgr *bufmgr,
     assert(bufmgr);
     assert(nengine);
     struct mos_bufmgr_gem *bufmgr_gem = (struct mos_bufmgr_gem *)bufmgr;
-    if (BufmgrPrelim::IsPrelimSupported()) {
+    if (bufmgr_gem->prelim) {
         return bufmgr_gem->prelim->QueryEnginesCount(nengine);
     }
     int fd = ((struct mos_bufmgr_gem*)bufmgr)->fd;
@@ -4587,7 +4587,7 @@ static int mos_bufmgr_query_engines(struct mos_bufmgr *bufmgr,
     struct drm_i915_query_engine_info *engines = nullptr;
     int ret, len;
     struct mos_bufmgr_gem *bufmgr_gem = (struct mos_bufmgr_gem *)bufmgr;
-    if (BufmgrPrelim::IsPrelimSupported()) {
+    if (bufmgr_gem->prelim) {
         return bufmgr_gem->prelim->QueryEngines(bufmgr_gem->has_lmem,
                                         engine_class,
                                         caps,
@@ -4800,7 +4800,7 @@ static int mos_gem_set_context_param_parallel(struct mos_linux_context *ctx,
     }
 
     struct mos_bufmgr_gem *bufmgr_gem = (struct mos_bufmgr_gem *)ctx->bufmgr;
-    if (BufmgrPrelim::IsPrelimSupported()) {
+    if (bufmgr_gem->prelim) {
         return BufmgrPrelim::SetContextParamParallel(
                                         ctx,
                                         ci,
@@ -5436,9 +5436,6 @@ mos_bufmgr_gem_init_i915(int fd, int batch_size)
 
     if (nullptr != bufmgr_gem->prelim) {
         bufmgr_gem->prelim->Init(bufmgr_gem->bufmgr, bufmgr_gem->has_lmem);
-    }
-
-    if (!BufmgrPrelim::IsPrelimSupported()) {
         bufmgr_gem->bufmgr.has_full_vd = true;
     }
 
@@ -5459,7 +5456,7 @@ mos_bufmgr_gem_init_i915(int fd, int batch_size)
     bufmgr_gem->use_softpin = false;
     mos_vma_heap_init(&bufmgr_gem->vma_heap[MEMZONE_SYS], MEMZONE_SYS_START, MEMZONE_SYS_SIZE);
     mos_vma_heap_init(&bufmgr_gem->vma_heap[MEMZONE_DEVICE], MEMZONE_DEVICE_START, MEMZONE_DEVICE_SIZE);
-    if (BufmgrPrelim::IsPrelimSupported()) {
+    if (bufmgr_gem->prelim) {
         bufmgr_gem->prelim->InitVmaHeap(&bufmgr_gem->vma_heap[MEMZONE_PRIME]);
     }
 

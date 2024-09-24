@@ -88,8 +88,6 @@
     }                                  \
 }
 
-bool BufmgrPrelim::m_prelimEnabled = false;
-
 BufmgrPrelim *BufmgrPrelim::CreatePrelim(int fd)
 {
     if (fd < 0) {
@@ -110,17 +108,9 @@ BufmgrPrelim *BufmgrPrelim::CreatePrelim(int fd)
 
     if (0 == drmIoctl(fd, DRM_IOCTL_I915_QUERY, &q) && item.length > 0) {
         prelim = new BufmgrPrelim(fd);
-        if (nullptr != prelim) {
-            m_prelimEnabled = true;
-        }
     }
 
     return prelim;
-}
-
-bool BufmgrPrelim::IsPrelimSupported()
-{
-    return m_prelimEnabled;
 }
 
 void BufmgrPrelim::DestroyPrelim(BufmgrPrelim *prelim)
