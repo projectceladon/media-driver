@@ -104,7 +104,6 @@ private:
 private:
     uint32_t m_tileId = 0;
     int m_fd = -1;
-    static bool m_prelimEnabled;
 
     static constexpr uint32_t TYPE_DECIMAL = 10;
 
