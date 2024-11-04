@@ -820,6 +820,7 @@ static bool InitDg2MediaSku(struct GfxDeviceInfo *devInfo,
          drvInfo->devId == 0x56A7 ||
          drvInfo->devId == 0x56A8 ||
          drvInfo->devId == 0x56A9 ||
+         drvInfo->devId == 0x56AF ||
          drvInfo->devId == 0x56C0))
     {
         MEDIA_WR_SKU(skuTable, FtrTileY, 0);
