@@ -1942,7 +1942,7 @@ CodechalDebugInterface::CodechalDebugInterface()
                 uint32_t        sizeToBeCopied = 0;
                 MOS_GFXRES_TYPE ResType;
 
-#if !defined(LINUX)
+#if !defined(LINUX) && !defined(ANDROID)
                 ResType = surface->OsResource.ResType;
 
                 CODECHAL_DEBUG_CHK_STATUS(ReAllocateSurface(
@@ -2590,7 +2590,7 @@ MOS_STATUS CodechalDebugInterface::DumpRgbDataOnYUVSurface(
         uint32_t        sizeToBeCopied = 0;
         MOS_GFXRES_TYPE ResType;
 
-#if LINUX
+#if LINUX || ANDROID
         // Linux does not have OsResource->ResType
         ResType = surface->Type;
 #else
@@ -4004,7 +4004,7 @@ MOS_STATUS CodechalDebugInterface::DumpYUVSurfaceToBuffer(PMOS_SURFACE surface,
         uint32_t        sizeToBeCopied = 0;
         MOS_GFXRES_TYPE ResType;
 
-#if LINUX
+#if LINUX || ANDROID
         // Linux does not have OsResource->ResType
         ResType = surface->Type;
 #else
@@ -4385,7 +4385,7 @@ MOS_STATUS CodechalDebugInterface::DumpSurfaceInfo(
     FIELD_TO_OFS(bOverlay, );
     FIELD_TO_OFS(bFlipChain, );
 
-#if !defined(LINUX)
+#if !defined(LINUX) && !defined(ANDROID)
     EMPTY_TO_OFS();
     UNION_STRUCT_START_TO_OFS();
     UNION_STRUCT_FIELD_TO_OFS(dwFirstArraySlice);

@@ -7,4 +7,16 @@ Perf Profiler Buffer Size=10000000
 Enable HCP Scalability Decode=0
 Disable Media Encode Scalability=1
 
+Message Print Enabled=1
+Mos Message Tags=3
+Mhw Message Tags=3
+Codec Message Tags=3
+VP Message Tags=3
+CP Message Tags=3
+DDI Message Tags=3
+CM Message Tags=3
+SCALABILITY Message Tags=3
+MMC Message Tags=3
+MCPY Message Tags=3
+
 [report]

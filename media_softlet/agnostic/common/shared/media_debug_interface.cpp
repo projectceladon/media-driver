@@ -327,7 +327,7 @@ MOS_STATUS MediaDebugInterface::DumpMosSpecificResourceInfoToOfs(
 
     PMOS_RESOURCE ptr = pOsResource;
     ofs << "MOS_RESOURCE:" << std::endl;
-#if !defined(LINUX) || defined(WDDM_LINUX)
+#if !defined(ANDROID) && (!defined(LINUX) || defined(WDDM_LINUX))
     FIELD_TO_OFS(RunTimeHandle, );
 #else
     FIELD_TO_OFS(iWidth, );
@@ -455,7 +455,7 @@ MOS_STATUS MediaDebugInterface::DumpMosSpecificResourceInfoToOfs(
             FIELD_TO_OFS_8SHIFT(Info.TiledYs);
             FIELD_TO_OFS_8SHIFT(Info.XAdapter);
             FIELD_TO_OFS_8SHIFT(Info.__PreallocatedResInfo);
-#if !defined(LINUX)
+#if !defined(LINUX) && !defined(ANDROID)
             FIELD_TO_OFS_8SHIFT(Info.LMemBarPreferred);
             FIELD_TO_OFS_8SHIFT(Info.LMemBarOrNonlocalOnly);
             FIELD_TO_OFS_8SHIFT(Info.LMemBarIndifferent);
