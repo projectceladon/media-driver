@@ -7,6 +7,9 @@ Perf Profiler Buffer Size=10000000
 Enable HCP Scalability Decode=0
 Disable Media Encode Scalability=1
 
+Dump Command Buffer Enable=1
+Message HLT Output Directory=/data/local/tmp
+
 Message Print Enabled=1
 Mos Message Tags=3
 Mhw Message Tags=3
