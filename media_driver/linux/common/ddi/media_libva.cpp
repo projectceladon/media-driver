@@ -75,6 +75,10 @@
 #include "media_libva_caps_next.h"
 #endif
 
+#if defined(ANDROID)
+#include <cutils/properties.h>
+#endif
+
 #define BO_BUSY_TIMEOUT_LIMIT 100
 
 #ifdef __cplusplus
@@ -355,8 +359,8 @@ DdiMedia_HybridQueryBufferAttributes (
 }
 
 //!
-//! \brief  Set Frame ID 
-//! 
+//! \brief  Set Frame ID
+//!
 //! \param  [in] dpy
 //!         VA display
 //! \param  [in] surface
@@ -388,8 +392,8 @@ VAStatus DdiMedia_SetFrameID(
 }
 
 //!
-//! \brief  Convert media format to OS format 
-//! 
+//! \brief  Convert media format to OS format
+//!
 //! \param  [in] format
 //!         Ddi media format
 //!
@@ -503,8 +507,8 @@ int32_t DdiMedia_MediaFormatToOsFormat(DDI_MEDIA_FORMAT format)
 }
 
 //!
-//! \brief  Convert Os format to media format 
-//! 
+//! \brief  Convert Os format to media format
+//!
 //! \param  [in] fourcc
 //!         FourCC
 //! \param  [in] rtformatType
@@ -959,7 +963,7 @@ static void DdiMedia_FreeContextCMElements(VADriverContextP ctx)
 
 //!
 //! \brief  Get VA image from VA image ID
-//! 
+//!
 //! \param  [in] mediaCtx
 //!         Pointer to ddi media context
 //! \param  [in] imageID
@@ -985,7 +989,7 @@ VAImage* DdiMedia_GetVAImageFromVAImageID (PDDI_MEDIA_CONTEXT mediaCtx, VAImageI
 
 //!
 //! \brief  Get ctx from VA buffer ID
-//! 
+//!
 //! \param  [in] mediaCtx
 //!         pddi media context
 //! \param  [in] bufferID
@@ -1011,7 +1015,7 @@ void* DdiMedia_GetCtxFromVABufferID (PDDI_MEDIA_CONTEXT mediaCtx, VABufferID buf
 
 //!
 //! \brief  Get ctx type from VA buffer ID
-//! 
+//!
 //! \param  [in] mediaCtx
 //!         Pointer to ddi media context
 //! \param  [in] bufferID
@@ -1037,8 +1041,8 @@ uint32_t DdiMedia_GetCtxTypeFromVABufferID (PDDI_MEDIA_CONTEXT mediaCtx, VABuffe
 }
 
 //!
-//! \brief  Destroy image from VA image ID 
-//! 
+//! \brief  Destroy image from VA image ID
+//!
 //! \param  [in] mediaCtx
 //!         Pointer to ddi media context
 //! \param  [in] imageID
@@ -1059,8 +1063,8 @@ bool DdiMedia_DestroyImageFromVAImageID (PDDI_MEDIA_CONTEXT mediaCtx, VAImageID 
 }
 #ifdef _MMC_SUPPORTED
 //!
-//! \brief  Decompress internal media memory 
-//! 
+//! \brief  Decompress internal media memory
+//!
 //! \param  [in] mosCtx
 //!         Pointer to mos context
 //! \param  [in] osResource
@@ -1096,8 +1100,8 @@ void DdiMedia_MediaMemoryDecompressInternal(PMOS_CONTEXT mosCtx, PMOS_RESOURCE o
 }
 
 //!
-//! \brief  copy internal media surface to another surface 
-//! 
+//! \brief  copy internal media surface to another surface
+//!
 //! \param  [in] mosCtx
 //!         Pointer to mos context
 //! \param  [in] inputOsResource
@@ -1139,8 +1143,8 @@ void DdiMedia_MediaMemoryCopyInternal(PMOS_CONTEXT mosCtx, PMOS_RESOURCE inputOs
 }
 
 //!
-//! \brief  copy internal media surface/buffer to another surface/buffer 
-//! 
+//! \brief  copy internal media surface/buffer to another surface/buffer
+//!
 //! \param  [in] mosCtx
 //!         Pointer to mos context
 //! \param  [in] inputOsResource
@@ -1273,11 +1277,11 @@ VAStatus DdiMedia_MediaMemoryTileConvertInternal(
 
 //!
 //! \brief  Decompress a compressed surface.
-//! 
+//!
 //! \param  [in]     mediaCtx
 //!     Pointer to ddi media context
 //! \param  [in]     mediaSurface
-//!     Ddi media surface 
+//!     Ddi media surface
 //!
 //! \return     VAStatus
 //!     VA_STATUS_SUCCESS if success, else fail reason
@@ -1303,7 +1307,7 @@ VAStatus DdiMedia_MediaMemoryDecompress(PDDI_MEDIA_CONTEXT mediaCtx, DDI_MEDIA_S
         MOS_CONTEXT  mosCtx = {};
         MOS_RESOURCE surface;
         DdiCpInterface *pCpDdiInterface;
-        
+
         MOS_ZeroMemory(&surface, sizeof(surface));
 
         mosCtx.bufmgr          = mediaCtx->pDrmBufMgr;
@@ -1566,8 +1570,62 @@ void DestroyMediaContextMutex(PDDI_MEDIA_CONTEXT mediaCtx)
     return;
 }
 
+static int DdiMedia_IsIntelDgpu(int fd)
+{
+    struct drm_i915_query_item item = {
+        .query_id = DRM_I915_QUERY_MEMORY_REGIONS,
+    };
+
+    struct drm_i915_query query = {
+        .num_items = 1, .items_ptr = (uintptr_t)&item,
+    };
+    if (drmIoctl(fd, DRM_IOCTL_I915_QUERY, &query)) {
+        DDI_NORMALMESSAGE("drv: Failed to DRM_IOCTL_I915_QUERY");
+        return 0;
+    }
+
+    struct drm_i915_query_memory_regions *meminfo = (struct drm_i915_query_memory_regions *)calloc(1, item.length);
+    if (!meminfo) {
+        DDI_NORMALMESSAGE("drv: %s Exit due to memory allocation failure", __func__);
+        return 0;
+    }
+
+    item.data_ptr = (uintptr_t)meminfo;
+    if (drmIoctl(fd, DRM_IOCTL_I915_QUERY, &query) || item.length <= 0) {
+        free(meminfo);
+        DDI_NORMALMESSAGE("%s:%d DRM_IOCTL_I915_QUERY error", __FUNCTION__, __LINE__);
+        return 0;
+    }
+
+    int has_sys = 0, has_local = 0;
+    for (uint32_t i = 0; i < meminfo->num_regions; i++) {
+        const struct drm_i915_memory_region_info *mem = &meminfo->regions[i];
+        switch (mem->region.memory_class) {
+        case I915_MEMORY_CLASS_SYSTEM:
+            has_sys = 1;
+            break;
+        case I915_MEMORY_CLASS_DEVICE:
+            has_local = 1;
+            break;
+        default:
+            break;
+        }
+    }
+
+    free(meminfo);
+    return has_local;
+}
+
 static int DdiMedia_SelectIntelDevice()
 {
+    int use_dgpu = 1;
+#if defined(ANDROID)
+    char value[PROPERTY_VALUE_MAX] = {};
+
+    property_get("video.hw.dgpu", value, "1");
+    use_dgpu = atoi(value);
+#endif
+
     int intel_gpu_index = -1;
     for (int i = 0; i < 16; ++i) {
         char device_path[64];
@@ -1583,9 +1641,14 @@ static int DdiMedia_SelectIntelDevice()
         }
         if (strncmp(version->name, "i915", strlen("i915")) == 0) {
             intel_gpu_index = i;
-            drmFreeVersion(version);
-            close(temp);
-            break;
+            // If specify to use dgpu and found dgpu, return the first found dgpu,
+            // otherwise use the last available intel node for codec
+            if (use_dgpu && DdiMedia_IsIntelDgpu(temp)) {
+                DDI_NORMALMESSAGE("%s:%d find dgpu", __FUNCTION__, __LINE__);
+                drmFreeVersion(version);
+                close(temp);
+                break;
+            }
         }
         drmFreeVersion(version);
         close(temp);
@@ -1612,7 +1675,7 @@ VAStatus DdiMedia_GetDeviceFD (
             return VA_STATUS_ERROR_INVALID_PARAMETER;
         }
         char device_name[64];
-        sprintf(device_name, "/dev/dri/renderD%d\n", device_id);
+        sprintf(device_name, "/dev/dri/renderD%d\n", device_id + 128);
         pDRMState->fd = DdiMediaUtil_OpenGraphicsAdaptor((char *)device_name);
         if (pDRMState->fd < 0) {
             DDI_ASSERTMESSAGE("DDI: Still failed to open the graphic adaptor, return failure");
@@ -1651,7 +1714,7 @@ VAStatus DdiMedia__InitializeSoftlet(
     bool               apoDdiEnabled)
 {
     VAStatus status = VA_STATUS_SUCCESS;
-    
+
     if (nullptr == mediaCtx)
     {
         FreeForMediaContext(mediaCtx);
@@ -1725,7 +1788,7 @@ VAStatus DdiMedia__Initialize (
 #endif
 
     DDI_CHK_NULL(ctx,          "nullptr ctx",       VA_STATUS_ERROR_INVALID_CONTEXT);
-    
+
     VAStatus status = VA_STATUS_SUCCESS;
     bool    apoDdiEnabled = false;
     int32_t devicefd = 0;
@@ -2272,7 +2335,7 @@ VAStatus DdiMedia_Terminate (
     DdiMediaUtil_DestroyMutex(&mediaCtx->PutSurfaceRenderMutex);
     DdiMediaUtil_DestroyMutex(&mediaCtx->PutSurfaceSwapBufferMutex);
 
-    if (mediaCtx->m_caps 
+    if (mediaCtx->m_caps
 #ifdef _MANUAL_SOFTLET_
     || mediaCtx->m_capsNext
 #endif
@@ -3373,7 +3436,7 @@ VAStatus DdiMedia_BufferSetNumElements (
 //! \brief  Map data store of the buffer into the client's address space
 //!         vaCreateBuffer() needs to be called with "data" set to nullptr before
 //!         calling vaMapBuffer()
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] buf_id
@@ -4280,14 +4343,14 @@ VAStatus DdiMedia_SyncSurface2 (
         {
             timeoutBoWait1 = (int64_t)timeout_ns;
         }
-        
+
         // zero is an expected return value when not hit timeout
         auto ret = mos_bo_wait(surface->bo, timeoutBoWait1);
         if (0 != ret)
         {
             if (timeoutBoWait2)
             {
-                ret = mos_bo_wait(surface->bo, timeoutBoWait2); 
+                ret = mos_bo_wait(surface->bo, timeoutBoWait2);
             }
             if (0 != ret)
             {
@@ -4827,7 +4890,7 @@ VAStatus DdiMedia_CreateImage(
 
 //!
 //! \brief  Derive image
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] surface
@@ -5136,7 +5199,7 @@ VAStatus DdiMedia_DeriveImage (
 
 //!
 //! \brief  Free allocated surfaceheap elements
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] image
@@ -5175,7 +5238,7 @@ VAStatus DdiMedia_DestroyImage (
 
 //!
 //! \brief  Set image palette
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] image
@@ -5738,7 +5801,7 @@ VAStatus DdiMedia_PutImage(
                     DdiMedia_CopyPlane(vDst, chromaPitch, vSrc, vaimg->pitches[2], chromaHeight);
                 }
             }
-        } 
+        }
 
         vaStatus = DdiMedia_UnmapBuffer(ctx, vaimg->buf);
         if (vaStatus != VA_STATUS_SUCCESS)
@@ -5756,7 +5819,7 @@ VAStatus DdiMedia_PutImage(
 
 //!
 //! \brief  Query subpicture formats
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] format_list
@@ -5789,7 +5852,7 @@ VAStatus DdiMedia_QuerySubpictureFormats(
 
 //!
 //! \brief  Create subpicture
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] image
@@ -5817,7 +5880,7 @@ VAStatus DdiMedia_CreateSubpicture(
 
 //!
 //! \brief  Destroy subpicture
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] subpicture
@@ -5841,7 +5904,7 @@ VAStatus DdiMedia_DestroySubpicture(
 
 //!
 //! \brief  Set subpicture image
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] subpicture
@@ -5869,7 +5932,7 @@ VAStatus DdiMedia_SetSubpictureImage(
 
 //!
 //! \brief  Set subpicture chrome key
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] subpicture
@@ -5905,7 +5968,7 @@ VAStatus DdiMedia_SetSubpictureChromakey(
 
 //!
 //! \brief  set subpicture global alpha
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] subpicture
@@ -5932,7 +5995,7 @@ VAStatus DdiMedia_SetSubpictureGlobalAlpha(
 
 //!
 //! \brief  Associate subpicture
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] subpicture
@@ -6004,7 +6067,7 @@ VAStatus DdiMedia_AssociateSubpicture(
 
 //!
 //! \brief  Deassociate subpicture
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] subpicture
@@ -6036,7 +6099,7 @@ VAStatus DdiMedia_DeassociateSubpicture(
 
 //!
 //! \brief  Query display attributes
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] attr_list
@@ -6069,7 +6132,7 @@ VAStatus DdiMedia_QueryDisplayAttributes(
 //! \details    This function returns the current attribute values in "attr_list".
 //!         Only attributes returned with VA_DISPLAY_ATTRIB_GETTABLE set in the "flags" field
 //!         from vaQueryDisplayAttributes() can have their values retrieved.
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] attr_list
@@ -6101,7 +6164,7 @@ VAStatus DdiMedia_GetDisplayAttributes(
 //! \details    Only attributes returned with VA_DISPLAY_ATTRIB_SETTABLE set in the "flags" field
 //!         from vaQueryDisplayAttributes() can be set.  If the attribute is not settable or
 //!         the value is out of range, the function returns VA_STATUS_ERROR_ATTR_NOT_SUPPORTED
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] attr_list
@@ -6128,7 +6191,7 @@ VAStatus DdiMedia_SetDisplayAttributes(
 
 //!
 //! \brief  Query processing rate
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] config_id
@@ -6162,7 +6225,7 @@ DdiMedia_QueryProcessingRate(
 
 //!
 //! \brief  media copy internal
-//! 
+//!
 //! \param  [in] mosCtx
 //!         Pointer to mos context
 //! \param  [in] src
@@ -6354,7 +6417,7 @@ DdiMedia_Copy(
 
 //!
 //! \brief  Check for buffer info
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] buf_id
@@ -6405,7 +6468,7 @@ VAStatus DdiMedia_BufferInfo (
 
 //!
 //! \brief  Lock surface
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] surface
@@ -6465,7 +6528,7 @@ VAStatus DdiMedia_LockSurface (
     DDI_CHK_LESS((uint32_t)surface, mediaCtx->pSurfaceHeap->uiAllocatedHeapElements, "Invalid surface", VA_STATUS_ERROR_INVALID_SURFACE);
 
     DDI_MEDIA_SURFACE *mediaSurface = DdiMedia_GetSurfaceFromVASurfaceID(mediaCtx, surface);
-    
+
 #ifdef _MMC_SUPPORTED
     // Decompress surface is needed
     DdiMedia_MediaMemoryDecompress(mediaCtx, mediaSurface);
@@ -6520,7 +6583,7 @@ VAStatus DdiMedia_LockSurface (
 
 //!
 //! \brief  Unlock surface
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] surface
@@ -6573,7 +6636,7 @@ VAStatus DdiMedia_UnlockSurface (
 
 //!
 //! \brief  Query video proc filters
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] context
@@ -6632,7 +6695,7 @@ DdiMedia_QueryVideoProcFilters(
 //!
 //! \brief  Query video processing filter capabilities.
 //!         The real implementation is in media_libva_vp.c, since it needs to use some definitions in vphal.h.
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] context
@@ -6663,9 +6726,9 @@ DdiMedia_QueryVideoProcFilterCaps(
 
 //!
 //! \brief  Query video proc pipeline caps
-//! 
+//!
 //! \param  [in] ctx
-//!         Pointer to VA driver context 
+//!         Pointer to VA driver context
 //! \param  [in] context
 //!         VA context ID
 //! \param  [in] filters
@@ -6797,7 +6860,7 @@ VAStatus DdiMedia_GetSurfaceAttributes(
 
 //!
 //! \brief  Aquire buffer handle
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] buf_id
@@ -6890,7 +6953,7 @@ VAStatus DdiMedia_AcquireBufferHandle(
 
 //!
 //! \brief  Release buffer handle
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //! \param  [in] buf_id
@@ -7243,7 +7306,7 @@ VAStatus DdiMedia_ExportSurfaceHandle(
 #if VA_CHECK_VERSION(1, 21, 0)
         mem_type != VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_3 &&
 #endif
-        mem_type != VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2) 
+        mem_type != VA_SURFACE_ATTRIB_MEM_TYPE_DRM_PRIME_2)
     {
         DDI_ASSERTMESSAGE("vaExportSurfaceHandle: memory type %08x is not supported.\n", mem_type);
         return VA_STATUS_ERROR_UNSUPPORTED_MEMORY_TYPE;
@@ -7532,7 +7595,7 @@ VAStatus __vaDriverInit(VADriverContextP ctx )
 extern "C" {
 #endif
 
-//! 
+//!
 //! \brief Get VA_MAJOR_VERSION and VA_MINOR_VERSION from libva
 //!         To form the function name in the format of _vaDriverInit_[VA_MAJOR_VERSION]_[VA_MINOR_VERSION]
 //!
@@ -7542,7 +7605,7 @@ extern "C" {
 
 //!
 //! \brief  VA driver init function name
-//! 
+//!
 //! \param  [in] ctx
 //!         Pointer to VA driver context
 //!
@@ -7556,7 +7619,7 @@ MEDIAAPI_EXPORT VAStatus VA_DRV_INIT_FUC_NAME(VADriverContextP ctx )
 
 //!
 //! \brief  Private API for openCL
-//! 
+//!
 //! \param  [in] dpy
 //!         VA display
 //! \param  [in] surface
@@ -7609,7 +7672,7 @@ MEDIAAPI_EXPORT VAStatus DdiMedia_ExtGetSurfaceHandle(
 
 //!
 //! \brief  Map buffer 2
-//! 
+//!
 //! \param  [in] dpy
 //!         VA display
 //! \param  [in] buf_id
