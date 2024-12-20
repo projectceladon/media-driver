@@ -1583,9 +1583,6 @@ static int DdiMedia_SelectIntelDevice()
         }
         if (strncmp(version->name, "i915", strlen("i915")) == 0) {
             intel_gpu_index = i;
-            drmFreeVersion(version);
-            close(temp);
-            break;
         }
         drmFreeVersion(version);
         close(temp);
