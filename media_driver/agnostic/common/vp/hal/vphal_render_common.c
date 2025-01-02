@@ -726,24 +726,25 @@ MOS_STATUS VpHal_RndrSubmitCommands(
 
     // Allocate all available space, unused buffer will be returned later
     VPHAL_RENDER_CHK_STATUS(pOsInterface->pfnGetCommandBuffer(pOsInterface, &CmdBuffer, 0));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // Set initial state
     iRemaining = CmdBuffer.iRemaining;
 
     VPHAL_RENDER_CHK_STATUS(VpHal_RndrCommonSetPowerMode(
         pRenderHalLegacy,
         KernelID));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
 #ifndef EMUL
     if (bLastSubmission && pOsInterface->bEnableKmdMediaFrameTracking)
     {
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         // Get GPU Status buffer
         VPHAL_RENDER_CHK_STATUS(pOsInterface->pfnGetGpuStatusBufferResource(pOsInterface, gpuStatusBuffer));
         VPHAL_RENDER_CHK_NULL(gpuStatusBuffer);
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         // Register the buffer
         VPHAL_RENDER_CHK_STATUS(pOsInterface->pfnRegisterResource(pOsInterface, gpuStatusBuffer, true, true));
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         GenericPrologParams.bEnableMediaFrameTracking = true;
         GenericPrologParams.presMediaFrameTrackingSurface = gpuStatusBuffer;
         GenericPrologParams.dwMediaFrameTrackingTag = pOsInterface->pfnGetGpuStatusTag(pOsInterface, pOsInterface->CurrentGpuContextOrdinal);
@@ -761,68 +762,73 @@ MOS_STATUS VpHal_RndrSubmitCommands(
     HalOcaInterface::DumpVpKernelInfo(CmdBuffer, (MOS_CONTEXT_HANDLE)pOsContext, KernelID, FcKernelCount, FcKernelList);
     // Add vphal param to log.
     HalOcaInterface::DumpVphalParam(CmdBuffer, (MOS_CONTEXT_HANDLE)pOsContext, pRenderHalLegacy->pVphalOcaDumper);
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // Initialize command buffer and insert prolog
     VPHAL_RENDER_CHK_STATUS(pRenderHalLegacy->pfnInitCommandBuffer(pRenderHalLegacy, &CmdBuffer, &GenericPrologParams));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     VPHAL_RENDER_CHK_STATUS(pPerfProfiler->AddPerfCollectStartCmd((void*)pRenderHalLegacy, pOsInterface, pMhwMiInterface, &CmdBuffer));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     VPHAL_RENDER_CHK_STATUS(NullHW::StartPredicate(pOsInterface, pRenderHalLegacy->pMhwMiInterface, &CmdBuffer));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // Write timing data for 3P budget
     VPHAL_RENDER_CHK_STATUS(pRenderHalLegacy->pfnSendTimingData(pRenderHalLegacy, &CmdBuffer, true));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     bEnableSLM = (pGpGpuWalkerParams && pGpGpuWalkerParams->SLMSize > 0)? true : false;
     VPHAL_RENDER_CHK_STATUS(pRenderHalLegacy->pfnSetCacheOverrideParams(
         pRenderHalLegacy,
         &pRenderHalLegacy->L3CacheSettings,
         bEnableSLM));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     if (pRenderHalLegacy->bCmfcCoeffUpdate)
     {
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         VPHAL_RENDER_CHK_STATUS(pRenderHalLegacy->pfnSendCscCoeffSurface(pRenderHalLegacy,
             &CmdBuffer,
             pRenderHalLegacy->pCmfcCoeffSurface,
             pRenderHalLegacy->pStateHeap->pKernelAllocation[pRenderHalLegacy->iKernelAllocationID].pKernelEntry));
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     }
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // Flush media states
     VPHAL_RENDER_CHK_STATUS(pRenderHalLegacy->pfnSendMediaStates(
         pRenderHalLegacy,
         &CmdBuffer,
         pWalkerParams,
         pGpGpuWalkerParams));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     if (pBatchBuffer)
-    {
+    {ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         // Register batch buffer for rendering
         VPHAL_RENDER_CHK_STATUS(pOsInterface->pfnRegisterResource(
             pOsInterface,
             &pBatchBuffer->OsResource,
             false,
             true));
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         HalOcaInterface::OnSubLevelBBStart(CmdBuffer, (MOS_CONTEXT_HANDLE)pOsContext, &pBatchBuffer->OsResource, 0, true, 0);
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         // Send Start 2nd level batch buffer command (HW/OS dependent)
         VPHAL_RENDER_CHK_STATUS(pMhwMiInterface->AddMiBatchBufferStartCmd(
             &CmdBuffer,
             pBatchBuffer));
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     }
 
     // Write back GPU Status tag
     if (!pOsInterface->bEnableKmdMediaFrameTracking)
     {
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         VPHAL_RENDER_CHK_STATUS(pRenderHalLegacy->pfnSendRcsStatusTag(pRenderHalLegacy, &CmdBuffer));
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     }
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     VPHAL_RENDER_CHK_STATUS(NullHW::StopPredicate(pOsInterface, pRenderHalLegacy->pMhwMiInterface, &CmdBuffer));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     VPHAL_RENDER_CHK_STATUS(pPerfProfiler->AddPerfCollectEndCmd((void*)pRenderHalLegacy, pOsInterface, pMhwMiInterface, &CmdBuffer));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // Write timing data for 3P budget
     VPHAL_RENDER_CHK_STATUS(pRenderHalLegacy->pfnSendTimingData(pRenderHalLegacy, &CmdBuffer, false));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     if (GFX_IS_GEN_9_OR_LATER(pRenderHalLegacy->Platform))
     {
         MHW_PIPE_CONTROL_PARAMS PipeControlParams;
@@ -832,13 +838,16 @@ MOS_STATUS VpHal_RndrSubmitCommands(
         PipeControlParams.bGenericMediaStateClear       = true;
         PipeControlParams.bIndirectStatePointersDisable = true;
         PipeControlParams.bDisableCSStall               = false;
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         VPHAL_RENDER_CHK_STATUS(pMhwMiInterface->AddPipeControl(&CmdBuffer, nullptr, &PipeControlParams));
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         if (MEDIA_IS_WA(pRenderHalLegacy->pWaTable, WaSendDummyVFEafterPipelineSelect))
         {
             MHW_VFE_PARAMS VfeStateParams = {};
             VfeStateParams.dwNumberofURBEntries = 1;
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             VPHAL_RENDER_CHK_STATUS(pMhwRender->AddMediaVfeCmd(&CmdBuffer, &VfeStateParams));
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         }
     }
 
@@ -856,11 +865,15 @@ MOS_STATUS VpHal_RndrSubmitCommands(
             {
                 VPHAL_RENDER_ASSERTMESSAGE("ERROR, pWalkerParams is nullptr and cannot get InterfaceDescriptorOffset.");
             }
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             VPHAL_RENDER_CHK_STATUS(pMhwMiInterface->AddMediaStateFlush(&CmdBuffer, nullptr, &FlushParam));
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         }
         else if (MEDIA_IS_WA(pRenderHalLegacy->pWaTable, WaAddMediaStateFlushCmd))
         {
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             VPHAL_RENDER_CHK_STATUS(pMhwMiInterface->AddMediaStateFlush(&CmdBuffer, nullptr, &FlushParam));
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         }
     }
 
@@ -868,19 +881,25 @@ MOS_STATUS VpHal_RndrSubmitCommands(
 
     if (pBatchBuffer)
     {
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         // Send Batch Buffer end command (HW/OS dependent)
         VPHAL_RENDER_CHK_STATUS(pMhwMiInterface->AddMiBatchBufferEnd(&CmdBuffer, nullptr));
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     }
     else if (VpHal_RndrCommonIsMiBBEndNeeded(pOsInterface))
     {
         // Send Batch Buffer end command for 1st level Batch Buffer
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         VPHAL_RENDER_CHK_STATUS(pMhwMiInterface->AddMiBatchBufferEnd(&CmdBuffer, nullptr));
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     }
     else if (GFX_IS_GEN_8_OR_LATER(pRenderHalLegacy->Platform) &&
                 Mos_Solo_IsInUse(pOsInterface)  &&
                 pRenderHalLegacy->pOsInterface->bNoParsingAssistanceInKmd)
     {
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         VPHAL_RENDER_CHK_STATUS(pMhwMiInterface->AddMiBatchBufferEnd(&CmdBuffer, nullptr));
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     }
 
     // Return unused command buffer space to OS
@@ -896,10 +915,10 @@ MOS_STATUS VpHal_RndrSubmitCommands(
         pStatusTableUpdateParams->bTriggerGPUHang = false;
     }
 #endif
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // Submit command buffer
     VPHAL_RENDER_CHK_STATUS(pOsInterface->pfnSubmitCommandBuffer(pOsInterface, &CmdBuffer, bNullRendering));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     if (bNullRendering == false)
     {
         dwSyncTag = pRenderHalLegacy->pStateHeap->dwNextTag++;
@@ -914,9 +933,9 @@ MOS_STATUS VpHal_RndrSubmitCommands(
     }
 
     eStatus = MOS_STATUS_SUCCESS;
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
 finish:
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     if (pStatusTableUpdateParams && pOsInterface)
     {
         VpHal_RndrUpdateStatusTableAfterSubmit(pOsInterface, pStatusTableUpdateParams, pOsInterface->CurrentGpuContextOrdinal, eStatus);
