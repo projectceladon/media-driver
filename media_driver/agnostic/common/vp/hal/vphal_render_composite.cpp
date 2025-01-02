@@ -2134,8 +2134,9 @@ MOS_STATUS CompositeState::RenderMultiPhase(
         // Reset states before rendering (clear allocations, get GSH allocation index
         //                                + any additional housekeeping)
         pOsInterface->pfnResetOsStates(pOsInterface);
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         VPHAL_RENDER_CHK_STATUS(pRenderHal->pfnReset(pRenderHal));
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         // Set Slice Shutdown Mode
         if (m_bSingleSlice)
         {
@@ -2167,7 +2168,9 @@ MOS_STATUS CompositeState::RenderMultiPhase(
         if (!m_bApplyTwoLayersCompOptimize || bLastPhase || (iSources != 2) || (ppSources[1]->Rotation == VPHAL_ROTATION_IDENTITY))
         {
             m_bLastPhase = bLastPhase && (pcRenderParams->pConstriction == nullptr);
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             VPHAL_RENDER_CHK_STATUS(RenderPhase(&CompositeParams));
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         }
 
         // do an extra rotation if needed
@@ -2248,19 +2251,24 @@ MOS_STATUS CompositeState::RenderMultiPhase(
                 // Reset states before rendering (clear allocations, get GSH allocation index
                 //                                + any additional housekeeping)
                 pOsInterface->pfnResetOsStates(pOsInterface);
+                ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
                 VPHAL_RENDER_CHK_STATUS(pRenderHal->pfnReset(pRenderHal));
-
+                ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
                 // Set performance tag for current rotation phase
                 PerfTag = (VPHAL_PERFTAG)((int)VPHAL_ROT);
                 pOsInterface->pfnSetPerfTag(pOsInterface, PerfTag);
 
                 // Perform compositing operation
+                ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
                 VPHAL_RENDER_CHK_STATUS(RenderPhase(&CompositeParams));
+                ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             }
         }
     }
     eStatus = MOS_STATUS_SUCCESS;
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
 finish:
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     return eStatus;
 }
 
@@ -2385,15 +2393,15 @@ MOS_STATUS CompositeState::Render(
 
         // Get resource information
         MOS_ZeroMemory(&Info, sizeof(VPHAL_GET_SURFACE_INFO));
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         VPHAL_RENDER_CHK_STATUS(VpHal_GetSurfaceInfo(
             pOsInterface,
             &Info,
             pSrc));
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         //Need to decompress input surface, only if input surface is interlaced and in the RC compression Mode
         VPHAL_RENDER_CHK_STATUS(DecompressInterlacedSurf(pSrc));
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         // Ensure the input is ready to be read
         pOsInterface->pfnSyncOnResource(
             pOsInterface,
@@ -2408,12 +2416,12 @@ MOS_STATUS CompositeState::Render(
             pOsInterface->pfnUpdateResourceUsageType(&pSrc->OsResource, MOS_HW_RESOURCE_USAGE_VP_INPUT_REFERENCE_RENDER);
 
             MOS_ZeroMemory(&Info, sizeof(VPHAL_GET_SURFACE_INFO));
-
+            // ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             VPHAL_RENDER_CHK_STATUS(VpHal_GetSurfaceInfo(
                 pOsInterface,
                 &Info,
                 pSrc->pBwdRef));
-
+            // ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             // Ensure the input is ready to be read
             pOsInterface->pfnSyncOnResource(
                 pOsInterface,
@@ -2515,9 +2523,9 @@ MOS_STATUS CompositeState::Render(
             m_Intermediate2.Format = Format_AYUV;
         }
     }
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     VPHAL_RENDER_CHK_STATUS(RenderMultiPhase(pcRenderParams, pSources, iSources, pOutput));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // Last constriction phase
     if (pcRenderParams->pConstriction)
     {
@@ -2547,15 +2555,18 @@ MOS_STATUS CompositeState::Render(
         // Reset states before rendering (clear allocations, get GSH allocation index
         //                                + any additional housekeeping)
         pOsInterface->pfnResetOsStates(pOsInterface);
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         VPHAL_RENDER_CHK_STATUS(pRenderHal->pfnReset(pRenderHal));
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         // Raise the flag to indicate the last comp render phase
         m_bLastPhase = true;
 
         // Perform compositing operation
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         VPHAL_RENDER_CHK_STATUS(RenderPhase(&CompositeParams));
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     }
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
 finish:
     if (pCacheSettings)
     {
@@ -2568,7 +2579,7 @@ finish:
     }
 
     VPHAL_RENDER_EXITMESSAGE("eStatus %d", eStatus);
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     return eStatus;
 }
 
@@ -6234,10 +6245,10 @@ MOS_STATUS CompositeState::RenderPhase(
     pKernelDllState = m_pKernelDllState;
 
     //VPHAL_DBG_STATE_DUMPPER_SET_CURRENT_STAGE(VPHAL_DBG_STAGE_COMP);
-
+    // ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // Check whether composition parameters are valid.
     VPHAL_RENDER_CHK_STATUS(IsCompositeParamsValid(*pCompParams));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     //============================
     // Allocate states for rendering
     //============================
@@ -6245,20 +6256,21 @@ MOS_STATUS CompositeState::RenderPhase(
     VPHAL_RENDER_CHK_STATUS(RenderInit(
         pCompParams,
         &RenderingData));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // Allocate and reset media state
     RenderingData.pMediaState = pMediaState =
                             pRenderHal->pfnAssignMediaState(pRenderHal, RENDERHAL_COMPONENT_COMP);
+    ALOGE("lhh %s:%d, pMediaState %p", __FUNCTION__,__LINE__, pMediaState);
     VPHAL_RENDER_CHK_NULL(pMediaState);
-
+    ALOGE("lhh %s:%d, pRenderHal %p", __FUNCTION__,__LINE__, pRenderHal);
     // Allocate and reset SSH instance
     VPHAL_RENDER_CHK_STATUS(pRenderHal->pfnAssignSshInstance(pRenderHal));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // Allocate and reset BT
     VPHAL_RENDER_CHK_STATUS(pRenderHal->pfnAssignBindingTable(
                pRenderHal,
                &iBindingTableID));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     RenderingData.iBindingTable = iBindingTableID;
 
     //===============================
@@ -6323,6 +6335,7 @@ MOS_STATUS CompositeState::RenderPhase(
                 true) != MOS_STATUS_SUCCESS)
         {
             eStatus = MOS_STATUS_UNKNOWN;
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             goto finish;
         }
 
@@ -6357,6 +6370,7 @@ MOS_STATUS CompositeState::RenderPhase(
                     false,
                     true) != MOS_STATUS_SUCCESS)
             {
+                ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
                 eStatus = MOS_STATUS_UNKNOWN;
                 goto finish;
             }
@@ -6374,6 +6388,7 @@ MOS_STATUS CompositeState::RenderPhase(
         {
             VPHAL_RENDER_ASSERTMESSAGE("Failed to set layer parameters.");
             eStatus = MOS_STATUS_UNKNOWN;
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             goto finish;
         }
 
@@ -6394,6 +6409,7 @@ MOS_STATUS CompositeState::RenderPhase(
                 true) != MOS_STATUS_SUCCESS)
         {
             eStatus = MOS_STATUS_UNKNOWN;
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             goto finish;
         }
     }
@@ -6406,6 +6422,7 @@ MOS_STATUS CompositeState::RenderPhase(
     {
          VPHAL_RENDER_ASSERTMESSAGE("Failed to set Render Target.");
          eStatus = MOS_STATUS_UNKNOWN;
+         ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
          goto finish;
     }
 
@@ -6486,6 +6503,7 @@ MOS_STATUS CompositeState::RenderPhase(
         {
             VPHAL_RENDER_ASSERTMESSAGE("Failed to find a kernel.");
             eStatus = MOS_STATUS_UNKNOWN;
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             goto finish;
         }
 
@@ -6494,6 +6512,7 @@ MOS_STATUS CompositeState::RenderPhase(
         {
             VPHAL_RENDER_ASSERTMESSAGE("Failed to build kernel.");
             eStatus = MOS_STATUS_UNKNOWN;
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             goto finish;
         }
 
@@ -6509,6 +6528,7 @@ MOS_STATUS CompositeState::RenderPhase(
         {
             VPHAL_RENDER_ASSERTMESSAGE("Failed to store kernel in local cache.");
             eStatus = MOS_STATUS_UNKNOWN;
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             goto finish;
         }
     }
@@ -6601,6 +6621,7 @@ MOS_STATUS CompositeState::RenderPhase(
         {
             VPHAL_RENDER_ASSERTMESSAGE("Failed to render media walker batch.");
             eStatus = MOS_STATUS_UNKNOWN;
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             goto finish;
         }
 
@@ -6609,6 +6630,7 @@ MOS_STATUS CompositeState::RenderPhase(
         {
             VPHAL_RENDER_ASSERTMESSAGE("Failed to submit compositing states.");
             eStatus = MOS_STATUS_UNKNOWN;
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             goto finish;
         }
 
@@ -6632,6 +6654,7 @@ MOS_STATUS CompositeState::RenderPhase(
         {
             VPHAL_RENDER_ASSERTMESSAGE("Failed to render media walker batch.");
             eStatus = MOS_STATUS_UNKNOWN;
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             goto finish;
         }
 
@@ -6640,6 +6663,7 @@ MOS_STATUS CompositeState::RenderPhase(
         {
             VPHAL_RENDER_ASSERTMESSAGE("Failed to submit compositing states.");
             eStatus = MOS_STATUS_UNKNOWN;
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             goto finish;
         }
     }
@@ -6650,12 +6674,14 @@ MOS_STATUS CompositeState::RenderPhase(
         {
             VPHAL_RENDER_ASSERTMESSAGE("Failed to submit compositing states.");
             eStatus = MOS_STATUS_UNKNOWN;
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             goto finish;
         }
 
         // Get a valid batch buffer (find a match if possible)
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         VPHAL_RENDER_CHK_STATUS(AllocateBuffer(&RenderingData, &pBatchBuffer));
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         // No match was found - render a new batch buffer
         if (!((PVPHAL_BATCH_BUFFER_PARAMS)pBatchBuffer->pPrivateData)->bMatch)
         {
@@ -6664,6 +6690,7 @@ MOS_STATUS CompositeState::RenderPhase(
                      &RenderingData))
             {
                 VPHAL_RENDER_ASSERTMESSAGE("Failed to render batch buffers.");
+                ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
                 eStatus = MOS_STATUS_UNKNOWN;
                 goto finish;
             }
@@ -6688,7 +6715,7 @@ MOS_STATUS CompositeState::RenderPhase(
     VPHAL_DBG_STATE_DUMPPER_DUMP_GSH(pRenderHal);
     VPHAL_DBG_STATE_DUMPPER_DUMP_SSH(pRenderHal);
     VPHAL_DBG_STATE_DUMPPER_DUMP_BATCH_BUFFER(pRenderHal, pBatchBuffer);
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     VPHAL_RENDER_CHK_STATUS(VpHal_RndrSubmitCommands(
         pRenderHal,
         pBatchBuffer,
@@ -6700,7 +6727,7 @@ MOS_STATUS CompositeState::RenderPhase(
         m_KernelSearch.KernelCount,
         m_KernelSearch.KernelID,
         m_bLastPhase));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
 finish:
     // clean rendering data
     if (bEUFusedDispatchFlag)
@@ -6711,6 +6738,7 @@ finish:
     CleanRenderingData(&RenderingData);
     pRenderHal->bCmfcCoeffUpdate  = false;
     pRenderHal->pCmfcCoeffSurface = nullptr;
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     return eStatus;
 }
 
