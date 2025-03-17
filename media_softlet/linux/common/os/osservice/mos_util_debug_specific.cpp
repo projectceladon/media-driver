@@ -40,7 +40,10 @@
 #include <fcntl.h>     //open
 
 #ifdef ANDROID
-#include <android/log.h>
+// #include <android/log.h>
+#include <log/log.h>
+#undef printf
+#define printf(...) ALOGW(__VA_ARGS__)
 #else
 #include <signal.h>
 #endif // ANDROID
