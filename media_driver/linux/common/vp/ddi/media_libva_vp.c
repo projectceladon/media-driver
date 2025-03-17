@@ -3628,7 +3628,7 @@ VAStatus DdiVp_EndPicture (
     pVpHal  = pVpCtx->pVpHal;
     DDI_CHK_NULL(pVpHal, "Null pVpHal.", VA_STATUS_ERROR_INVALID_PARAMETER);
     eStatus = pVpHal->Render(pVpCtx->pVpHalRenderParams);
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
 #if (_DEBUG || _RELEASE_INTERNAL)
     VpDumpProcPipelineParams(pVaDrvCtx, pVpCtx);
 #endif //(_DEBUG || _RELEASE_INTERNAL)

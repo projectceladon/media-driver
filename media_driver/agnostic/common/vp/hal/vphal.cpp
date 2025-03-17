@@ -648,13 +648,14 @@ MOS_STATUS VphalState::Render(
     if (VpHal_IsAvsSampleForMultiStreamsEnabled(pcRenderParams))
     {
         eStatus = VpHal_RenderWithAvsForMultiStreams(m_renderer, pcRenderParams);
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         goto finish;
     }
 
     // default render of video
     RenderParams.bIsDefaultStream = true;
     eStatus = m_renderer->Render((PCVPHAL_RENDER_PARAMS)(&RenderParams));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
 finish:
     return eStatus;
 }

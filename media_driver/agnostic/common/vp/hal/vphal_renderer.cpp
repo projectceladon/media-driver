@@ -701,13 +701,13 @@ MOS_STATUS VphalRenderer::RenderPass(
 
     RenderPassData.AllocateTempOutputSurfaces();
     RenderPassData.bCompNeeded      = true;
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // Get surface info for all input source
     VPHAL_RENDER_CHK_STATUS(GetSurfaceInfoForSrc(pRenderParams));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // Process render parameters
     VPHAL_RENDER_CHK_STATUS(ProcessRenderParameter(pRenderParams, &RenderPassData));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // Loop through the sources
     for (uiIndex_in = 0; uiIndex_in < pRenderParams->uSrcCount; uiIndex_in++)
     {
@@ -729,7 +729,9 @@ MOS_STATUS VphalRenderer::RenderPass(
         {
             // new 1toN path for multi ouput with scaling only case.
             VPHAL_RENDER_NORMALMESSAGE("Enter fast 1to N render.");
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
             VPHAL_RENDER_CHK_STATUS(RenderFast1toNComposite(pRenderParams, &RenderPassData));
+            ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         }
         else
         {
@@ -778,13 +780,17 @@ MOS_STATUS VphalRenderer::RenderPass(
                     (uiIndex_in == pRenderParams->uSrcCount-1 || // compatible with N:1 case, only render at the last input.
                      pRenderParams->uSrcCount == 0))             // fast color fill
                 {
+                    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
                     VPHAL_RENDER_CHK_STATUS(RenderComposite(pRenderParams, &RenderPassData));
+                    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
                 }
                 else if (VpHal_RndrIsHdrPathNeeded(this, pRenderParams, &RenderPassData) &&
                         (pHdrState &&
                          !pHdrState->bBypassHdrKernelPath))
                 {
+                    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
                     VPHAL_RENDER_CHK_STATUS(VpHal_RndrRenderHDR(this, pRenderParams, &RenderPassData));
+                    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
                 }
             }
             // restore render pointer and count.
@@ -810,8 +816,9 @@ MOS_STATUS VphalRenderer::RenderPass(
             pRenderParams->pSrc[RenderPassData.uiPrimaryIndex] = RenderPassData.pPrimarySurface,
             false /*restore*/);
     }
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
 finish:
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     return eStatus;
 }
 
@@ -951,13 +958,17 @@ MOS_STATUS VphalRenderer::RenderComposite(
         pRenderParams->pTarget[0]->b16UsrPtr) &&
         (VpHal_RndrIs16Align(&Align16State, pRenderParams)))
     {
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         // process 16aligned usrptr mode.
         VPHAL_RENDER_CHK_STATUS(Align16State.pfnRender(&Align16State, pRenderParams));
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     }
     else
     {
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         // fallback to legacy path
         VPHAL_RENDER_CHK_STATUS(pRender[VPHAL_RENDER_ID_COMPOSITE]->Render(pRenderParams, nullptr));
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     }
 
     //------------------------------------------
@@ -969,8 +980,9 @@ MOS_STATUS VphalRenderer::RenderComposite(
         this, pRenderParams->pTarget, VPHAL_MAX_TARGETS,
         pRenderParams->uDstCount, VPHAL_DBG_DUMP_TYPE_POST_COMP);
     //------------------------------------------
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
 finish:
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     return eStatus;
 }
 
@@ -1079,6 +1091,8 @@ bool VphalRenderer::IsFormatSupported(
 MOS_STATUS VphalRenderer::Render(
     PCVPHAL_RENDER_PARAMS   pcRenderParams)
 {
+    return MOS_STATUS_USER_FEATURE_READ_FAILED;
+    ALOGE("lhh %s:%d in", __FUNCTION__,__LINE__);
     MOS_STATUS              eStatus;
     PMOS_INTERFACE          pOsInterface;
     PRENDERHAL_INTERFACE    pRenderHal;
@@ -1108,6 +1122,7 @@ MOS_STATUS VphalRenderer::Render(
     {
         VPHAL_RENDER_ASSERTMESSAGE("Invalid Render Target.");
         eStatus = MOS_STATUS_UNKNOWN;
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         goto finish;
     }
 
@@ -1116,6 +1131,7 @@ MOS_STATUS VphalRenderer::Render(
     {
         VPHAL_RENDER_ASSERTMESSAGE("Invalid Render Target Output Format.");
         eStatus = MOS_STATUS_UNKNOWN;
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         goto finish;
     }
 
@@ -1126,6 +1142,7 @@ MOS_STATUS VphalRenderer::Render(
     {
         VPHAL_RENDER_ASSERTMESSAGE("Invalid number of samples.");
         eStatus = MOS_STATUS_UNKNOWN;
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         goto finish;
     }
 
@@ -1134,6 +1151,7 @@ MOS_STATUS VphalRenderer::Render(
     {
         VPHAL_RENDER_ASSERTMESSAGE("Invalid number of targets.");
         eStatus = MOS_STATUS_UNKNOWN;
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         goto finish;
     }
 
@@ -1222,8 +1240,9 @@ MOS_STATUS VphalRenderer::Render(
 
         VPHAL_RENDER_CHK_STATUS(RenderPass(&RenderParams));
     }
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
 finish:
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     uiFrameCounter++;
     return eStatus;
 }

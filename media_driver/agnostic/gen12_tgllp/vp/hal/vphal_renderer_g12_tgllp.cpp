@@ -106,17 +106,23 @@ MOS_STATUS VphalRendererG12Tgllp::Render(
     if (pcRenderParams->pTarget[0] == nullptr ||
         Mos_ResourceIsNull(&(pcRenderParams->pTarget[0]->OsResource)))
     {
-        VPHAL_RENDER_ASSERTMESSAGE("Invalid Render Target.");
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
+        // VPHAL_RENDER_ASSERTMESSAGE("Invalid Render Target.");
         eStatus = MOS_STATUS_UNKNOWN;
-        goto finish;
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
+        // goto finish;
+        return eStatus;
     }
 
     // Protection mechanism, Only SKL+ support P010 output.
     if (IsFormatSupported(pcRenderParams) == false)
     {
-        VPHAL_RENDER_ASSERTMESSAGE("Invalid Render Target Output Format.");
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
+        // VPHAL_RENDER_ASSERTMESSAGE("Invalid Render Target Output Format.");
         eStatus = MOS_STATUS_UNKNOWN;
-        goto finish;
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
+        // goto finish;
+        return eStatus;
     }
 
     VPHAL_DBG_STATE_DUMP_SET_CURRENT_FRAME_COUNT(uiFrameCounter);
@@ -124,17 +130,23 @@ MOS_STATUS VphalRendererG12Tgllp::Render(
     // Validate max number sources
     if (pcRenderParams->uSrcCount > VPHAL_MAX_SOURCES)
     {
-        VPHAL_RENDER_ASSERTMESSAGE("Invalid number of samples.");
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
+        // VPHAL_RENDER_ASSERTMESSAGE("Invalid number of samples.");
         eStatus = MOS_STATUS_UNKNOWN;
-        goto finish;
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
+        // goto finish;
+        return eStatus;
     }
 
     // Validate max number targets
     if (pcRenderParams->uDstCount > VPHAL_MAX_TARGETS)
     {
-        VPHAL_RENDER_ASSERTMESSAGE("Invalid number of targets.");
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
+        // VPHAL_RENDER_ASSERTMESSAGE("Invalid number of targets.");
         eStatus = MOS_STATUS_UNKNOWN;
-        goto finish;
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
+        // goto finish;
+        return eStatus;
     }
 
     // Copy the Render Params structure (so we can update it)
@@ -148,6 +160,7 @@ MOS_STATUS VphalRendererG12Tgllp::Render(
 
     for (uiDst = 0; uiDst < RenderParams.uDstCount; uiDst++)
     {
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         VPHAL_RENDER_CHK_STATUS(VpHal_GetSurfaceInfo(
             m_pOsInterface,
             &Info,
@@ -174,22 +187,22 @@ MOS_STATUS VphalRendererG12Tgllp::Render(
 
     MOS_ZeroMemory(pSrcLeft,  sizeof(PVPHAL_SURFACE) * VPHAL_MAX_SOURCES);
     MOS_ZeroMemory(pSrcRight, sizeof(PVPHAL_SURFACE) * VPHAL_MAX_SOURCES);
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     VPHAL_RENDER_CHK_STATUS(PrepareSources(
             &RenderParams,
             pSrcLeft,
             pSrcRight,
             &uiRenderPasses));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     //set GpuContext
     VPHAL_RENDER_CHK_STATUS(SetRenderGpuContext(RenderParams));
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     // align rectangle and source surface
     for (uiDst = 0; uiDst < RenderParams.uDstCount; uiDst++)
     {
         VPHAL_RENDER_CHK_STATUS(VpHal_RndrRectSurfaceAlignment(RenderParams.pTarget[uiDst], RenderParams.pTarget[uiDst]->Format));
     }
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     for (uiCurrentRenderPass = 0;
          uiCurrentRenderPass < uiRenderPasses;
          uiCurrentRenderPass++)
@@ -202,7 +215,7 @@ MOS_STATUS VphalRendererG12Tgllp::Render(
             sizeof(PVPHAL_SURFACE) * VPHAL_MAX_SOURCES);
 
         MOS_ZeroMemory(&Info, sizeof(VPHAL_GET_SURFACE_INFO));
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         for (uiDst = 0; uiDst < RenderParams.uDstCount; uiDst++)
         {
             Info.S3dChannel = RenderParams.pTarget[uiDst]->Channel;
@@ -213,16 +226,18 @@ MOS_STATUS VphalRendererG12Tgllp::Render(
                 &Info,
                 RenderParams.pTarget[uiDst]));
         }
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         // Update channel. 0 = mono or stereo left, 1 = stereo right
         uiCurrentChannel = uiCurrentRenderPass;
 
         VPHAL_RENDER_CHK_STATUS(RenderScaling(&RenderParams));
-
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
         VPHAL_RENDER_CHK_STATUS(RenderPass(&RenderParams));
+        ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     }
-
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
 finish:
+    ALOGE("lhh %s:%d, eStatus %d", __FUNCTION__,__LINE__, (int)eStatus);
     uiFrameCounter++;
     return eStatus;
 }
