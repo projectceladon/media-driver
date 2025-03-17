@@ -2782,6 +2782,7 @@ VAStatus DdiMedia_CreateSurfaces2(
 #endif
                     (attrib_list[i].value.value.i == VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR))
                 {
+                    ALOGI("SAPNA, DdiMedia_CreateSurfaces2, VASurfaceAttribMemoryType %x", attrib_list[i].value.value.i);
                     memTypeFlag = attrib_list[i].value.value.i;
                     surfIsUserPtr = (attrib_list[i].value.value.i == VA_SURFACE_ATTRIB_MEM_TYPE_USER_PTR);
                 }
