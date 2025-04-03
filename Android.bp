@@ -1716,6 +1716,7 @@ cc_library_shared {
 
     shared_libs: [
         "libsync",
+        "libcutils",
         "libutils",
         "libdrm",
         "libva",

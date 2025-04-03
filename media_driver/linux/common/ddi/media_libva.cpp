@@ -75,6 +75,10 @@
 #include "media_libva_caps_next.h"
 #endif
 
+#if defined(ANDROID)
+#include <cutils/properties.h>
+#endif
+
 #define BO_BUSY_TIMEOUT_LIMIT 100
 
 #ifdef __cplusplus
@@ -1566,8 +1570,62 @@ void DestroyMediaContextMutex(PDDI_MEDIA_CONTEXT mediaCtx)
     return;
 }
 
+static int DdiMedia_IsIntelDgpu(int fd)
+{
+    struct drm_i915_query_item item = {
+        .query_id = DRM_I915_QUERY_MEMORY_REGIONS,
+    };
+
+    struct drm_i915_query query = {
+        .num_items = 1, .items_ptr = (uintptr_t)&item,
+    };
+    if (drmIoctl(fd, DRM_IOCTL_I915_QUERY, &query)) {
+        DDI_NORMALMESSAGE("drv: Failed to DRM_IOCTL_I915_QUERY");
+        return 0;
+    }
+
+    struct drm_i915_query_memory_regions *meminfo = (struct drm_i915_query_memory_regions *)calloc(1, item.length);
+    if (!meminfo) {
+        DDI_NORMALMESSAGE("drv: %s Exit due to memory allocation failure", __func__);
+        return 0;
+    }
+
+    item.data_ptr = (uintptr_t)meminfo;
+    if (drmIoctl(fd, DRM_IOCTL_I915_QUERY, &query) || item.length <= 0) {
+        free(meminfo);
+        DDI_NORMALMESSAGE("%s:%d DRM_IOCTL_I915_QUERY error", __FUNCTION__, __LINE__);
+        return 0;
+    }
+
+    int has_sys = 0, has_local = 0;
+    for (uint32_t i = 0; i < meminfo->num_regions; i++) {
+        const struct drm_i915_memory_region_info *mem = &meminfo->regions[i];
+        switch (mem->region.memory_class) {
+        case I915_MEMORY_CLASS_SYSTEM:
+            has_sys = 1;
+            break;
+        case I915_MEMORY_CLASS_DEVICE:
+            has_local = 1;
+            break;
+        default:
+            break;
+        }
+    }
+
+    free(meminfo);
+    return has_local;
+}
+
 static int DdiMedia_SelectIntelDevice()
 {
+    int use_dgpu = 1;
+#if defined(ANDROID)
+    char value[PROPERTY_VALUE_MAX] = {};
+
+    property_get("video.hw.dgpu", value, "1");
+    use_dgpu = atoi(value);
+#endif
+
     int intel_gpu_index = -1;
     for (int i = 0; i < 16; ++i) {
         char device_path[64];
@@ -1583,9 +1641,21 @@ static int DdiMedia_SelectIntelDevice()
         }
         if (strncmp(version->name, "i915", strlen("i915")) == 0) {
             intel_gpu_index = i;
-            drmFreeVersion(version);
-            close(temp);
-            break;
+            // If specify to use dgpu and found dgpu, return the first found dgpu,
+	    // else if specify to use igpu and found igpu, return the first found igpu,
+            // otherwise use the last available intel node for codec
+            if (use_dgpu && DdiMedia_IsIntelDgpu(temp)) {
+                DDI_NORMALMESSAGE("%s:%d find dgpu", __FUNCTION__, __LINE__);
+                drmFreeVersion(version);
+                close(temp);
+                break;
+            }
+	    if (!use_dgpu && !DdiMedia_IsIntelDgpu(temp)) {
+                DDI_NORMALMESSAGE("%s:%d find igpu", __FUNCTION__, __LINE__);
+                drmFreeVersion(version);
+                close(temp);
+                break;
+            }
         }
         drmFreeVersion(version);
         close(temp);
@@ -1612,7 +1682,7 @@ VAStatus DdiMedia_GetDeviceFD (
             return VA_STATUS_ERROR_INVALID_PARAMETER;
         }
         char device_name[64];
-        sprintf(device_name, "/dev/dri/renderD%d\n", device_id);
+        sprintf(device_name, "/dev/dri/renderD%d\n", device_id + 128);
         pDRMState->fd = DdiMediaUtil_OpenGraphicsAdaptor((char *)device_name);
         if (pDRMState->fd < 0) {
             DDI_ASSERTMESSAGE("DDI: Still failed to open the graphic adaptor, return failure");
