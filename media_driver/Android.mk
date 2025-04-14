@@ -579,6 +579,7 @@ LOCAL_SRC_FILES := \
     ../media_softlet/linux/common/os/i915/xf86drmRandom.c \
     ../media_softlet/linux/common/os/i915_production/mos_bufmgr.c \
     ../media_softlet/linux/common/os/i915_production/mos_bufmgr_prelim.cpp \
+    ../media_softlet/linux/common/os/xe/mos_synchronization_xe.c \
     ../media_softlet/linux/common/os/mos_auxtable_mgr.cpp \
     ../media_softlet/linux/common/os/mos_commandbuffer_specific_next.cpp \
     ../media_softlet/linux/common/os/mos_context_specific_next.cpp \
@@ -1949,6 +1950,7 @@ LOCAL_C_INCLUDES  = \
     $(LOCAL_PATH)/../media_softlet/linux/common/os/i915/include \
     $(LOCAL_PATH)/../media_softlet/linux/common/os/i915_production/include \
     $(LOCAL_PATH)/../media_softlet/linux/common/os/i915_production \
+    $(LOCAL_PATH)/../media_softlet/linux/common/os/xe/include \
     $(LOCAL_PATH)/../media_softlet/linux/common/os \
     $(LOCAL_PATH)/../media_softlet/linux/common/cp/ddi \
     $(LOCAL_PATH)/../media_softlet/linux/common/cp \
