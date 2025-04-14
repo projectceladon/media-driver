@@ -1,6 +1,6 @@
 [KEY]
     0x00000001
-    UFKEY_INTERNAL\
+    UFKEY_INTERNAL\Report
         [VALUE]
             Perf Profiler Enable
             4
@@ -13,3 +13,7 @@
             Perf Profiler Buffer Size
             4
             512000000
+        [VALUE]
+            Status Reporting
+            4
+            1
