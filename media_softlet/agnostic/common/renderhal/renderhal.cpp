@@ -4480,6 +4480,7 @@ PRENDERHAL_MEDIA_STATE RenderHal_AssignMediaState(
         {
             MHW_RENDERHAL_ASSERTMESSAGE("Timeout for waiting free media state.");
             pStateHeap->pCurMediaState = pCurMediaState = nullptr;
+            ALOGE("lhh %s:%d Timeout for waiting free media state", __FUNCTION__,__LINE__);
             return pCurMediaState;
         }
     }

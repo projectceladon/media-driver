@@ -4271,6 +4271,7 @@ MOS_STATUS Mos_Specific_SubmitCommandBuffer(
 
     if (pOsInterface->apoMosEnabled)
     {
+        ALOGE("lhh %s:%d", __FUNCTION__,__LINE__);
         return MosInterface::SubmitCommandBuffer(pOsInterface->osStreamState, pCmdBuffer, bNullRendering);
     }
 
@@ -4283,10 +4284,11 @@ MOS_STATUS Mos_Specific_SubmitCommandBuffer(
         GpuCmdResInfoDump::GetInstance(pOsInterface->pOsContext)->Dump(pOsInterface);
         GpuCmdResInfoDump::GetInstance(pOsInterface->pOsContext)->ClearCmdResPtrs(pOsInterface);
     #endif // MOS_COMMAND_RESINFO_DUMP_SUPPORTED
-
+        ALOGE("lhh %s:%d", __FUNCTION__,__LINE__);
         return (gpuContext->SubmitCommandBuffer(pOsInterface, pCmdBuffer, bNullRendering));
     }
     MOS_OS_ASSERTMESSAGE("Not support this path");
+    ALOGE("lhh %s:%d", __FUNCTION__,__LINE__);
     return MOS_STATUS_UNIMPLEMENTED;
 }
 
