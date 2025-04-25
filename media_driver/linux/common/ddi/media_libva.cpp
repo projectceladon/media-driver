@@ -1622,7 +1622,7 @@ static int DdiMedia_SelectIntelDevice()
 #if defined(ANDROID)
     char value[PROPERTY_VALUE_MAX] = {};
 
-    property_get("video.hw.dgpu", value, "1");
+    property_get("vendor.video.hw.dgpu", value, "1");
     use_dgpu = atoi(value);
 #endif
 
@@ -1645,6 +1645,12 @@ static int DdiMedia_SelectIntelDevice()
             // otherwise use the last available intel node for codec
             if (use_dgpu && DdiMedia_IsIntelDgpu(temp)) {
                 DDI_NORMALMESSAGE("%s:%d find dgpu", __FUNCTION__, __LINE__);
+                drmFreeVersion(version);
+                close(temp);
+                break;
+            }
+            if (!use_dgpu && !DdiMedia_IsIntelDgpu(temp)) {
+                DDI_NORMALMESSAGE("%s:%d find igpu", __FUNCTION__, __LINE__);
                 drmFreeVersion(version);
                 close(temp);
                 break;
