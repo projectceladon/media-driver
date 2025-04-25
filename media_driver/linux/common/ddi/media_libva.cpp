@@ -1618,12 +1618,23 @@ static int DdiMedia_IsIntelDgpu(int fd)
 
 static int DdiMedia_SelectIntelDevice()
 {
-    int use_dgpu = 1;
+    int use_dgpu = 0;
 #if defined(ANDROID)
-    char value[PROPERTY_VALUE_MAX] = {};
-
-    property_get("video.hw.dgpu", value, "1");
-    use_dgpu = atoi(value);
+    FILE *file;
+    int value;
+    char prop[PROPERTY_VALUE_MAX] = {};
+    file = fopen("/vendor/etc/dgpu-codec.cfg", "r");
+    if (file) {
+        while (fscanf(file, "%49s %d", prop, &value) == 2) {
+            if (!strcmp(prop, "vendor.video.hw.dgpu")) {
+                use_dgpu = value;
+            }
+        }
+        fclose(file);
+    } else {
+        property_get("vendor.video.hw.dgpu", prop, "1");
+        use_dgpu = atoi(prop);
+    }
 #endif
 
     int intel_gpu_index = -1;
